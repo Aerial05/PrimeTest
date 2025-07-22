@@ -1,0 +1,78 @@
+.container {
+  width: 400px;
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.formBox {
+  display: block;
+}
+
+.inputGroup {
+  margin-bottom: 15px;
+}
+
+.inputGroup label {
+  display: block;
+  color: #34495e;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.inputGroup input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bdc3c7;
+  border-radius: 5px;
+  outline: none;
+  font-size: 16px;
+  color: #2c3e50;
+  background-color: #ecf0f1;
+}
+
+.inputGroup input:focus {
+  border-color: #3498db;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #6d28d9;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+  background-color: #8b5cf6;
+  box-shadow: 0 6px 8px rgba(139, 92, 246, 0.5);
+}
+
+.toggleLink {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.toggleLink a {
+  color: #6d28d9;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.toggleLink a:hover {
+  color: #8b5cf6;
+  text-decoration: underline;
+}
+
+@media (max-width: 480px) {
+  .container {
+    width: 90%;
+    padding: 20px;
+  }
+}

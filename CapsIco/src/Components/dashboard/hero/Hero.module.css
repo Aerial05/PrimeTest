@@ -1,0 +1,42 @@
+.hero {
+  background: linear-gradient(to bottom right, #a78bfa, #fce7f3, #a78bfa);
+  padding: 3rem 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.left {
+  flex: 1;
+  padding-right: 2rem;
+}
+
+.right {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+}
+
+.title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: #4c1d95;
+}
+
+.subtitle {
+  font-size: 1.2rem;
+  color: #4b5563;
+}
+
+.image {
+  width: 300px;
+  height: auto;
+}

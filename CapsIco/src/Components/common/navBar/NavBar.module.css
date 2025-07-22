@@ -1,0 +1,61 @@
+.nav {
+  background-color: #8b5cf6; /* Tailwind's purple-500 */
+  color: white;
+  padding: 1rem 0;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.left {
+  display: flex;
+  gap: 2rem;
+}
+
+.right {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
+.navLink {
+  color: white;
+  text-decoration: none;
+}
+
+.navLink:hover {
+  color: #ddd6fe; /* Tailwind's purple-200 */
+}
+
+.btnIcon {
+  background-color: transparent;
+  border: none;
+  color: white;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 9999px;
+}
+
+.btnAppointment {
+  background-color: #dbeafe;
+  color: #8b5cf6;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+.btnLogout {
+  background-color: #ec4899;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  cursor: pointer;
+}

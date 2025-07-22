@@ -1,0 +1,134 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Arial', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to bottom right, #a78bfa, #fce7f3, #a78bfa);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  color: #333;
+}
+
+.login-logo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.login-logo img {
+  width: 200px;
+  height: 100px;
+  margin-bottom: 20px;
+  align-self: start;
+}
+
+.container {
+  width: 400px;
+  background-color: #ffffff;
+  padding: 40px;
+  border-radius: 10px;
+  box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+h2 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 20px;
+}
+
+.input-group {
+  margin-bottom: 15px;
+}
+
+.input-group label {
+  display: block;
+  color: #34495e;
+  margin-bottom: 5px;
+  font-weight: bold;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #bdc3c7;
+  border-radius: 5px;
+  outline: none;
+  font-size: 16px;
+  color: #2c3e50;
+  background-color: #ecf0f1;
+}
+
+.input-group input:focus {
+  border-color: #3498db;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #6d28d9;
+  color: #ffffff;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.btn:hover {
+  background-color: #8b5cf6;
+  box-shadow: 0 6px 8px rgba(139, 92, 246, 0.5);
+}
+
+.toggle-link {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.toggle-link a {
+  color: #6d28d9;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.toggle-link .p2 {
+  margin-top: 100px;
+  color: #6d28d9;
+  font-weight: lighter;
+  text-decoration: none;
+}
+
+.toggle-link a:hover {
+  color: #8b5cf6;
+  text-decoration: underline;
+}
+
+.form-box {
+  display: none;
+}
+
+.form-box.active {
+  display: block;
+}
+
+@media (max-width: 480px) {
+  .container {
+    width: 90%;
+    padding: 20px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+}

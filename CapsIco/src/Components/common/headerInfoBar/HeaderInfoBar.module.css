@@ -1,0 +1,76 @@
+.siteHeader {
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.headerContent {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+}
+
+.logoIcon {
+  width: 28px;
+  height: 28px;
+  color: #8b5cf6;
+}
+
+.brandName {
+  font-weight: bold;
+  font-size: 1.25rem;
+}
+
+.textPrimary {
+  color: #8b5cf6;
+}
+
+.textSecondary {
+  color: #ec4899;
+}
+
+.contactInfo {
+  display: flex;
+  gap: 2rem;
+}
+
+.infoItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.infoIcon {
+  width: 20px;
+  height: 20px;
+  color: #6b7280;
+}
+
+.infoText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+
+.infoLabel {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.infoValue {
+  font-size: 0.875rem;
+  color: #111827;
+  text-decoration: none;
+}
