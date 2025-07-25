@@ -1,7 +1,7 @@
-// LoginForm.jsx
+
 import React from 'react';
 import { Link } from 'react-router-dom';
-import styles from "./Login.module.css"; // Importing the CSS module
+import styles from "./Login.module.css"; 
 
 export function LoginForm() {
     return (

@@ -1,0 +1,92 @@
+.footer {
+  background-color: #8b5cf6;
+  color: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+}
+
+.footerGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+.brand {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.sectionTitle {
+  font-size: 1.2rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.linkList {
+  list-style: none;
+  padding: 0;
+}
+
+.linkList li + li {
+  margin-top: 0.5rem;
+}
+
+.link {
+  color: white;
+  text-decoration: none;
+}
+
+.link:hover {
+  color: #ddd6fe;
+}
+
+.newsletterForm {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.input {
+  flex-grow: 1;
+  padding: 0.5rem;
+  border: none;
+  border-radius: 0.25rem;
+}
+
+.button {
+  background-color: #dbeafe;
+  color: #8b5cf6;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+}
+
+.note {
+  margin-top: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.socialContainer {
+  margin-top: 1rem;
+}
+
+.socialLinks {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.footerBottom {
+  margin-top: 2rem;
+  text-align: center;
+  border-top: 1px solid #a78bfa;
+  padding-top: 1rem;
+}
+
+@media (min-width: 768px) {
+  .footerGrid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

@@ -2,7 +2,7 @@ import styles from './HeaderInfoBar.module.css';
 import { Activity, Phone, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-export default function HeaderInfoBar() {
+export function HeaderInfoBar() {
   return (
     <header className={styles.siteHeader}>
       <div className={styles.container}>
