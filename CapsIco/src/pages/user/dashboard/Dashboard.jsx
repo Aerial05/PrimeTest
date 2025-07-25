@@ -1,7 +1,7 @@
-import {HeaderInfoBar} from '/src/Components/tempuser/HeaderInfoBar/HeaderInfoBar';
-import {NavBar} from '/src/Components/tempuser/NavBar/NavBar';
-import {Hero} from '/src/Components/tempuser/dashboard/Hero/Hero';
-import {BookingCard} from '/src/Components/tempuser/dashboard/BookingCard/BookingCard';
+import {HeaderInfoBar} from '/src/components/user/HeaderInfoBar/HeaderInfoBar';
+import {NavBar} from '/src/components/user/NavBar/NavBar';
+import {Hero} from '/src/components/user/dashboard/Hero/Hero';
+import {BookingCard} from '/src/components/user/dashboard/BookingCard/BookingCard';
 
 export function Dashboard() {
   return (

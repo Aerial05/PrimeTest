@@ -1,14 +1,14 @@
 import {HeaderInfoBar} from '@/Components/user/headerInfoBar/HeaderInfoBar';
 import {NavBar} from '@/Components/user/navBar/NavBar';
-import {AboutContent} from '@/Components/user/aboutContent/AboutContent';
+import {ContactInfoGrid} from '@/Components/user/contact/contactInfoGrid/ContactInfoGrid';
 import {Footer} from '@/Components/user/footer/Footer';
 
-export function AboutUs() {
+export function Contact() {
   return (
     <>
       <HeaderInfoBar />
       <NavBar />
-      <AboutContent />
+      <ContactInfoGrid />
       <Footer />
     </>
   );

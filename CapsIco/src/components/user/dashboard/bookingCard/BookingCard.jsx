@@ -3,9 +3,10 @@ import styles from './BookingCard.module.css';
 export function BookingCard() {
   return (
     <div className={styles.container}>
-      <a href="/appointment">
+      
         <div className={styles.card}>
-          <span className={styles.text}>Book an Appointment</span>
+          <a href="/appointment">
+          <span className={styles.text}>Click here to book an Appointment!</span>
           <div className={styles.iconContainer}>
             <svg
               className={styles.icon}
@@ -21,8 +22,8 @@ export function BookingCard() {
               />
             </svg>
           </div>
+          </a>
         </div>
-      </a>
     </div>
   );
 }
