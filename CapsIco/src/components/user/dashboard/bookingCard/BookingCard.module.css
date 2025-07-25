@@ -1,16 +1,15 @@
 .container {
-  display: grid;
+  display: block;
   place-items: center;
   margin-top: 3rem; /* mt-12 */
 }
 
 .card {
   background-color: #c084fc; /* bg-purple-400 */
+  place-items: center;
   padding: 1.5rem;
   border-radius: 0.5rem;
-  display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   width: 100%;
   max-width: 1000px;
@@ -25,6 +24,7 @@
   color: white;
   font-weight: 500;
   font-size: 1rem;
+  
 }
 
 .iconContainer {
