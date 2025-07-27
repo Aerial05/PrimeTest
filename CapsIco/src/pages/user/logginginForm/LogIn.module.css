@@ -1,18 +1,12 @@
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-  font-family: 'Arial', sans-serif;
-}
 
 body {
+  padding: 0;
   margin: 0;
   font-family: Arial, sans-serif;
   background: linear-gradient(to bottom right, #a78bfa, #fce7f3, #a78bfa);
   background-attachment: fixed;
   background-repeat: no-repeat;
   background-size: cover;
-  display: flex;
   justify-content: center;
   align-items: center;
   min-height: 100vh;

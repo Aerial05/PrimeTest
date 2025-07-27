@@ -1,0 +1,319 @@
+/* appointment.module.css */
+
+/* Base styles */
+:root {
+    --primary: #8b5cf6;
+    --primary-light: #a78bfa;
+    --secondary: #ec4899;
+    --text-dark: #1f2937;
+    --text-light: #6b7280;
+}
+
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+    color: var(--text-dark);
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1rem;
+}
+
+/* Header styles */
+.siteHeader {
+    background-color: #ffffff;
+    padding: 1rem 0;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.headerContent {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.logoLink {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: inherit;
+}
+
+.logoIcon {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: 0.5rem;
+    color: var(--primary);
+}
+
+.brandName {
+    font-size: 1.25rem;
+    font-weight: bold;
+    letter-spacing: 0.025em;
+}
+
+.textPrimary {
+    color: var(--secondary);
+}
+
+.textSecondary {
+    color: var(--primary);
+}
+
+.contactInfo {
+    display: flex;
+    gap: 2rem;
+}
+
+.infoItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.infoIcon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--primary);
+}
+
+.infoText {
+    display: flex;
+    flex-direction: column;
+}
+
+.infoLabel {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    text-transform: uppercase;
+}
+
+.infoValue {
+    font-size: 0.875rem;
+    color: var(--text-dark);
+    text-decoration: none;
+}
+
+/* Navigation styles */
+.bgPurple500 {
+    background-color: var(--primary);
+}
+
+.textWhite {
+    color: white;
+}
+
+.navContent {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    height: 4rem;
+}
+
+.navLinks {
+    display: flex;
+    gap: 2rem;
+}
+
+.navActions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.btnIcon {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.btnAppointment {
+    background-color: white;
+    color: var(--primary);
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.btnAppointment:hover {
+    background-color: var(--primary-light);
+    color: white;
+}
+
+.btnLogout {
+    background-color: #EC4899;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 9999px;
+    cursor: pointer;  
+}
+
+/* Main content styles */
+.bgGradientPurple {
+    background: linear-gradient(to bottom right, #a78bfa, #fce7f3, #a78bfa);
+    min-height: calc(100vh - 80px);
+}
+
+.py8 {
+    padding-top: 2rem;
+    padding-bottom: 2rem;
+}
+
+.pageTitle {
+    color: white;
+    font-size: 2.5rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.appointmentContainer {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2rem;
+    border-radius: 1rem;
+}
+
+/* Form styles */
+.appointmentForm {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+}
+
+.formTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--primary);
+}
+
+.formDescription {
+    color: var(--text-light);
+    margin-bottom: 2rem;
+}
+
+.formGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+}
+
+.formGroup label {
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--text-dark);
+}
+
+.formInput {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    box-sizing: border-box;
+}
+
+.fullWidth {
+    grid-column: 1 / -1;
+}
+
+.submitBtn {
+    background-color: var(--primary);
+    color: white;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    width: 100%;
+    font-weight: bold;
+}
+
+/* Schedule styles */
+.scheduleSection {
+    background-color: white;
+    padding: 2rem;
+    border-radius: 1rem;
+}
+
+.scheduleTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: var(--primary);
+}
+
+.scheduleTable {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.scheduleRow {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.emergencyContact {
+    margin-top: 2rem;
+    text-align: center;
+    background-color: var(--primary-light);
+    color: white;
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .headerContent {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .contactInfo {
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .appointmentContainer {
+        grid-template-columns: 1fr;
+    }
+
+    .formGrid {
+        grid-template-columns: 1fr;
+    }
+
+    .navContent {
+        flex-direction: column;
+        height: auto;
+        padding: 1rem 0;
+    }
+
+    .navLinks {
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .navActions {
+        width: 100%;
+        justify-content: center;
+    }
+}

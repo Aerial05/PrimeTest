@@ -1,26 +1,42 @@
-import React from 'react';
+import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Dashboard } from './Pages/user/dashboard/Dashboard'; 
-import { LoginForm } from './Pages/user/logginginForm/LoginForm'; // Adjust the import path as necessary
-import { RegisterForm } from './Pages/user/registeringForm/RegisterForm'; // Adjust the import path as necessary
-import { AboutUs } from './Pages/user/aboutUs/AboutUs';
-import { Contact } from './Pages/user/contact/Contact';
 
+{
+  // USER
+}
+import { Dashboard } from "./pages/user/dashboard/Dashboard";
+import { LoginForm } from "./pages/user/logginginForm/LoginForm"; // Adjust the import path as necessary
+import { RegisterForm } from "./pages/user/registeringForm/RegisterForm"; // Adjust the import path as necessary
+import { AboutUs } from "./pages/user/aboutUs/AboutUs";
+import { Contact } from "./pages/user/contact/Contact";
+import { BookAppointment } from "./components/user/bookAppointment/BookAppointment";
+
+{
+  // ADMIN
+}
+import { StaffApointmentPending } from "./pages/admin/appointmentRequest/StaffApointmentPending";
 
 export default function App() {
-    return (
-        <BrowserRouter>
-            
-                <Routes>
-                    <Route path="/" element={<Dashboard />} />
-                    <Route path="/register" element={<RegisterForm />} />
-                    <Route path="/login" element={<LoginForm />} />
-                    <Route path="/about" element={<AboutUs />} />
-                    <Route path="/contact" element={<Contact />} />
+  return (
+    <BrowserRouter>
+      <Routes>
+        {
+          // USER
+        }
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/register" element={<RegisterForm />} />
+        <Route path="/login" element={<LoginForm />} />
+        <Route path="/about" element={<AboutUs />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/book-appointment" element={<BookAppointment />} />
 
-                    
-                </Routes>
-            
-        </BrowserRouter>
-    );
+        {
+          // ADMIN
+        }
+        <Route path="/StaffApointmentPending" element={<StaffApointmentPending />} />
+
+        {}
+      </Routes>
+    </BrowserRouter>
+  );
 }
