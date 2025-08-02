@@ -1,8 +1,6 @@
 import React, { useState } from 'react';
 import styles from './StaffApointmentPending.module.css';
-import { HeaderInfoBar } from '/src/components/user/HeaderInfoBar/HeaderInfoBar';
-import { NavBar } from '/src/components/user/NavBar/NavBar';
-import { Footer } from '@/Components/user/footer/Footer';
+
 
 export function StaffApointmentPending() {
     const [appointments, setAppointments] = useState([
@@ -58,8 +56,6 @@ export function StaffApointmentPending() {
     return (
         <div className={styles.container}>
             <header className={styles.siteHeader}>
-                <HeaderInfoBar />
-                <NavBar />
                 
             </header>
             <main className={styles.mainContent}>
@@ -134,7 +130,7 @@ export function StaffApointmentPending() {
                     </table>
                 </div>
             </main>
-            <Footer />
+
         </div>
     );
 }
