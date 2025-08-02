@@ -1,0 +1,357 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
+
+:root {
+  --primary-color: #6d28d9;
+  --primary-light: #8b5cf6;
+  --secondary-color: #ec4899;
+  --secondary-light: #f472b6;
+  --text-dark: #1f2937;
+  --text-light: #6b7280;
+  --bg-light: #f9fafb;
+  --bg-dark: #f3f4f6;
+}
+
+/* Wrapper */
+.pageWrapper {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(to bottom right, #a78bfa, #ec4899);
+  padding: 40px 20px;
+}
+
+/* Box */
+.formBox {
+  background: #fff;
+  padding: 40px;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Header */
+.formHeader {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.logo h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.logo h1 span {
+  color: var(--primary-color);
+}
+
+.tagline {
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+/* Info card */
+.infoCard {
+    display: flex;
+    align-items: center;
+    background: linear-gradient(to right, rgba(139, 92, 246, 0.1), rgba(244, 114, 182, 0.1));
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 25px;
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+}
+
+.infoIcon {
+    width: 50px;
+    height: 50px;
+    background-color: rgba(109, 40, 217, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.infoContent h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 5px;
+}
+
+.infoContent p {
+  font-size: 14px;
+  color: var(--text-light);
+}
+
+.compact {
+  align-items: center;
+
+}
+
+/* Input Groups */
+.inputGroup {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.inputIcon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+.inputField input {
+  width: 100%;
+  padding: 12px 12px 12px 36px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+}
+
+.inputField label {
+  position: absolute;
+  top: -10px;
+  left: 36px;
+  font-size: 12px;
+  background: #fff;
+  padding: 0 4px;
+  color: var(--text-light);
+}
+
+/* Password toggle */
+.passwordToggle {
+  position: absolute; 
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--text-light);
+  z-index: 1;
+}
+
+.passwordToggle:hover {
+  color: var(--primary-color);
+}
+
+/* Button */
+.btn {
+  width: 100%;
+  background-color: var(--primary-color);
+  border: none;
+  padding: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  transition: 0.3s ease;
+}
+
+.btn:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(109, 40, 217, 0.2);
+}
+
+.btnIcon i {
+  font-size: 16px;
+}
+
+.btnText {
+  font-size: 14px;
+}
+
+/* Specific buttons */
+.registerBtn {
+  background-color: var(--secondary-color);
+}
+
+.registerBtn:hover {
+  background-color: var(--secondary-light);
+  box-shadow: 0 6px 12px rgba(236, 72, 153, 0.2);
+}
+
+.forgotBtn {
+  background-color: var(--secondary-color);
+}
+
+.forgotBtn:hover {
+  background-color: var(--secondary-light);
+  box-shadow: 0 6px 12px rgba(236, 72, 153, 0.2);
+}
+
+.resetBtn {
+  background-color: var(--primary-color);
+}
+
+.resetBtn:hover {
+  background-color: var(--primary-light);
+  box-shadow: 0 6px 12px rgba(109, 40, 217, 0.2);
+}
+
+/* Form Rows */
+.formRow {
+  display: flex;
+  gap: 16px;
+  width:100%;
+}
+
+.half {
+  width: 100%;
+}
+
+/* Terms and Policy */
+.termsPrivacy {
+  font-size: 12px;
+  color: var(--text-light);
+  margin: 8px 0 16px;
+}
+
+.termsPrivacy a {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+/* Toggle link */
+.toggleLink {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.toggleLink a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+/* Verification Inputs */
+.verificationInputs {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.codeInput {
+  width: 40px;
+  height: 50px;
+  text-align: center;
+  font-size: 18px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+/* Form Icon Header */
+.formIconHeader {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.formIconCircle {
+  width: 70px;
+  height: 70px;
+  background-color: rgba(109, 40, 217, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+}
+
+.formIconCircle i {
+  font-size: 30px;
+  color: var(--primary-color);
+}
+
+/* Error message */
+.errorText {
+  color: red;
+  font-size: 13px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+
+
+/*
+REMEMBER ME CSS
+*/
+
+
+.rememberForgot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rememberMe {
+  display: flex;
+  align-items: center;
+}
+
+.rememberMe input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-right: 8px;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.rememberMe input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.rememberMe input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  color: white;
+  font-size: 12px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.rememberMe label {
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 14px;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: all var(--transition-speed);
+}
+
+.forgotLink:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}

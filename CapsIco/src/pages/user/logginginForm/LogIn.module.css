@@ -1,26 +1,11 @@
-
-body {
-  padding: 0;
-  margin: 0;
-  font-family: Arial, sans-serif;
-  background: linear-gradient(to bottom right, #a78bfa, #fce7f3, #a78bfa);
-  background-attachment: fixed;
-  background-repeat: no-repeat;
-  background-size: cover;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  color: #333;
-}
-
-.login-logo {
+.loginLogo {
   display: flex;
   justify-content: center;
   align-items: center;
   margin-bottom: 20px;
 }
 
-.login-logo img {
+.loginLogo img {
   width: 200px;
   height: 100px;
   margin-bottom: 20px;
@@ -41,18 +26,18 @@ h2 {
   margin-bottom: 20px;
 }
 
-.input-group {
+.inputGroup {
   margin-bottom: 15px;
 }
 
-.input-group label {
+.inputGroup label {
   display: block;
   color: #34495e;
   margin-bottom: 5px;
   font-weight: bold;
 }
 
-.input-group input {
+.inputGroup input {
   width: 100%;
   padding: 10px;
   border: 1px solid #bdc3c7;
@@ -63,7 +48,7 @@ h2 {
   background-color: #ecf0f1;
 }
 
-.input-group input:focus {
+.inputGroup input:focus {
   border-color: #3498db;
 }
 
@@ -85,34 +70,34 @@ h2 {
   box-shadow: 0 6px 8px rgba(139, 92, 246, 0.5);
 }
 
-.toggle-link {
+.toggleLink {
   margin-top: 20px;
   text-align: center;
 }
 
-.toggle-link a {
+.toggleLink a {
   color: #6d28d9;
   text-decoration: none;
   font-weight: bold;
 }
 
-.toggle-link .p2 {
+.toggleLink .p2 {
   margin-top: 100px;
   color: #6d28d9;
   font-weight: lighter;
   text-decoration: none;
 }
 
-.toggle-link a:hover {
+.toggleLink a:hover {
   color: #8b5cf6;
   text-decoration: underline;
 }
 
-.form-box {
+.formBox {
   display: none;
 }
 
-.form-box.active {
+.formBox.active {
   display: block;
 }
 
@@ -125,4 +110,66 @@ h2 {
   h2 {
     font-size: 22px;
   }
+}
+
+/*
+REMEMBER
+*/
+
+.rememberForgot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rememberMe {
+  display: flex;
+  align-items: center;
+}
+
+.rememberMe input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-right: 8px;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.rememberMe input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.rememberMe input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  color: white;
+  font-size: 12px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.rememberMe label {
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 14px;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: all var(--transition-speed);
+}
+
+.forgotLink:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
 }

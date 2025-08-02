@@ -1,0 +1,46 @@
+/*
+    UNIVERSAL CSS SHALL BE PLACED HERE
+*/
+
+
+
+body {
+  padding: 0;
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(to bottom right, #a78bfa, #fce7f3, #a78bfa);
+  background-attachment: fixed;
+  background-repeat: no-repeat;
+  background-size: cover;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  color: #333;
+}
+
+
+/*
+    THIS SHIT IS FOR FORM FIELDS TO NOT SPILL
+*/
+
+* {
+  box-sizing: border-box;
+
+
+
+--primary-color: #6d28d9;
+    --primary-light: #8b5cf6;
+    --primary-dark: #5b21b6;
+    --secondary-color: #ec4899;
+    --secondary-light: #f472b6;
+    --text-dark: #1e293b;
+    --text-light: #64748b;
+    --background-light: #ffffff;
+    --background-dark: #f8fafc;
+    --error-color: #ef4444;
+    --success-color: #10b981;
+    --border-color: #e2e8f0;
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --transition-speed: 0.3s;
+
+}

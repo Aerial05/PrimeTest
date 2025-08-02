@@ -1,15 +1,12 @@
-import {HeaderInfoBar} from '@/Components/user/headerInfoBar/HeaderInfoBar';
-import {NavBar} from '@/Components/user/navBar/NavBar';
+
 import {AboutContent} from '@/Components/user/aboutContent/AboutContent';
-import {Footer} from '@/Components/user/footer/Footer';
+
 
 export function AboutUs() {
   return (
     <>
-      <HeaderInfoBar />
-      <NavBar />
       <AboutContent />
-      <Footer />
+
     </>
   );
 }
