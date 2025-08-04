@@ -1,0 +1,60 @@
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff;
+  padding: 1rem 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.logoLink {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: inherit;
+}
+
+.logoIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  color: #8b5cf6;
+}
+
+.brandName {
+  font-size: 1.25rem;
+  font-weight: bold;
+  letter-spacing: 0.025em;
+}
+
+.textPrimary {
+  color: #8b5cf6;
+}
+
+.textSecondary {
+  color: #ec4899;
+}
+
+.navList {
+  display: flex;
+  gap: 2rem;
+  list-style: none;
+}
+
+.navList a {
+  text-decoration: none;
+  color: #333;
+  font-weight: 500;
+}
+
+.active {
+  color: #8b5cf6;
+  font-weight: bold;
+}
+
+.userInfo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+}
