@@ -1,0 +1,64 @@
+.banner {
+  background: linear-gradient(to right, #a78bfa, #fce7f3);
+  padding: 2rem 0;
+  text-align: center;
+  color: white;
+}
+
+.bannerContainer p {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.bannerContainer h1 {
+  margin: 0.5rem 0 0;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.main {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.card {
+  background-color: #ffffff;
+  padding: 2rem;
+  border-radius: 1rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  margin-bottom: 2rem;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.cardHeader h2 {
+  font-size: 1.5rem;
+  color: #8b5cf6;
+  margin: 0;
+}
+
+.btn {
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0.6rem 1rem;
+  transition: background-color 0.3s ease;
+}
+
+.btnPrimary {
+  background-color: #8b5cf6;
+  color: white;
+}
+
+.btnPrimary:hover {
+  background-color: #7c3aed;
+}

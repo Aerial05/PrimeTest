@@ -19,18 +19,26 @@ import { Appointment } from "./pages/user/bookAppointment/Appointment";
 {
   // ADMIN
 }
-import { StaffApointmentPending } from "./pages/admin/appointmentRequest/StaffApointmentPending";
+import { StaffManagement } from "./pages/admin/staffManagement/StaffManagement";
+
 
 //Components
 import { NavBar } from "./components/common/navBar/NavBar";
 import { HeaderInfoBar } from "./components/user/HeaderInfoBar/HeaderInfoBar";
 import { Footer } from "./components/common/footer/Footer";
 
+import { AdminNavBar } from '/src/components/admin/navbar/AdminNavbar';
+
 export default function App() {
   return (
     <BrowserRouter>
       <HeaderInfoBar />
       <NavBar />
+
+      {
+        // NEED LOGIC PARA SA RENDERING NG NAVBAR AND HEADER INFO BASED ON AUTHENTICATION STATUS
+      }
+
       <Routes>
         {
           // USER
@@ -55,10 +63,8 @@ export default function App() {
         {
           // ADMIN
         }
-        <Route
-          path="/StaffApointmentPending"
-          element={<StaffApointmentPending />}
-        />
+        <Route path="/staff-management" element={<StaffManagement />} />
+
       </Routes>
       <Footer />
     </BrowserRouter>
