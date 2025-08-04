@@ -14,7 +14,7 @@ import { Login } from "./pages/user/auth/Login";
 
 import { AboutUs } from "./pages/user/aboutUs/AboutUs";
 import { Contact } from "./pages/user/contact/Contact";
-import { BookAppointment } from "./components/user/bookAppointment/BookAppointment";
+import { Appointment } from "./pages/user/bookAppointment/Appointment";
 
 {
   // ADMIN
@@ -50,7 +50,7 @@ export default function App() {
 
         <Route path="/about" element={<AboutUs />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/book-appointment" element={<BookAppointment />} />
+        <Route path="/appointment" element={<Appointment />} />
 
         {
           // ADMIN

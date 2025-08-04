@@ -39,7 +39,8 @@ export function ContactInfoGrid() {
               <i data-lucide="mail"></i>
               EMAIL
             </h3>
-            <p>primemedicallaboratory25@gmail.com</p>
+            <p>primemedicallaboratory25
+              @gmail.com</p>
           </div>
 
           <div className={`${styles.infoCard} ${styles.bgBlue600} ${styles.textWhite}`}>
