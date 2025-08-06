@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styles from "/src/pages/user/auth/Login.module.css";
+import { Activity } from 'lucide-react';
 
 export function VerifyCodeForm({ onSwitch }) {
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -18,7 +19,7 @@ export function VerifyCodeForm({ onSwitch }) {
     <div className={styles.formBox}>
       <div className={styles.formHeader}>
         <div className={styles.logo}>
-          <i data-lucide="activity" className="logo-icon"></i>
+          <Activity className={styles.logoIconLarge} />
           <h1>
             PrimeLab <span>Appoint</span>
           </h1>
