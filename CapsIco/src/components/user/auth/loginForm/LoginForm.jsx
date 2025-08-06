@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import styles from "./LoginForm.module.css";
-import { Activity } from 'lucide-react';
+import { Activity } from "lucide-react";
 
 export function LoginForm({ onSwitch }) {
   const [username, setUsername] = useState("");
@@ -16,24 +16,30 @@ export function LoginForm({ onSwitch }) {
 
   return (
     <>
-    <form onSubmit={handleSubmit} id="login-form" className={styles.formBox}>
-      <div className={styles.formHeader}>
-        <div className={styles.logo}>
-          <Activity className={styles.logoIconLarge} />
-          <h1>
-            PrimeLab <span>Appoint</span>
-          </h1>
+      <form onSubmit={handleSubmit} id="login-form" className={styles.formBox}>
+        <div className={styles.formHeader}>
+          <div className={styles.logo}>
+            <Activity className={styles.logoIconLarge} />
+            <h1>
+              PrimeLab <span>Appoint</span>
+            </h1>
+          </div>
+          <p className={styles.tagline}>Your health, Our priority</p>
         </div>
-        <p className={styles.tagline}>Your health, Our priority</p>
-      </div>
-      <div className={styles.infoCard  }>
-                            <div className={styles.infoIcon  }><i class="fas fa-calendar-check"></i></div>
-                            <div className={styles.infoContent  }>
-                                <h3>Welcome Back!</h3>
-                                <p>Log in to manage your appointments, view test results, and connect with healthcare professionals.</p>
-                            </div>
-                        </div>
-      
+        <div className={styles.infoCard}>
+          <div className={styles.infoIcon}>
+            <i className="fas fa-calendar-check"></i>
+
+          </div>
+          <div className={styles.infoContent}>
+            <h3>Welcome Back!</h3>
+            <p>
+              Log in to manage your appointments, view test results, and connect
+              with healthcare professionals.
+            </p>
+          </div>
+        </div>
+
         <div className={styles.inputGroup}>
           <div className={styles.inputIcon}>
             <i className="fas fa-user"></i>
@@ -106,7 +112,13 @@ export function LoginForm({ onSwitch }) {
         <div className={styles.toggleLink}>
           <p>
             Don’t have an account?{" "}
-            <a href="#" onClick={() => onSwitch("register")}>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onSwitch("register");
+              }}
+            >
               Register here
             </a>
           </p>

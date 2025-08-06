@@ -162,7 +162,13 @@ export function RegisterForm({ onSwitch }) {
         <div className={styles.toggleLink}>
           <p>
             Already have an account?{" "}
-            <a href="#" onClick={() => onSwitch("login")}>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onSwitch("login");
+              }}
+            >
               Log in here
             </a>
           </p>

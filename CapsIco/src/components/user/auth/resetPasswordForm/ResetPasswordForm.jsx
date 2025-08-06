@@ -98,7 +98,13 @@ export function ResetPasswordForm({ onSwitch }) {
 
         <div className={styles.toggleLink}>
           <p>
-            <a href="#" onClick={() => onSwitch("login")}>
+                        <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onSwitch("login");
+              }}
+            >
               Back to login
             </a>
           </p>
