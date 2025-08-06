@@ -1,16 +1,20 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import { CSSTransition, SwitchTransition } from "react-transition-group";
+import styles from "/src/pages/user/auth/Login.module.css";
+
+// Auth Forms
 import { LoginForm } from "/src/components/user/auth/loginForm/LoginForm";
 import { RegisterForm } from "/src/components/user/auth/registerForm/RegisterForm";
 import { ForgetPasswordForm } from "/src/components/user/auth/forgetPasswordForm/ForgetPasswordForm";
 import { VerifyCodeForm } from "/src/components/user/auth/verifyCodeForm/VerifyCodeForm";
 import { ResetPasswordForm } from "/src/components/user/auth/resetPasswordForm/ResetPasswordForm";
-import styles from "/src/pages/user/auth/Login.module.css";
 
+// Right Panel
 import { CreativeSide } from "/src/components/user/auth/creativeSide/CreativeSide";
-
 
 export function Login() {
   const [activeForm, setActiveForm] = useState("login");
+  const nodeRef = useRef(null);
 
   const renderForm = () => {
     switch (activeForm) {
@@ -24,7 +28,6 @@ export function Login() {
         return <VerifyCodeForm onSwitch={setActiveForm} />;
       case "reset":
         return <ResetPasswordForm onSwitch={setActiveForm} />;
-
       default:
         return <LoginForm onSwitch={setActiveForm} />;
     }
@@ -32,7 +35,20 @@ export function Login() {
 
   return (
     <div className={styles.splitContainer}>
-      <div className={styles.authContainer}>{renderForm()}</div>
+      <SwitchTransition mode="out-in">
+        <CSSTransition
+          key={activeForm}
+          timeout={300}
+          classNames="fade"
+          nodeRef={nodeRef}
+          unmountOnExit
+        >
+          <div ref={nodeRef} className={styles.authContainer}>
+            {renderForm()}
+          </div>
+        </CSSTransition>
+      </SwitchTransition>
+
       <CreativeSide />
     </div>
   );

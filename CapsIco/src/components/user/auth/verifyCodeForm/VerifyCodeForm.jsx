@@ -63,7 +63,13 @@ export function VerifyCodeForm({ onSwitch }) {
             Didn’t get the code? <a href="#">Resend</a>
           </p>
           <p>
-            <a href="#" onClick={() => onSwitch("forgot")}>
+                        <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault();
+                onSwitch("forgot");
+              }}
+            >
               Go back
             </a>
           </p>

@@ -10,3 +10,35 @@
   gap: 40px;
 }
 
+/* Login.module.css */
+
+.authContainer {
+  position: relative;
+  min-height: 550px; /* Adjust this based on your form size */
+  transition: all 0.3s ease;
+} 
+
+
+/* Transitions */
+.fade-enter {
+  opacity: 0;
+  transform: scale(0.95);
+}
+
+.fade-enter-active {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+
+.fade-exit {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.fade-exit-active {
+  opacity: 0;
+  transform: scale(0.95);
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+

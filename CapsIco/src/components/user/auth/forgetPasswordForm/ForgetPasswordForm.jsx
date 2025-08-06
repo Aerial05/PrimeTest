@@ -1,6 +1,6 @@
 import React from "react";
 import styles from "./ForgetPasswordForm.module.css";
-import { Activity } from 'lucide-react';
+import { Activity } from "lucide-react";
 
 export function ForgetPasswordForm({ onSwitch }) {
   return (
@@ -21,7 +21,10 @@ export function ForgetPasswordForm({ onSwitch }) {
         </div>
         <div className={styles.infoContent}>
           <h3>Password Recovery</h3>
-          <p>We’ll send a verification code to your email to help you reset your password securely.</p>
+          <p>
+            We’ll send a verification code to your email to help you reset your
+            password securely.
+          </p>
         </div>
       </div>
 
@@ -31,7 +34,9 @@ export function ForgetPasswordForm({ onSwitch }) {
             <i className="fas fa-key"></i>
           </div>
           <h3>Forgot Password?</h3>
-          <p>Enter your email address and we’ll send you a verification code.</p>
+          <p>
+            Enter your email address and we’ll send you a verification code.
+          </p>
         </div>
 
         <div className={styles.inputGroup}>
@@ -44,10 +49,7 @@ export function ForgetPasswordForm({ onSwitch }) {
           </div>
         </div>
 
-        <button
-          type="submit"
-          className={`${styles.btn} ${styles.forgotBtn}`}
-        >
+        <button type="submit" className={`${styles.btn} ${styles.forgotBtn}`}>
           <span className={styles.btnText}>Send Verification Code</span>
           <span className={styles.btnIcon}>
             <i className="fas fa-paper-plane"></i>
@@ -57,7 +59,13 @@ export function ForgetPasswordForm({ onSwitch }) {
         <div className={styles.toggleLink}>
           <p>
             Remember your password?{" "}
-            <a href="#" onClick={() => onSwitch("login")}>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault(); 
+                onSwitch("login"); 
+              }}
+            >
               Back to login
             </a>
           </p>
