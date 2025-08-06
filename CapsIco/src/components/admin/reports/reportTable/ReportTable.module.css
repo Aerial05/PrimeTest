@@ -1,0 +1,51 @@
+.tableResponsive {
+  overflow-x: auto;
+  margin-bottom: 20px;
+}
+
+.reportTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.reportTable th,
+.reportTable td {
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid #eee;
+}
+
+.reportTable th {
+  background-color: #f9f9f9;
+  font-weight: 600;
+  color: #555;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.reportTable tbody tr {
+  transition: background-color 0.3s ease;
+}
+
+.reportTable tbody tr:hover {
+  background-color: rgba(232, 62, 140, 0.05);
+}
+
+.status {
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  display: inline-block;
+}
+
+.active {
+  background-color: #e6f7ed;
+  color: #28a745;
+}
+
+.inactive {
+  background-color: #feeae9;
+  color: #dc3545;
+}
