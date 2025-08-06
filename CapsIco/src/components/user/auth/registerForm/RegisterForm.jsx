@@ -1,6 +1,6 @@
 
 import React, { useState } from "react";
-import styles from "/src/pages/user/auth/Login.module.css";
+import styles from "./RegisterForm.module.css";
 import { Activity } from 'lucide-react';
 
 export function RegisterForm({ onSwitch }) {

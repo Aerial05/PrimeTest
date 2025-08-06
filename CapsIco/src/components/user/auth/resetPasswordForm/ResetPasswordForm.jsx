@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import styles from "/src/pages/user/auth/Login.module.css";
+import styles from "./ResetPasswordForm.module.css";
 import { Activity } from 'lucide-react';
 
 export function ResetPasswordForm({ onSwitch }) {

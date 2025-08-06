@@ -21,9 +21,9 @@ import { ReportsPage } from "./pages/admin/reports/ReportsPage";
 import { SettingsPage } from "./pages/admin/settings/SettingsPage";
 
 //Components
-import { NavBar } from "./components/common/navBar/NavBar";
+import { NavBar } from "./components/user/navBar/NavBar";
 import { HeaderInfoBar } from "./components/user/HeaderInfoBar/HeaderInfoBar";
-import { Footer } from "./components/common/footer/Footer";
+import { Footer } from "./components/user/footer/Footer";
 
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 

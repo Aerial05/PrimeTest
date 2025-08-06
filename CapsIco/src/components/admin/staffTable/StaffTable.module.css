@@ -1,9 +1,10 @@
 .tableWrapper {
   overflow-x: auto;
   margin-top: 20px;
+  width: 100%;
 }
 
-.table {
+.staffTable {
   width: 100%;
   border-collapse: collapse;
   background-color: #fff;
@@ -11,6 +12,7 @@
   border-radius: 6px;
   overflow: hidden;
 }
+
 
 thead {
   background-color: #f3f4f6;
