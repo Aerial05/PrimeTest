@@ -1,0 +1,247 @@
+.formBox {
+  background: #fff;
+  padding: 40px;
+  border-radius: 16px;
+  max-width: 520px;
+  width: 100%;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.formHeader {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.logoIconLarge {
+  font-size: 40px;
+  color: #f472b6;
+  margin-right: 15px;
+  filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.5));
+}
+
+.logo h1 {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.logo h1 span {
+  color: var(--primary-color);
+}
+
+.tagline {
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+/* Info Card */
+.infoCard {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(to right, rgba(139, 92, 246, 0.1), rgba(244, 114, 182, 0.1));
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 25px;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+  transition: all 0.3s ease;
+}
+
+.infoCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.infoIcon {
+  width: 50px;
+  height: 50px;
+  background-color: rgba(109, 40, 217, 0.15);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 15px;
+  flex-shrink: 0;
+}
+
+.infoContent h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 5px;
+}
+
+.infoContent p {
+  font-size: 14px;
+  color: var(--text-light);
+}
+
+/* Input */
+.inputGroup {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.inputIcon {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  color: var(--text-light);
+  font-size: 14px;
+}
+
+.inputField input {
+  width: 100%;
+  padding: 12px 12px 12px 36px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  outline: none;
+  font-size: 14px;
+}
+
+.inputField label {
+  position: absolute;
+  top: -10px;
+  left: 36px;
+  font-size: 12px;
+  background: #fff;
+  padding: 0 4px;
+  color: var(--text-light);
+}
+
+/* Password Toggle */
+.passwordToggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: var(--text-light);
+  z-index: 1;
+}
+
+.passwordToggle:hover {
+  color: var(--primary-color);
+}
+
+/* Remember Me & Forgot Password */
+.rememberForgot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.rememberMe {
+  display: flex;
+  align-items: center;
+}
+
+.rememberMe input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  margin-right: 8px;
+  position: relative;
+  cursor: pointer;
+  transition: all var(--transition-speed);
+}
+
+.rememberMe input[type="checkbox"]:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+
+.rememberMe input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  color: white;
+  font-size: 12px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.rememberMe label {
+  font-size: 14px;
+  color: var(--text-light);
+  cursor: pointer;
+}
+
+.forgotLink {
+  font-size: 14px;
+  color: var(--primary-color);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: none;
+  transition: all var(--transition-speed);
+}
+
+.forgotLink:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
+/* Button */
+.btn {
+  width: 100%;
+  background-color: var(--primary-color);
+  border: none;
+  padding: 12px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  transition: 0.3s ease;
+}
+
+.btn:hover {
+  background-color: var(--primary-light);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(109, 40, 217, 0.2);
+}
+
+.loginBtn {
+  background-color: var(--primary-color);
+}
+
+.loginBtn:hover {
+  background-color: var(--primary-light);
+}
+
+.btnText {
+  font-size: 14px;
+}
+
+.btnIcon i {
+  font-size: 16px;
+}
+
+/* Toggle Link */
+.toggleLink {
+  text-align: center;
+  font-size: 14px;
+  margin-top: 16px;
+}
+
+.toggleLink a {
+  color: var(--primary-color);
+  text-decoration: none;
+  font-weight: 600;
+}

@@ -47,7 +47,7 @@ export function StaffTable({ onEdit, onDelete }) {
 
   return (
     <div className={styles.card}>
-      <div className={styles.tableResponsive}>
+      <div className={styles.tableWrapper}>
         <table className={styles.staffTable}>
           <thead>
             <tr>

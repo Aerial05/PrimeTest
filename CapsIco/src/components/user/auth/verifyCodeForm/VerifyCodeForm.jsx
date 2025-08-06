@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import styles from "/src/pages/user/auth/Login.module.css";
+import styles from "./VerifyCodeForm.module.css";
 import { Activity } from 'lucide-react';
 
 export function VerifyCodeForm({ onSwitch }) {
