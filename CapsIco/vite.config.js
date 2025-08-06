@@ -11,3 +11,5 @@ export default defineConfig({
   },
 });
 
+//this is where the path npm was used for. 
+//para pwede na @ ung gamitin, equal to ./src pero tinamad din ako gamitin para sa iba ahaha
