@@ -13,14 +13,14 @@ export function SettingsPage() {
   return (
     <>
 
-      <div className="banner">
-        <div className="container">
+      <div className={styles.banner}>
+        <div className={styles.container}>
           <p>Configuration</p>
           <h1>Settings</h1>
         </div>
       </div>
 
-      <main className="container">
+      <main className={styles.container}>
         <div className={styles.settingsContainer}>
           <SettingsSidebar />
           <SettingsContent />

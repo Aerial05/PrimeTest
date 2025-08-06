@@ -1,25 +1,16 @@
 @import url("https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap");
 
-:root {
-  --primary-color: #6d28d9;
-  --primary-light: #8b5cf6;
-  --secondary-color: #ec4899;
-  --secondary-light: #f472b6;
-  --text-dark: #1f2937;
-  --text-light: #6b7280;
-  --bg-light: #f9fafb;
-  --bg-dark: #f3f4f6;
-}
-
 /* Wrapper */
-.pageWrapper {
-  min-height: 100vh;
+.splitContainer {
   display: flex;
+  width: 100%;
+  min-height: 100vh;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(to bottom right, #a78bfa, #ec4899);
   padding: 40px 20px;
+  gap: 40px;
 }
+
 
 /* Box */
 .formBox {
@@ -71,6 +62,11 @@
     transition: all 0.3s ease;
 }
 
+.infoCard:hover {
+transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
 .infoIcon {
     width: 50px;
     height: 50px;
@@ -99,6 +95,8 @@
   align-items: center;
 
 }
+
+
 
 /* Input Groups */
 .inputGroup {
@@ -198,6 +196,19 @@
   background-color: var(--secondary-light);
   box-shadow: 0 6px 12px rgba(236, 72, 153, 0.2);
 }
+
+.forgotLink {
+  font-size: 14px;
+  color: var(--primary-color);
+  text-decoration: none;
+  transition: all var(--transition-speed);
+}
+
+.forgotLink:hover {
+  color: var(--primary-dark);
+  text-decoration: underline;
+}
+
 
 .resetBtn {
   background-color: var(--primary-color);
@@ -354,4 +365,159 @@ REMEMBER ME CSS
 .forgotLink:hover {
   color: var(--primary-dark);
   text-decoration: underline;
+}
+
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .splitContainer {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .creativeSide,
+  .formsSide {
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .creativeSide {
+    padding: 30px 20px;
+    margin-bottom: 30px;
+  }
+
+  .featureHighlights {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 15px;
+  }
+
+  .featureItem {
+    width: calc(50% - 15px);
+  }
+}
+
+@media (max-width: 768px) {
+  .splitContainer {
+    padding: 15px;
+  }
+
+  .creativeSide {
+    padding: 20px 15px;
+  }
+
+  .featureItem {
+    width: 100%;
+  }
+
+  .logoLarge h1 {
+    font-size: 28px;
+  }
+
+  .taglineLarge {
+    font-size: 16px;
+  }
+
+  .container {
+    width: 100%;
+    border-radius: 15px;
+  }
+
+  .formBox {
+    padding: 30px 20px;
+  }
+
+  .formRow {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .inputGroup.half {
+    width: 100%;
+  }
+
+  .rememberForgot {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .logo h1 {
+    font-size: 20px;
+  }
+
+  .verificationInput {
+    width: 40px;
+    height: 45px;
+    font-size: 18px;
+  }
+
+  .infoCard {
+    padding: 12px;
+  }
+
+  .infoIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .infoIcon i {
+    font-size: 18px;
+  }
+
+  .infoContent h3 {
+    font-size: 15px;
+  }
+
+  .infoContent p {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .formBox {
+    padding: 25px 15px;
+  }
+
+  .verificationInput {
+    width: 35px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .infoCard {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .infoIcon {
+    margin-right: 0;
+    margin-bottom: 10px;
+  }
+
+  .featureIcon {
+    width: 40px;
+    height: 40px;
+  }
+
+  .featureIcon i {
+    font-size: 18px;
+  }
+
+  .featureText h3 {
+    font-size: 16px;
+  }
+
+  .featureText p {
+    font-size: 13px;
+  }
+
+  .testimonial {
+    padding: 20px 15px;
+  }
+
+  .quoteText {
+    font-size: 14px;
+  }
 }

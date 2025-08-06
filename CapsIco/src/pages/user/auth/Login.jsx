@@ -6,6 +6,8 @@ import { VerifyCodeForm } from "/src/components/user/auth/VerifyCodeForm";
 import { ResetPasswordForm } from "/src/components/user/auth/ResetPasswordForm";
 import styles from "/src/pages/user/auth/Login.module.css";
 
+import { CreativeSide } from "/src/components/user/auth/CreativeSide";
+
 
 export function Login() {
   const [activeForm, setActiveForm] = useState("login");
@@ -29,8 +31,9 @@ export function Login() {
   };
 
   return (
-    <div className={styles.pageWrapper}>
+    <div className={styles.splitContainer}>
       <div className={styles.authContainer}>{renderForm()}</div>
+      <CreativeSide />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styles from "/src/pages/user/auth/Login.module.css";
+import { Activity } from 'lucide-react';
 
 export function ResetPasswordForm({ onSwitch }) {
   const [password, setPassword] = useState("");
@@ -25,7 +26,7 @@ export function ResetPasswordForm({ onSwitch }) {
     <div className={styles.formBox}>
       <div className={styles.formHeader}>
         <div className={styles.logo}>
-          <i data-lucide="activity" className="logo-icon"></i>
+          <Activity className={styles.logoIconLarge} />
           <h1>
             PrimeLab <span>Appoint</span>
           </h1>

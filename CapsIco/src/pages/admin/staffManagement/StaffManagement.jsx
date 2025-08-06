@@ -14,7 +14,7 @@ export function StaffManagement() {
     <>
 
       <div className={styles.banner}>
-        <div className={styles.bannerContainer}>
+        <div className={styles.container}>
           <p>Admin</p>
           <h1>Staff Management</h1>
         </div>
