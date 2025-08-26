@@ -6,7 +6,7 @@ import { ReportChart } from '/src/components/admin/reports/ReportChart/ReportCha
 import { ReportTable } from '/src/components/admin/reports/ReportTable/ReportTable';
 import { ReportPagination } from '/src/components/admin/reports/pagination/ReportPagination';
 
-import styles from './ReportsPage.module.css'; // ✅ Import properly
+import styles from './ReportsPage.module.css'; 
 import { createIcons, icons } from 'lucide';
 
 export function ReportsPage() {

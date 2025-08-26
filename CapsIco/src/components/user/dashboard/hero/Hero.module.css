@@ -4,7 +4,6 @@
 }
 
 .container {
-  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -17,7 +16,6 @@
 }
 
 .textBlock {
-  max-width: 600px;
 }
 
 .label {
