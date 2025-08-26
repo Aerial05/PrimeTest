@@ -58,3 +58,57 @@
   gap: 0.5rem;
   font-weight: 500;
 }
+
+
+.profileWrapper {
+  position: relative;
+  display: inline-block; 
+}
+
+.dropDownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  border-radius: 10px;
+  background-color: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  padding: 0.5rem;
+  z-index: 10000;
+  min-width: 160px;
+
+   opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transition: opacity 0.2s, transform 0.2s ease-in-out;
+}
+
+
+.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.dropDownMenu a {
+  display: block;
+  padding: 0.5rem;
+  color: var(--primary-light);
+  background: none;
+  text-decoration: none;
+  border-radius: 5px;
+  transition: ease-in 0.15s;
+}
+
+.dropDownMenu a:hover {
+  background-color: var(--primary-light);
+  color: white;
+}
+
+.btnIcon {
+  background-color: transparent;
+  border: none;
+  color: black;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 9999px;
+}

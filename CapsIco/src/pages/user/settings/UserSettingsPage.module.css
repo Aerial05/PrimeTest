@@ -1,0 +1,37 @@
+
+.banner {
+  background: linear-gradient(to bottom right, #8b5cf6, #e879f9, #8b5cf6);
+    padding: 3rem 0;
+    color: var(--white);
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.banner h1 {
+    color: rgb(244, 240, 232);
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.banner p {
+    color: rgb(244, 240, 232);
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+
+.settingsContainer {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .settingsContainer {
+    grid-template-columns: 1fr;
+  }
+}

@@ -4,8 +4,9 @@ import styles from './SettingsSidebar.module.css';
 const menuItems = [
   { label: 'Profile', icon: 'fas fa-user' },
   { label: 'Appearance', icon: 'fas fa-palette' },
-  { label: 'Backup', icon: 'fas fa-database' },
-  { label: 'System', icon: 'fas fa-cog' },
+  { label: 'Rules and Regulations', icon: 'fas fa-envelope' },
+  { label: 'Appointment Histories', icon: 'fas fa-database' },
+
 ];
 
 export function SettingsSidebar() {

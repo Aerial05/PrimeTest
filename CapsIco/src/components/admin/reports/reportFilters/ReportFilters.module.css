@@ -30,7 +30,7 @@
 
 .filterContent {
   transition: all 0.3s ease;
-  overflow: hidden;
+  overflow: visible;
   max-height: 1000px;
 }
 
@@ -41,13 +41,12 @@
 .filterRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px;
+  gap: 5px;
   margin-bottom: 15px;
 }
 
 .filterGroup {
   flex: 1;
-  min-width: 200px;
 }
 
 .filterGroup label {
@@ -76,6 +75,7 @@
 /* Date Picker Styles */
 .dateRangePicker {
   position: relative;
+  
 }
 
 .dateRangeInput {
@@ -99,7 +99,7 @@
   border-radius: 8px;
   box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
   padding: 15px;
-  width: 500px;
+  
   max-width: 100vw;
   display: none;
 }

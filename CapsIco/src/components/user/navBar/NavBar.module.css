@@ -1,13 +1,11 @@
 .nav {
   background-color: #8b5cf6; /* Tailwind's purple-500 */
   color: white;
-  padding: 1rem 0;
+  padding: 1rem 2rem;
 }
 
 .container {
-  max-width: 1200px;
   margin: 0 auto;
-  padding: 0 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -58,4 +56,49 @@
   padding: 0.5rem 1rem;
   border-radius: 9999px;
   cursor: pointer;
+}
+
+
+.profileWrapper {
+  position: relative;
+  display: inline-block; 
+}
+
+.dropDownMenu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  border-radius: 10px;
+  background-color: white;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  padding: 0.5rem;
+  z-index: 10000;
+  min-width: 160px;
+
+   opacity: 0;
+  pointer-events: none;
+  transform: translateY(-10px);
+  transition: opacity 0.2s, transform 0.2s ease-in-out;
+}
+
+
+.show {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.dropDownMenu a {
+  display: block;
+  padding: 0.5rem;
+  color: var(--primary-light);
+  background: none;
+  text-decoration: none;
+  border-radius: 5px;
+  transition: ease-in 0.15s;
+}
+
+.dropDownMenu a:hover {
+  background-color: var(--primary-light);
+  color: white;
 }
