@@ -2,8 +2,7 @@ import React from 'react';
 import styles from './SettingsSidebar.module.css';
 
 const menuItems = [
-  { label: 'Profile', icon: 'fas fa-user' },
-  { label: 'Appearance', icon: 'fas fa-palette' },
+  { label: 'Profile', icon: 'fas fa-user', path: '' },
   { label: 'Rules and Regulations', icon: 'fas fa-envelope' },
   { label: 'Appointment Histories', icon: 'fas fa-database' },
 

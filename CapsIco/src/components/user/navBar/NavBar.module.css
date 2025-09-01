@@ -102,3 +102,25 @@
   background-color: var(--primary-light);
   color: white;
 }
+.navLink {
+  color: white;
+  text-decoration: none;
+  padding: 0.4rem 0.8rem;
+  border: 2px solid transparent;
+  border-radius: 9999px;
+  transition: all 0.2s ease-in-out;
+}
+
+.navLink:hover {
+  border-color: white;
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #f9f9f9;
+}
+
+/* When on active page */
+.active {
+  border-color: white;
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-weight: 600;
+}

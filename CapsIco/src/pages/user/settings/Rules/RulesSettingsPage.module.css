@@ -1,0 +1,31 @@
+.rulesSection {
+  background: #f8fafc;
+  border-radius: 8px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(139, 92, 246, 0.08);
+}
+
+.rulesSection h2 {
+  color: #8b5cf6;
+  font-size: 24px;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.rulesSection ul {
+  list-style: disc inside;
+  margin-bottom: 1rem;
+  color: #333;
+  font-size: 16px;
+}
+
+.rulesSection li {
+  margin-bottom: 0.5rem;
+}
+
+.note {
+  color: #e879f9;
+  font-size: 15px;
+  font-style: italic;
+}

@@ -2,6 +2,8 @@ import styles from "./NavBar.module.css";
 import { Search, User } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { NavLink } from "react-router-dom";
+
 
 export function NavBar() {
   //PROFILE DROPDOWN
@@ -29,18 +31,34 @@ export function NavBar() {
     <nav className={styles.nav}>
       <div className={styles.container}>
         <div className={styles.left}>
-          <Link to="/" className={styles.navLink}>
-            Home
-          </Link>
-          <Link to="/services" className={styles.navLink}>
-            Services
-          </Link>
-          <Link to="/about" className={styles.navLink}>
-            About Us
-          </Link>
-          <Link to="/contact" className={styles.navLink}>
-            Contact
-          </Link>
+          <NavLink 
+  to="/" 
+  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
+>
+  Home
+</NavLink>
+
+<NavLink 
+  to="/services" 
+  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
+>
+  Services
+</NavLink>
+
+<NavLink 
+  to="/about" 
+  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
+>
+  About Us
+</NavLink>
+
+<NavLink 
+  to="/contact" 
+  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
+>
+  Contact
+</NavLink>
+
         </div>
 
         <div className={styles.right}>

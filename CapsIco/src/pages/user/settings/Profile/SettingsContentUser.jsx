@@ -1,5 +1,5 @@
 import React from 'react';
-import styles from './SettingsContent.module.css';
+import styles from './SettingsContentUser.module.css';
 
 export function SettingsContent() {
   return (
@@ -14,7 +14,7 @@ export function SettingsContent() {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="fullName">Full Name</label>
-              <input type="text" id="fullName" defaultValue="Admin User" />
+              <input type="text" id="fullName" defaultValue="Angelico" />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="email">Email Address</label>
@@ -27,31 +27,21 @@ export function SettingsContent() {
               <label htmlFor="phone">Phone Number</label>
               <input type="tel" id="phone" defaultValue="+1 (555) 123-4567" />
             </div>
-            <div className={styles.formGroup}>
-              <label htmlFor="position">Position</label>
-              <input type="text" id="position" defaultValue="System Administrator" />
-            </div>
           </div>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label htmlFor="department">Department</label>
-              <select id="department" defaultValue="IT">
-                <option>IT</option>
-                <option>Management</option>
-                <option>Laboratory</option>
-                <option>Radiology</option>
-              </select>
-            </div>
-            <div className={styles.formGroup}>
               <label htmlFor="joinDate">Join Date</label>
               <input type="date" id="joinDate" defaultValue="2022-06-15" />
+              {/* Make Value the creation of account date */}
             </div>
           </div>
 
           <div className={styles.formActions}>
-            <button type="button" className="btn btn-secondary">Cancel</button>
-            <button type="submit" className="btn btn-primary">Save Changes</button>
+            <button type="button" className={styles.btnSecondary}>Cancel</button>
+            <button type="submit" className={styles.btnPrimary}>Save Changes</button>
+            {/* Added Object Method for saving changes, get fields(Last Name, First Name, Middle Initial (optional),
+             Email Address    !!!!!!!(will need to reverify)!!!!!!    , Phone Number) */}
           </div>
         </form>
       </section>
@@ -71,11 +61,7 @@ export function SettingsContent() {
             desc: "Add an extra layer of security to your account",
             checked: false
           },
-          {
-            label: "Dark Mode",
-            desc: "Switch between light and dark themes",
-            checked: false
-          },
+          
         ].map((pref, index) => (
           <div key={index} className={styles.switchContainer}>
             <div className={styles.switchLabel}>
@@ -113,8 +99,9 @@ export function SettingsContent() {
           </div>
 
           <div className={styles.formActions}>
-            <button type="button" className="btn btn-secondary">Cancel</button>
-            <button type="submit" className="btn btn-primary">Update Password</button>
+            <button type="button" className={styles.btnSecondary}>Cancel</button>
+            <button type="submit" className={styles.btnPrimary}>Update Password</button>
+            {/* Added Object Method for updating password, get fields(Current Password, New Password, Confirm New Password) */}
           </div>
         </form>
       </section>

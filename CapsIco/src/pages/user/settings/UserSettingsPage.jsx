@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { SettingsSidebar } from '/src/components/user/SettingsSidebar/SettingsSidebar';
-import { SettingsContent } from '/src/components/admin/settings/SettingsContent/SettingsContent';
+import { SettingsContent } from '/src/pages/user/settings/Profile/SettingsContentUser';
 
 import styles from './UserSettingsPage.module.css';
 import { createIcons, icons } from 'lucide';
