@@ -16,21 +16,35 @@
 }
 
 .textBlock {
+  background: linear-gradient(120deg, #f3f4f6 80%, #e0e7ff 100%);
+  padding: 2rem 2.5rem;
+  border-radius: 1rem;
+  box-shadow: 0 4px 24px rgba(76, 29, 149, 0.08);
+  max-width: auto;
+  flex :1;
+  margin-bottom: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  border-left: 6px solid #6366f1;
 }
 
 .label {
-  color: #3b82f6; /* text-blue-500 */
-  font-weight: 500;
-  margin-bottom: 1rem;
-  font-size: 1rem;
+  color: #6366f1;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 1px;
+  margin-bottom: 0.75rem;
+  text-transform: uppercase;
 }
 
 .heading {
-  font-size: 2.25rem;
+  font-size: 2.2rem;
   font-weight: bold;
-  color: #4c1d95; /* text-purple-900 */
-  margin-bottom: 1.5rem;
-  line-height: 1.3;
+  color: #4c1d95;
+  margin-bottom: 1rem;
+  line-height: 1.2;
+  text-shadow: 0 2px 8px rgba(76, 29, 149, 0.07);
 }
 
 .button {
@@ -62,4 +76,87 @@
   .heading {
     font-size: 3rem;
   }
+}
+
+.tabsWrapper {
+  display: flex;
+  justify-content: flex-end;
+  position: relative;
+  top: 0;
+  right: 0;
+  margin-bottom: 8px;
+  z-index: 2;
+}
+
+.tabsContainer {
+  display: flex;
+  gap: 12px;
+  padding-right: 12px;
+}
+
+.tabButton {
+  background: linear-gradient(90deg, #f5f5f5 70%, #e0e7ff 100%);
+  border: none;
+  padding: 10px 22px;
+  cursor: pointer;
+  border-radius: 8px 8px 0 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: #4c1d95;
+  box-shadow: 0 2px 8px rgba(76, 29, 149, 0.08);
+  margin-bottom: -2px;
+  position: relative;
+  transition: 
+    background 0.3s,
+    color 0.3s,
+    box-shadow 0.3s,
+    transform 0.2s;
+  outline: none;
+  border-bottom: 2px solid transparent;
+}
+
+.tabButton:hover,
+.activeTab {
+  background: linear-gradient(90deg, #e0e0e0 70%, #c7d2fe 100%);
+  color: #ec4899;
+  box-shadow: 0 4px 16px rgba(236, 72, 153, 0.12);
+  border-bottom: 2px solid #ec4899;
+  transform: translateY(-2px) scale(1.04);
+}
+
+.tabButton:active {
+  background: #f3f4f6;
+  color: #4c1d95;
+  transform: scale(0.98);
+}
+
+/* Remove the generic icon */
+.tabButton::before {
+  content: "";
+  margin-right: 8px;
+  font-size: 1.1em;
+  vertical-align: middle;
+  opacity: 0.7;
+}
+
+/* Unique icons for each tab */
+.tabIcon0::before { content: "🏢"; } /* Prime Medical Front */
+.tabIcon1::before { content: "🚪"; } /* Receiving Area */
+.tabIcon2::before { content: "👩‍⚕️"; } /* Dr. Joy Check Up Room */
+.tabIcon3::before { content: "🔬"; } /* Ultra Sound Room */
+.tabIcon4::before { content: "🧑‍🔬"; } /* Work Room Xray */
+.tabIcon5::before { content: "🩻"; } /* Xray Room */
+.tabIcon6::before { content: "❤️"; } /* ECG Room */
+.tabIcon7::before { content: "🌿"; } /* Ibogaine Room */
+.tabIcon8::before { content: "🧪"; } /* Laboratory Room */
+
+.subText {
+  margin: 0.5rem 0 1.5rem 0;
+  font-size: 1.13rem;
+  color: #6366f1;
+  font-weight: 400;
+  line-height: 1.5;
+  background: rgba(236, 233, 254, 0.5);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
 }
