@@ -39,7 +39,7 @@ export function ContactInfoGrid() {
               <i data-lucide="mail"></i>
               EMAIL
             </h3>
-            <p>primemedicallaboratory25
+            <p className="whitespace-pre-line">primemedicallaboratory25
               @gmail.com</p>
           </div>
 
@@ -48,7 +48,8 @@ export function ContactInfoGrid() {
               <i data-lucide="timer"></i>
               WORKING HOURS
             </h3>
-            <p>Mon - Sun 07:00 - 17:00</p>
+            <p>Mon - Sun 07:00 AM - 4:00PM </p>
+            <p className={styles.cutoffRed}>(3:30PM Cutoff)</p>
           </div>
         </div>
       </div>

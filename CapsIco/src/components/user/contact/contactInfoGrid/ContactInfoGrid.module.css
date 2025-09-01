@@ -59,3 +59,8 @@
 .subtitle {
   font-size: 1.875rem; /* text-3xl */
 }
+
+.cutoffRed {
+  color: #ef4444; /* more red */
+  font-weight: 600; /* bigger font weight */
+}
