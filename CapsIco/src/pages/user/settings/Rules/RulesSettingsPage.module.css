@@ -13,6 +13,9 @@
   font-weight: 600;
 }
 
+.section { margin-top: 1.25rem; }
+.section h3 { color: #374151; font-size: 18px; margin: 0 0 0.5rem 0; }
+
 .rulesSection ul {
   list-style: disc inside;
   margin-bottom: 1rem;
@@ -29,3 +32,14 @@
   font-size: 15px;
   font-style: italic;
 }
+
+.policyCard {
+  background: #fffbeb; /* amber-50 */
+  border: 1px solid #fcd34d; /* amber-300 */
+  border-radius: 10px;
+  padding: 1rem;
+  margin: 0.75rem 0 1rem 0;
+}
+
+.policyTitle { margin: 0 0 0.35rem 0; color: #92400e; font-weight: 700; }
+.policyText { margin: 0; color: #92400e; }

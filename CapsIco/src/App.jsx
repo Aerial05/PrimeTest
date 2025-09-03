@@ -21,6 +21,8 @@ import { AdminDashboard } from "./pages/admin/adminDashboard/AdminDashboard";
 import { StaffManagement } from "./pages/admin/staffManagement/StaffManagement";
 import { ReportsPage } from "./pages/admin/reports/ReportsPage";
 import { SettingsPage } from "./pages/admin/settings/SettingsPage";
+import { PackagesPage } from "./pages/admin/packages/PackagesPage";
+import { MessagesPage } from "./pages/admin/messages/MessagesPage";
 
 //Components
 import { NavBar } from "./components/user/navBar/NavBar";
@@ -72,6 +74,8 @@ export default function App() {
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin-reports" element={<ReportsPage />} />
         <Route path="/admin-settings" element={<SettingsPage />} />
+        <Route path="/admin-packages" element={<PackagesPage />} />
+        <Route path="/admin-messages" element={<MessagesPage />} />
       </Routes>
       <Footer />
     </BrowserRouter>
@@ -84,6 +88,14 @@ export default function App() {
 // PATH
 // REACT TRANSITION GROUP - FOR TRANSITIONS AT HINDI MAG SCROLL TO TOP
 //THROUGH NPM
+
+
+//TO USE LOCALY DO:
+// npm install
+// npm run dev
+// IF WANT TO GET OUT ON NPM RUN DEV USE             Q+Enter 
+
+
 
 /*
 
@@ -102,14 +114,13 @@ APIS OR BACKEDN FROM FIREBASE PAGKA NAGSETUP NA, ALL OF EM ARE NOW IN ARRAYS MUN
 
 
 Things to do.
-appointment - look for lates, hanapin ni ico
-profile sa navbar ng admin and user
+appointment Page
+profile sa navbar ng admin and user (DONE)
 
-sa profile ng user, ilagay ung dropdown ng choices at yung logout button
+sa profile ng user, ilagay ung dropdown ng choices at yung logout button(DONE)
 
 
 THIS VIOLATIONS AY DAHIL SA GOOGLE MAPS IFRAMES
-KAYO NA BAHALA KUNG NU GAGAWEN
 
 [Violation] Permissions policy violation: accelerometer is not allowed in this document.
 initialize @ sa.js:1516Understand this error

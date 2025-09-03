@@ -63,7 +63,7 @@ const TAB_INFO = [
 
 
 export function Hero() {
-  const [activeTab, setActiveTab] = useState(3); // Default to Ultra Sound Room
+  const [activeTab, setActiveTab] = useState(0); // Default to Ultra Sound Room
 
   return (
     <section className={styles.heroSection}>

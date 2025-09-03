@@ -2,21 +2,25 @@ import React from 'react';
 import styles from './SettingsSidebar.module.css';
 
 const menuItems = [
-  { label: 'Profile', icon: 'fas fa-user' },
-  { label: 'Rules and Regulations', icon: 'fas fa-envelope' },
-  { label: 'Appointment Histories', icon: 'fas fa-database' },
+  { id: 'profile', label: 'Profile', icon: 'fas fa-user' },
+  { id: 'rules', label: 'Rules and Regulations', icon: 'fas fa-list-check' },
+  { id: 'history', label: 'Appointment History', icon: 'fas fa-clock-rotate-left' },
 ];
 
-export function SettingsSidebar() {
+export function SettingsSidebar({ active = 'profile', onSelect }) {
   return (
     <div className={styles.sidebar}>
       <ul className={styles.menu}>
-        {menuItems.map((item, index) => (
-          <li key={index}>
-            <a href="#" className={`${styles.link} ${index === 0 ? styles.active : ''}`}>
+        {menuItems.map((item) => (
+          <li key={item.id}>
+            <button
+              type="button"
+              className={`${styles.link} ${active === item.id ? styles.active : ''}`}
+              onClick={() => onSelect && onSelect(item.id)}
+            >
               <i className={item.icon}></i>
               {item.label}
-            </a>
+            </button>
           </li>
         ))}
       </ul>

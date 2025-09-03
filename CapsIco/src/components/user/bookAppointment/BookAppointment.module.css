@@ -1,109 +1,44 @@
-:root {
-  --primary: #8b5cf6;
-  --primary-light: #a78bfa;
-  --secondary: #ec4899;
-  --text-dark: #1f2937;
-  --text-light: #6b7280;
+:root { --primary:#8b5cf6; --primary-light:#a78bfa; --text-dark:#1f2937; }
+
+.wrapper {
+  display:grid; grid-template-columns: 280px 1fr 280px; gap:1rem; margin: 1rem auto; max-width: 1200px; padding: 0 1rem;
 }
 
-.appointmentWrapper {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  background-color: rgba(255, 255, 255, 0.1);
-  padding: 2rem;
-  border-radius: 1rem;
-}
+.infoCard, .mainCard, .summaryCard { background:#fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+.infoCard { padding: 1rem; }
+.mainCard { padding: 1rem; }
+.summaryCard { padding: 1rem; height: fit-content; }
 
-.bookingForm {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 1rem;
-}
+.infoTitle { color: var(--primary); margin: 0 0 .5rem 0; }
+.label { font-size: .85rem; color: #374151; margin-bottom: .25rem; }
+.select, .input, .textarea { width:100%; padding:.65rem .75rem; border:1px solid #e5e7eb; border-radius:8px; }
+.textarea { resize: vertical; }
+.smallNote { color:#6b7280; font-size:.85rem; margin-top:.5rem; }
 
-.formGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-}
+.scheduleBlock h3 { margin:0 0 .75rem 0; color:#374151; }
+.scheduleControls { display:flex; gap:.5rem; align-items:center; justify-content:space-between; flex-wrap:wrap; }
+.timeTabs { display:inline-flex; background:#f1f5f9; border-radius:10px; padding:4px; }
+.tab { border:none; background:transparent; padding:.4rem .8rem; border-radius:8px; cursor:pointer; color:#475569; font-weight:600; }
+.activeTab { background: var(--primary); color:#fff; }
 
-.formGroup {
-  display: flex;
-  flex-direction: column;
-}
+.slotsWrap { margin-top:.75rem; }
+.slots { display:flex; gap:.5rem; flex-wrap:wrap; }
+.slotBtn { border:1px solid #e5e7eb; background:#fff; padding:.4rem .6rem; border-radius:8px; cursor:pointer; }
+.slotSelected { background:#eef2ff; border-color:#c7d2fe; color:#3730a3; }
+.empty { color:#6b7280; font-size:.9rem; padding:.5rem 0; }
 
-.formGroup label {
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
-  color: var(--text-dark);
-}
+.form { margin-top: 1rem; }
+.formGrid { display:grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.formGroup { display:flex; flex-direction:column; }
+.fullWidth { grid-column:1 / -1; }
+.actions { display:flex; justify-content:flex-end; margin-top: .75rem; }
+.primaryBtn { background: var(--primary); color:#fff; border:none; padding:.65rem 1rem; border-radius:8px; font-weight:700; cursor:pointer; }
+.primaryBtn:disabled { opacity:.6; cursor:not-allowed; }
 
-.formInput {
-  width: 100%;
-  padding: 0.75rem;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  font-size: 0.875rem;
-  box-sizing: border-box;
-}
+.summaryCard h3 { margin:0 0 .75rem 0; color:#374151; }
+.summaryRow { display:flex; justify-content:space-between; padding:.35rem 0; border-bottom:1px solid #f3f4f6; }
+.summaryRow span { color:#6b7280; }
+.summaryNote { margin-top:.75rem; font-size:.9rem; color:#6b7280; }
 
-.fullWidth {
-  grid-column: 1 / -1;
-}
-
-.submitBtn {
-  background-color: var(--primary);
-  color: white;
-  border: none;
-  padding: 0.75rem 2rem;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  width: 100%;
-  font-weight: bold;
-}
-
-.scheduleSection {
-  background-color: white;
-  padding: 2rem;
-  border-radius: 1rem;
-}
-
-.scheduleTitle {
-  font-size: 1.5rem;
-  margin-bottom: 1.5rem;
-  color: var(--primary);
-}
-
-.scheduleTable {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.scheduleRow {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.emergencyContact {
-  margin-top: 2rem;
-  text-align: center;
-  background-color: var(--primary-light);
-  color: white;
-  padding: 1rem;
-  border-radius: 0.5rem;
-}
-
-/* Responsive */
-@media (max-width: 768px) {
-  .appointmentWrapper {
-    grid-template-columns: 1fr;
-  }
-
-  .formGrid {
-    grid-template-columns: 1fr;
-  }
-}
+@media (max-width: 992px) { .wrapper { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .formGrid { grid-template-columns: 1fr; } }

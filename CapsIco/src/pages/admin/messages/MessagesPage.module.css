@@ -1,0 +1,124 @@
+/* Banner */
+.banner {
+  background: linear-gradient(to bottom right, #8b5cf6, #e879f9, #8b5cf6);
+  padding: 3rem 0;
+  color: var(--white);
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.banner h1 {
+  color: rgb(244, 240, 232);
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.banner p {
+  color: rgb(244, 240, 232);
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+/* Main */
+.main {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+/* Card */
+.card {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.cardHeader { padding: 1rem 1.25rem; border-bottom: 1px solid #eee; background-color: #fafafa; }
+.cardBody { padding: 0; }
+
+/* Filters */
+.filters { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+.search {
+  flex: 1;
+  min-width: 220px;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+.select {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+}
+
+/* Split */
+.split {
+  display: grid;
+  grid-template-columns: 360px 1fr;
+  min-height: 520px;
+}
+
+.listPane { border-right: 1px solid #eee; overflow-y: auto; max-height: 70vh; }
+.detailPane { overflow-y: auto; max-height: 70vh; }
+
+/* List */
+.list { list-style: none; margin: 0; padding: 0; }
+.item {
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #f3f4f6;
+  cursor: pointer;
+}
+.item:hover { background: #fafafa; }
+.selected { background: #f8f5ff; }
+.unread { font-weight: 600; }
+.itemHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.sender { color: #111827; }
+.date { color: #6b7280; font-size: 12px; }
+.subject { color: #1f2937; margin-bottom: 2px; }
+.snippet { color: #6b7280; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.metaRow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+.unreadDot { width: 8px; height: 8px; background: #ef4444; border-radius: 50%; display: inline-block; }
+
+.badge { padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; }
+.badgePink { background: #fde2f2; color: #a11d67; }
+.badgeBlue { background: #e0f2fe; color: #075985; }
+.badgeGray { background: #f3f4f6; color: #374151; }
+
+/* Detail */
+.detailCard { padding: 1rem 1.25rem; }
+.detailHeader { display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; }
+.detailHeader h2 { margin: 0; font-size: 1.25rem; color: #8b5cf6; }
+.headerActions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.btnPrimary { background: #8b5cf6; color: white; border: none; padding: 0.55rem 0.9rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.btnPrimary:hover { background: #7c3aed; }
+.btnSecondary { background: #e5e7eb; color: #111827; border: none; padding: 0.55rem 0.9rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btnSecondary:hover { background: #d1d5db; }
+.btnDanger { background: #fee2e2; color: #991b1b; border: none; padding: 0.55rem 0.9rem; border-radius: 8px; font-weight: 700; cursor: pointer; }
+.btnDanger:hover { background: #fecaca; }
+.btnGhost { background: transparent; color: #374151; border: 1px solid #e5e7eb; padding: 0.5rem 0.9rem; border-radius: 8px; font-weight: 600; cursor: pointer; }
+.btnGhost:hover { background: #f9fafb; }
+
+.detailMeta { display: grid; grid-template-columns: repeat(4, minmax(160px, 1fr)); gap: 1rem; margin: 1rem 0; }
+.metaLabel { color: #6b7280; font-size: 12px; }
+.metaValue { color: #111827; font-weight: 600; }
+
+.stars { color: #f59e0b; }
+.starFilled { color: #f59e0b; margin-right: 2px; }
+.starEmpty { color: #d1d5db; margin-right: 2px; }
+
+.detailBody { background: #f9fafb; border: 1px solid #f3f4f6; padding: 1rem; border-radius: 10px; color: #111827; line-height: 1.6; }
+
+/* Responsive */
+@media (max-width: 992px) {
+  .split { grid-template-columns: 1fr; }
+  .listPane { max-height: 300px; }
+}
+

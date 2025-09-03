@@ -48,15 +48,15 @@ export function AdminNavBar() {
           <li>
             <Link
               to="/staff-management"
-              className={isActive('/admin') ? styles.active : undefined}
+              className={isActive('/staff-management') ? styles.active : undefined}
             >
-              Admin
+              Appointments
             </Link>
           </li>
           <li>
             <Link
               to="/admin-dashboard"
-              className={isActive('/admin/dashboard') ? styles.active : undefined}
+              className={isActive('/admin-dashboard') ? styles.active : undefined}
             >
               Dashboard
             </Link>
@@ -64,9 +64,25 @@ export function AdminNavBar() {
           <li>
             <Link
               to="/admin-reports"
-              className={isActive('/admin/reports') ? styles.active : undefined}
+              className={isActive('/admin-reports') ? styles.active : undefined}
             >
               Reports
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/admin-packages"
+              className={isActive('/admin-packages') ? styles.active : undefined}
+            >
+              Packages
+            </Link>
+          </li>
+          <li>
+            <Link
+              to="/admin-messages"
+              className={isActive('/admin-messages') ? styles.active : undefined}
+            >
+              Messages
             </Link>
           </li>
         </ul>

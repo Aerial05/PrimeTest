@@ -1,0 +1,200 @@
+/* Banner */
+.banner {
+  background: linear-gradient(to bottom right, #8b5cf6, #e879f9, #8b5cf6);
+  padding: 3rem 0;
+  color: var(--white);
+}
+
+.container {
+  width: 90%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.banner h1 {
+  color: rgb(244, 240, 232);
+  font-size: 32px;
+  font-weight: 600;
+}
+
+.banner p {
+  color: rgb(244, 240, 232);
+  font-size: 16px;
+  margin-bottom: 5px;
+}
+
+/* Main */
+.main {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+/* Card */
+.card {
+  background-color: #ffffff;
+  border-radius: 1rem;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+  margin-bottom: 2rem;
+  overflow: hidden;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #eee;
+  background-color: #fafafa;
+}
+
+.cardHeader h2 {
+  font-size: 1.25rem;
+  color: #8b5cf6;
+  margin: 0;
+}
+
+.cardBody {
+  padding: 1.5rem 1.25rem;
+}
+
+/* Tabs */
+.tabs {
+  display: inline-flex;
+  background: #f1f5f9;
+  border-radius: 10px;
+  padding: 4px;
+}
+
+.tab {
+  border: none;
+  background: transparent;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  color: #475569;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover { background: #e5e7eb; }
+
+.active { background: #8b5cf6; color: white; }
+
+.headerActions { display: flex; align-items: center; gap: 0.5rem; }
+.editingBadge {
+  background: rgba(139, 92, 246, 0.1);
+  color: #7c3aed;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+/* Form */
+.formRow {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.formGroup, .formGroupFull {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup { flex: 1; min-width: 240px; }
+.formGroupFull { flex: 1 1 100%; }
+
+.formGroup label, .formGroupFull label {
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.formGroup input,
+.formGroup select,
+.formGroupFull textarea,
+.formGroupFull input {
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.includedInputRow { display: flex; gap: 0.5rem; }
+.btnAdd {
+  background-color: #8b5cf6;
+  color: #fff;
+  border: none;
+  padding: 0.6rem 1rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btnAdd:hover { background-color: #7c3aed; }
+
+.chips { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.5rem; }
+.chip {
+  background: #f1f5f9;
+  color: #334155;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+}
+.chipRemove {
+  margin-left: 6px; border: none; background: transparent; cursor: pointer; color: #64748b; font-weight: 700;
+}
+
+.formActions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem; }
+.btnPrimary {
+  background-color: #8b5cf6;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.btnPrimary:hover { background-color: #7c3aed; }
+.btnSecondary {
+  background-color: #e5e7eb;
+  color: #1f2937;
+  border: none;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btnSecondary:hover { background-color: #d1d5db; }
+
+/* Table */
+.tableWrap { width: 100%; overflow-x: auto; }
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 0.75rem 0.5rem; border-bottom: 1px solid #f1f5f9; }
+.table th { color: #475569; font-size: 0.85rem; }
+.table td { color: #111827; font-size: 0.9rem; }
+
+.empty { text-align: center; color: #6b7280; padding: 1.25rem 0; }
+
+.tableBtn {
+  background: #eef2ff;
+  color: #3730a3;
+  border: none;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-right: 0.4rem;
+}
+.tableBtn:hover { background: #e0e7ff; }
+.danger { background: #fee2e2; color: #991b1b; }
+.danger:hover { background: #fecaca; }
+
+.status { padding: 0.2rem 0.5rem; border-radius: 6px; font-size: 0.75rem; font-weight: 700; }
+.activeStatus { background: #dcfce7; color: #166534; }
+.inactiveStatus { background: #fee2e2; color: #991b1b; }
+
+/* Responsive */
+@media (max-width: 768px) { .formRow { flex-direction: column; } }
+
