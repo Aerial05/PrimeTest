@@ -1,6 +1,6 @@
 
-import {Hero} from '/src/components/user/dashboard/Hero/Hero';
-import {BookingCard} from '/src/components/user/dashboard/BookingCard/BookingCard';
+import {Hero} from '/src/components/user/dashboard/hero/Hero';
+import {BookingCard} from '/src/components/user/dashboard/bookingCard/BookingCard';
 
 export function Dashboard() {
   return (

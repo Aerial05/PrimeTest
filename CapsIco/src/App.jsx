@@ -26,7 +26,7 @@ import { MessagesPage } from "./pages/admin/messages/MessagesPage";
 
 //Components
 import { NavBar } from "./components/user/navBar/NavBar";
-import { HeaderInfoBar } from "./components/user/HeaderInfoBar/HeaderInfoBar";
+import { HeaderInfoBar } from "./components/user/headerInfoBar/HeaderInfoBar";
 import { Footer } from "./components/user/footer/Footer";
 
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";

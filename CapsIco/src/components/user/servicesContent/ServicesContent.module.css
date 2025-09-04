@@ -50,11 +50,10 @@
 
 .card {
   background-color: #fff;
-  padding: 1.5rem;
-  padding-right: 2rem; /* space for button */
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
-  position: relative;
+  padding: 1.25rem 1.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 6px 16px rgba(76, 29, 149, 0.08);
+  border: 1px solid #eee;
 }
 
 .subheading {
@@ -90,6 +89,13 @@
   margin-top: 0.5rem;
 }
 
+.priceNote {
+  margin-top: 0.5rem;
+  color: #374151; /* gray-700 */
+  font-style: italic;
+  font-size: 0.95rem;
+}
+
 .philhealth {
   color: #059669; /* green-600 */
   font-size: 1rem;
@@ -107,32 +113,32 @@
 
 .cardRow {
   display: flex;
-  align-items: center;
-  position: relative; /* for absolute button */
+  align-items: flex-start;
+  gap: 1rem;
 }
 
 .appointmentBtn {
-  position: absolute;
-  right: 1.5rem;
-  top: 50%;
-  transform: translateY(-50%);
-  background: #4c1d95;
+  order: 2;
+  margin-left: auto; /* push to the right */
+  background: linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%);
   color: #fff;
   border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 1.2rem;
-  font-weight: bold;
+  border-radius: 0.75rem;
+  padding: 0.8rem 1.2rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.2s;
+  box-shadow: 0 8px 18px rgba(107, 33, 168, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
+.appointmentBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(107,33,168,0.3); }
+.appointmentBtn:active { transform: translateY(0); opacity: 0.95; }
 
 .cardContent {
   flex: 1;
+  order: 1;
 }
 
-/* 
-@media (min-width: 768px) {
-  .grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-} */
+@media (max-width: 640px) {
+  .cardRow { flex-direction: column; }
+  .appointmentBtn { width: 100%; margin-left: 0; }
+}

@@ -1,13 +1,60 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import styles from "./BookAppointment.module.css";
 
+// Centralized services for booking, aligned with Services page
 const services = [
-  { id: "surgeon", name: "Surgeon", provider: "Dr. Forgor", type: "per-appointment", note: "By request only. Our staff will contact you to confirm a time." },
-  { id: "xray", name: "X-ray", provider: "Mr. Batoon", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "16:00" } },
-  { id: "ibogaine", name: "Ibogaine", provider: "Dra. Aklan", schedule: { days: [2,4,6], start: "14:00", end: "17:00" } },
-  { id: "ultrasound", name: "Ultra Sound", provider: "Dra. Cecile", schedule: { days: [1,3,5], start: "14:00", end: "17:00" } },
-  { id: "consultation", name: "Consultation", provider: "Pediatrician / Internal Medicine (Dra. Joy)", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "18:00" } },
-  { id: "laboratory", name: "Laboratory", provider: "PrimeLab", schedule: { weekday: { days: [1,2,3,4,5,6], start: "07:00", end: "16:00", cutoff: "15:30" }, sunday: { days: [0], start: "07:30", end: "11:30" } } },
+  {
+    id: "laboratory",
+    name: "Laboratory",
+    provider: "Prime Medical Laboratory",
+    schedule: {
+      weekday: { days: [1, 2, 3, 4, 5, 6], start: "07:00", end: "16:00", cutoff: "15:30" },
+      sunday: { days: [0], start: "07:30", end: "11:30" },
+    },
+    note: "Mon-Sat 7:00 AM - 4:00 PM (3:30 PM cutoff). Sunday 7:30 AM - 11:30 AM.",
+    short: "Mon-Sat 7-4; Sun 7:30-11:30",
+    priceNote: "Prices vary by test panel and doctor's request; bundles available.",
+  },
+  { id: "xray", name: "X-ray", provider: "Radiology Team", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "16:00" }, note: "Daily 9:00 AM - 4:00 PM.", short: "Daily 9-4", priceNote: "Price depends on requested view/area and plates." },
+  { id: "ultrasound", name: "Ultrasound", provider: "Radiology Team", schedule: { days: [1,3,5], start: "14:00", end: "17:00" }, note: "Mon, Wed, Fri 2:00 PM - 5:00 PM.", short: "Mon/Wed/Fri 2-5", priceNote: "Price depends on study (upper abdomen, pelvic, breast)." },
+  { id: "ecg", name: "12-Lead ECG", provider: "Cardiology Desk", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "18:00" }, note: "Daily 9:00 AM - 6:00 PM.", short: "Daily 9-6", price: "PHP 250" },
+  { id: "drugtest", name: "Drug Testing", provider: "Toxicology Desk", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "18:00" }, note: "Daily 9:00 AM - 6:00 PM.", short: "Daily 9-6", price: "PHP 280" },
+  { id: "animalBite", name: "Animal Bite Center", provider: "ABTC Team", schedule: { days: [1,3,4,6], start: "08:00", end: "16:00" }, note: "Mon, Wed, Thu, Sat 8:00 AM - 4:00 PM. Free anti-rabies vaccine is walk-in and first-come, first-served.", short: "Mon/Wed/Thu/Sat 8-4", priceNote: "Total cost depends on vaccine doses, ERIG need and follow-ups." },
+  { id: "freeRabies", name: "Free Anti-Rabies Vaccine", provider: "ABTC Team", type: "per-appointment", note: "Walk-in only on Mon/Wed/Thu/Sat, 8:00 AM - 4:00 PM (last call 3:30 PM). First-come, first-served; first 30 patients.", short: "Walk-in Mon/Wed/Thu/Sat 8-4", priceNote: "Vaccine is free on listed days for eligible patients; other meds/procedures may have costs." },
+  { id: "consultation", name: "Consultation", provider: "Clinic Physicians", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "18:00" }, note: "Daily 9:00 AM - 6:00 PM.", short: "Daily 9-6", priceNote: "Professional fee varies by doctor and case." },
+];
+
+// Lightweight catalog mirroring Services page (for quick selection)
+const packagesCatalog = [
+  { title: 'Comprehensive Diagnostic Package', summary: 'Hypertension/Diabetes/Kidney/Liver/Heart/UTS screening with ECG and lipid profile.' },
+  { title: 'Animal Bite Treatment Package', summary: 'Assessment, wound care, vaccine/ERIG plan. Prices depend on case.' },
+  { title: 'Pre-Employment Package A', summary: 'CBC, Urinalysis, Chest X-ray.' },
+  { title: 'Pre-Employment Package B', summary: 'CBC, Urinalysis, Chest X-ray, Drug Test.' },
+  { title: 'Pre-Employment Package C', summary: 'CBC, Urinalysis, Chest X-ray, Drug Test, Fecalysis.' },
+  { title: 'Pre-Employment Package D', summary: 'Add HBsAg to Package C.' },
+  { title: 'Pre-Employment Package E', summary: 'Add Anti-HAV (IgM) to Package C.' },
+];
+
+const servicesCatalog = [
+  { title: 'Free Anti-Rabies Vaccine', summary: 'Mon/Wed/Thu/Sat 8:00 AM - 4:00 PM; last call 3:30 PM; first 30 walk-ins.', pinned: true },
+  { title: 'Complete Laboratory', summary: 'Chemistry, hematology and urinalysis; bundled panels available.' },
+  { title: 'X-ray / Ultrasound', summary: 'General radiography and ultrasound imaging.' },
+  { title: '12-Lead ECG', summary: 'Heart rhythm analysis (rate posted on Services page).' },
+  { title: 'Drug Testing', summary: 'Standard screening (rate posted on Services page).' },
+  { title: 'Animal Bite Center', summary: 'Walk-in assessment, wound care, vaccine/ERIG guidance.' },
+  { title: 'Pap Smear', summary: 'Cervical cancer screening; method may vary.' },
+  { title: 'Circumcision', summary: 'All-in package.' },
+  { title: 'Vaccination', summary: 'Routine and catch-up immunizations; brand/age dependent.' },
+  { title: 'Neuro Psychological Test', summary: 'Psychometric evaluation for employment/clearance.' },
+  { title: 'Annual Medical Examination', summary: 'Company/individual checkup; customizable package.' },
+  { title: 'Home Service Laboratory & Checkup', summary: 'At-home specimen collection and basic checkups.' },
+  { title: 'Medical Certificate', summary: 'Issued after evaluation for work/school/travel.' },
+  { title: 'Rapid Antigen Test', summary: 'SARS-CoV-2 rapid antigen screening.' },
+  { title: 'Multispecialty Clinic', summary: 'Consults with trusted specialists.' },
+  { title: 'HMO / Healthcards', summary: 'Processing for covered tests and consults.' },
+  { title: 'Animal Bite PhilHealth Konsulta Assistance', summary: 'PHP 5,850 assistance for animal bite treatment (per PhilHealth rules).' },
+  { title: 'PhilHealth Konsulta (Assistance)', summary: 'PHP 1,700 assistance each for member/dependent/senior subject to MD request.' },
 ];
 
 function pad(n) { return n.toString().padStart(2, "0"); }
@@ -16,7 +63,8 @@ function toHHMM(mins) { const h = Math.floor(mins/60), m = mins%60; return `${pa
 function labelFromHHMM(hhmm) { const [h,m]=hhmm.split(":").map(Number); const ampm=h>=12?"PM":"AM"; const h12=h%12===0?12:h%12; return `${h12}:${pad(m)} ${ampm}`; }
 
 export function BookAppointment() {
-  const [activeServiceId, setActiveServiceId] = useState("xray");
+  const location = useLocation();
+  const [activeServiceId, setActiveServiceId] = useState("laboratory");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [timeOfDay, setTimeOfDay] = useState("Morning");
@@ -58,6 +106,46 @@ export function BookAppointment() {
     });
   }, [slots, timeOfDay]);
 
+  // Map a ServicesContent item title to a local service id
+  const mapItemToServiceId = (title = "") => {
+    const t = title.toLowerCase();
+    if (t.includes("x-ray") || t.includes("xray")) return "xray";
+    if (t.includes("ultrasound")) return "ultrasound";
+    if (t.includes("ecg")) return "ecg";
+    if (t.includes("drug")) return "drugtest";
+    if (t.includes("laboratory") || t.includes("pre-employment") || t.includes("comprehensive")) return "laboratory";
+    if (t.includes("free anti") || t.includes("anti-rabies")) return "freeRabies";
+    if (t.includes("animal bite")) return "animalBite";
+    if (t.includes("konsulta")) return "consultation";
+    return null;
+  };
+
+  // Initialize from Services page selection (only set the service; do not modify notes)
+  useEffect(() => {
+    const item = location.state && location.state.selectedItem;
+    if (!item) return;
+    const mapped = mapItemToServiceId(item.title);
+    if (mapped) setActiveServiceId(mapped);
+  }, [location.state]);
+
+  // Catalog state and helpers
+  const [browseTab, setBrowseTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const catalog = useMemo(() => {
+    let list = browseTab === 'packages' ? packagesCatalog : (browseTab === 'services' ? servicesCatalog : [...servicesCatalog, ...packagesCatalog]);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      list = list.filter(it => it.title.toLowerCase().includes(q) || (it.summary||'').toLowerCase().includes(q));
+    }
+    // pinned first
+    return [...list].sort((a,b) => (b?.pinned?1:0) - (a?.pinned?1:0));
+  }, [browseTab, search]);
+
+  const selectFromCatalog = (title) => {
+    const sid = mapItemToServiceId(title) || 'consultation';
+    setActiveServiceId(sid);
+  };
+
   const onSubmit = (e) => {
     e.preventDefault();
     const payload = { service: activeServiceId, date, time, patient };
@@ -72,23 +160,36 @@ export function BookAppointment() {
         <div className={styles.infoBody}>
           <label className={styles.label}>Service</label>
           <select className={styles.select} value={activeServiceId} onChange={(e)=>{setActiveServiceId(e.target.value); setTime("");}}>
-            {services.map(s => <option value={s.id} key={s.id}>{s.name} — {s.provider}</option>)}
+            {services.map(s => (
+              <option value={s.id} key={s.id}>
+                {s.name} — {s.short || s.provider}
+              </option>
+            ))}
           </select>
-          <div className={styles.smallNote}>
-            {activeService?.type === 'per-appointment' ? (
-              <>Per-appointment only. Submit a request and our staff will confirm your schedule.</>
-            ) : activeServiceId === 'laboratory' ? (
-              <>Mon–Sat 7:00 AM–4:00 PM (3:30 PM cutoff). Sunday 7:30 AM–11:30 AM.</>
-            ) : activeServiceId === 'xray' ? (
-              <>Daily 9:00 AM–4:00 PM.</>
-            ) : activeServiceId === 'ibogaine' ? (
-              <>Tue, Thu, Sat 2:00 PM–5:00 PM.</>
-            ) : activeServiceId === 'ultrasound' ? (
-              <>Mon, Wed, Fri 2:00 PM–5:00 PM.</>
-            ) : (
-              <>Daily 9:00 AM–6:00 PM.</>
-            )}
+          <div className={styles.smallNote}><b>Hours:</b> {activeService?.note}</div>
+        </div>
+
+        <div className={styles.catalog}>
+          <div className={styles.catalogHeader}>Browse Services</div>
+          <div className={styles.catalogControls}>
+            <div className={styles.catalogTabs}> 
+              {['all','packages','services'].map(t => (
+                <button key={t} type="button" className={`${styles.ctab} ${browseTab===t?styles.ctabActive:''}`} onClick={()=>setBrowseTab(t)}>
+                  {t[0].toUpperCase()+t.slice(1)}
+                </button>
+              ))}
+            </div>
+            <input className={styles.catalogSearch} placeholder="Search..." value={search} onChange={(e)=>setSearch(e.target.value)} />
           </div>
+          <div className={styles.catalogList}>
+            {catalog.map((it) => (
+              <button key={it.title} type="button" className={styles.catalogItem} onClick={()=>selectFromCatalog(it.title)}>
+                <div className={styles.catalogTitle}>{it.title}</div>
+                {it.summary && <div className={styles.catalogSummary}>{it.summary}</div>}
+              </button>
+            ))}
+          </div>
+          <div className={styles.smallNote}>Tip: Click an item to select and prefill the service above.</div>
         </div>
       </aside>
 
@@ -105,7 +206,7 @@ export function BookAppointment() {
           </div>
           <div className={styles.slotsWrap}>
             {activeService?.type === 'per-appointment' ? (
-              <div className={styles.empty}>Per-appointment only. Please proceed with the request form below.</div>
+              <div className={styles.empty}>Walk-in only / Request-based. Please proceed with the request form below.</div>
             ) : !date ? (
               <div className={styles.empty}>Select a date to see available times.</div>
             ) : filteredByTimeOfDay.length === 0 ? (
@@ -131,8 +232,27 @@ export function BookAppointment() {
             <div className={styles.formGroup}><label className={styles.label}>Email</label><input className={styles.input} type="email" value={patient.email} onChange={(e)=>setPatient(p=>({...p,email:e.target.value}))} /></div>
             <div className={styles.formGroup}><label className={styles.label}>Birthday</label><input className={styles.input} type="date" value={patient.birthday} onChange={(e)=>setPatient(p=>({...p,birthday:e.target.value}))} /></div>
             <div className={styles.formGroup}><label className={styles.label}>Gender</label><select className={styles.input} value={patient.gender} onChange={(e)=>setPatient(p=>({...p,gender:e.target.value}))}><option value="">Select</option><option>Male</option><option>Female</option></select></div>
-            <div className={`${styles.formGroup} ${styles.fullWidth}`}><label className={styles.label}>Chief Complaint</label><input className={styles.input} value={patient.complaint} onChange={(e)=>setPatient(p=>({...p,complaint:e.target.value}))} /></div>
-            <div className={`${styles.formGroup} ${styles.fullWidth}`}><label className={styles.label}>Special Instructions</label><textarea className={styles.textarea} rows="3" value={patient.notes} onChange={(e)=>setPatient(p=>({...p,notes:e.target.value}))} /></div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.label}>Chief Complaint</label>
+              <input
+                className={styles.input}
+                placeholder="e.g., Dog bite left calf today; washed wound. OR Chest tightness"
+                value={patient.complaint}
+                onChange={(e)=>setPatient(p=>({...p,complaint:e.target.value}))}
+              />
+              <div className={styles.smallNote}>Briefly describe your main problem, location and duration.</div>
+            </div>
+            <div className={`${styles.formGroup} ${styles.fullWidth}`}>
+              <label className={styles.label}>Special Instructions</label>
+              <textarea
+                className={styles.textarea}
+                rows="3"
+                placeholder="e.g., Allergic to penicillin; please call before arrival; needs wheelchair access; pre-employment form to be filled."
+                value={patient.notes}
+                onChange={(e)=>setPatient(p=>({...p,notes:e.target.value}))}
+              />
+              <div className={styles.smallNote}>Add preparation notes, allergies, preferences or access needs.</div>
+            </div>
           </div>
           <div className={styles.actions}>
             <button type="submit" className={styles.primaryBtn} disabled={activeService?.type !== 'per-appointment' && (!date || !time)}>
@@ -146,11 +266,14 @@ export function BookAppointment() {
         <h3>Your Appointment Details</h3>
         <div className={styles.summaryRow}><span>Service</span><strong>{activeService?.name}</strong></div>
         <div className={styles.summaryRow}><span>Provider</span><strong>{activeService?.provider}</strong></div>
-        <div className={styles.summaryRow}><span>Date</span><strong>{date || '—'}</strong></div>
-        <div className={styles.summaryRow}><span>Time</span><strong>{time ? labelFromHHMM(time) : '—'}</strong></div>
+        <div className={styles.summaryRow}><span>Price</span><strong>{activeService?.price || 'Varies'}</strong></div>
+        <div className={styles.summaryRow}><span>Date</span><strong>{date || '-'}</strong></div>
+        <div className={styles.summaryRow}><span>Time</span><strong>{time ? labelFromHHMM(time) : '-'}</strong></div>
         <div className={styles.summaryNote}>Arrive 10 minutes early. Follow preparation instructions where applicable.</div>
+        {activeService?.priceNote && (
+          <div className={styles.summaryPriceNote}>{activeService.priceNote}</div>
+        )}
       </aside>
     </div>
   );
 }
-

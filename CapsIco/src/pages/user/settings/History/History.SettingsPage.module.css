@@ -17,6 +17,9 @@
 .table th, .table td { text-align: left; padding: 10px 12px; border-bottom: 1px solid #f3f4f6; }
 .table th { color: #6b7280; text-transform: uppercase; font-size: 12px; }
 .table td { color: #111827; font-size: 14px; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; color:#374151; }
+.mainCell { font-weight: 600; }
+.subCell { color:#6b7280; font-size: 12px; }
 
 .empty { text-align: center; color: #6b7280; padding: 1rem 0; }
 

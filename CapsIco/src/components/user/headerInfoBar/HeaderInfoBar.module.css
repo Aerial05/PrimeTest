@@ -1,11 +1,13 @@
 .siteHeader {
-  background-color: white;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  background: #ffffff;
+  border-bottom: 1px solid #f3f4f6;
+  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.08);
 }
 
 .container {
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 0.8rem 1rem;
+  max-width: 1200px;
 }
 
 .headerContent {
@@ -21,61 +23,30 @@
   text-decoration: none;
 }
 
-.logoIcon {
-  width: 28px;
-  height: 28px;
-  color: #8b5cf6;
-}
+.logoIcon { width: 28px; height: 28px; color: #8b5cf6; }
 
 .brandName {
   font-weight: bold;
   font-size: 1.25rem;
 }
 
-.textPrimary {
-  color: #8b5cf6;
-}
+.textPrimary { color: #8b5cf6; }
+.textSecondary { color: #ec4899; }
 
-.textSecondary {
-  color: #ec4899;
-}
+.contactInfo { display: flex; gap: 1rem; flex-wrap: wrap; }
 
-.contactInfo {
-  display: flex;
-  gap: 2rem;
-}
+.infoItem { display:flex; align-items:center; gap:.6rem; background:#f8fafc; padding:.5rem .75rem; border-radius:9999px; transition: box-shadow .2s ease, transform .15s ease; }
+.infoItem:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(107, 33, 168, 0.12); }
 
-.infoItem {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  transition: 0.3s ease-in-out;
-}
+.infoIcon { width: 18px; height: 18px; color:#6b7280; }
 
-.infoItem:hover {
-transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
-}
+.infoText { display:flex; flex-direction:column; line-height:1.1; }
 
-.infoIcon {
-  width: 20px;
-  height: 20px;
-  color: #6b7280;
-}
+.infoLabel { font-size:.7rem; color:#6b7280; letter-spacing:.02em; }
 
-.infoText {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.1;
-}
+.infoValue { font-size:.9rem; color:#111827; text-decoration:none; }
 
-.infoLabel {
-  font-size: 0.75rem;
-  color: #6b7280;
-}
-
-.infoValue {
-  font-size: 0.875rem;
-  color: #111827;
-  text-decoration: none;
+@media (max-width: 768px) {
+  .brandName { display:none; }
+  .container { padding: .6rem .75rem; }
 }

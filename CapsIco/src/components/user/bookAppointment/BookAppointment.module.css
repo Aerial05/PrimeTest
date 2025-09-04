@@ -1,8 +1,6 @@
 :root { --primary:#8b5cf6; --primary-light:#a78bfa; --text-dark:#1f2937; }
 
-.wrapper {
-  display:grid; grid-template-columns: 280px 1fr 280px; gap:1rem; margin: 1rem auto; max-width: 1200px; padding: 0 1rem;
-}
+.wrapper { display:grid; grid-template-columns: 340px 1fr 280px; gap:1rem; margin: 1rem auto; max-width: 1200px; padding: 0 1rem; }
 
 .infoCard, .mainCard, .summaryCard { background:#fff; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
 .infoCard { padding: 1rem; }
@@ -36,9 +34,25 @@
 .primaryBtn:disabled { opacity:.6; cursor:not-allowed; }
 
 .summaryCard h3 { margin:0 0 .75rem 0; color:#374151; }
-.summaryRow { display:flex; justify-content:space-between; padding:.35rem 0; border-bottom:1px solid #f3f4f6; }
-.summaryRow span { color:#6b7280; }
+.summaryRow { display:flex; align-items:flex-start; gap:.5rem; padding:.35rem 0; border-bottom:1px solid #f3f4f6; }
+.summaryRow span { color:#6b7280; flex:0 0 auto; }
+.summaryRow strong { margin-left:auto; text-align:right; flex:1 1 auto; max-width:60%; word-break:break-word; }
 .summaryNote { margin-top:.75rem; font-size:.9rem; color:#6b7280; }
+.summaryPriceNote { margin-top:.25rem; font-size:.85rem; color:#6b7280; }
+
+/* Catalog below Service Center */
+.catalog { margin-top: 1rem; border-top:1px solid #f3f4f6; padding-top:.75rem; }
+.catalogHeader { font-weight:700; color:#374151; margin-bottom:.5rem; }
+.catalogControls { display:flex; flex-direction:column; gap:.5rem; align-items:stretch; justify-content:flex-start; margin-bottom:.5rem; }
+.catalogTabs { display:inline-flex; background:#f1f5f9; border-radius:10px; padding:4px; }
+.ctab { border:none; background:transparent; padding:.35rem .7rem; border-radius:8px; cursor:pointer; color:#475569; font-weight:600; }
+.ctabActive { background: var(--primary); color:#fff; }
+.catalogSearch { width:100%; flex:0 1 auto; min-width:0; border:1px solid #e5e7eb; border-radius:8px; padding:.45rem .6rem; }
+.catalogList { display:grid; gap:.4rem; max-height:260px; overflow:auto; }
+.catalogItem { text-align:left; border:1px solid #e5e7eb; background:#fff; padding:.5rem .6rem; border-radius:8px; cursor:pointer; }
+.catalogItem:hover { background:#f8fafc; }
+.catalogTitle { font-weight:600; color:#111827; }
+.catalogSummary { color:#6b7280; font-size:.85rem; }
 
 @media (max-width: 992px) { .wrapper { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .formGrid { grid-template-columns: 1fr; } }
