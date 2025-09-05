@@ -66,6 +66,19 @@ body {
 
 * { box-sizing: border-box; }
 
+/* App layout shell for sticky footer */
+.appShell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.appMain {
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+}
+
 /* Readable defaults */
 h1, h2, h3, h4, h5, h6 { color: var(--text-dark); margin: 0 0 .5rem 0; line-height: var(--lh-tight); }
 h1 { font-size: clamp(1.75rem, 2.2vw + 1rem, 2.5rem); font-weight: 800; letter-spacing: -0.01em; }

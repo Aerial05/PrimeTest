@@ -47,6 +47,14 @@ export function AdminNavBar() {
         <ul className={styles.navList}>
           <li>
             <Link
+              to="/account-management"
+              className={isActive('/account-management') ? styles.active : undefined}
+            >
+              Account Management
+            </Link>
+          </li>
+          <li>
+            <Link
               to="/staff-management"
               className={isActive('/staff-management') ? styles.active : undefined}
             >
@@ -95,7 +103,7 @@ export function AdminNavBar() {
                     onClick={toggleDropDown}
                   >
                     <div className={styles.userInfo}>
-        <span>Admin User</span>
+        <span>Super Admin</span>
         <i className="fas fa-user-circle"></i>
       </div>
                   </button>

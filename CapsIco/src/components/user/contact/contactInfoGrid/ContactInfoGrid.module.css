@@ -50,6 +50,34 @@
   margin: 0 auto 3rem auto;
 }
 
+/* New: wrapper to center the map and provide flex behavior */
+.mapWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  margin: 2rem 0 3rem 0;
+}
+
+/* Inner container with target width (~70%) and responsive constraints */
+.mapInner {
+  width: 70%;
+  max-width: 1000px;
+  min-width: 300px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Make the iframe fully responsive inside the inner container */
+.mapIframe {
+  width: 100%;
+  height: 450px;
+  border: 0;
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 18px rgba(12, 14, 20, 0.08);
+}
+
 .textCenter {
   text-align: center;
   margin-bottom: 3rem;
@@ -68,4 +96,13 @@
 .cutoffRed {
   color: #ef4444; /* more red */
   font-weight: 600; /* bigger font weight */
+}
+
+@media (max-width: 768px) {
+  .mapInner {
+    width: 95%;
+  }
+  .mapIframe {
+    height: 320px;
+  }
 }

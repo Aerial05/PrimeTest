@@ -170,5 +170,14 @@
 .tabIcon4::before { content: "🧰"; }
 .tabIcon5::before { content: "🩻"; }
 .tabIcon6::before { content: "❤️"; }
+.tabIcon7::before { content: "👩‍⚕️"; }
+.tabIcon8::before { content: "🧪"; }
+.tabIcon0::before { content: "🏥"; }
+.tabIcon1::before { content: "🛎️"; }
+.tabIcon2::before { content: "🩺"; }
+.tabIcon3::before { content: "🩻"; }
+.tabIcon4::before { content: "🧰"; }
+.tabIcon5::before { content: "🩻"; }
+.tabIcon6::before { content: "❤️"; }
 .tabIcon7::before { content: "🌿"; }
 .tabIcon8::before { content: "🧪"; }

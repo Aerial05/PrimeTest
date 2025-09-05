@@ -18,7 +18,7 @@ const services = [
   },
   { id: "xray", name: "X-ray", provider: "Mr. Batoon", schedule: { days: [0,1,2,3,4,5,6], start: "09:00", end: "16:00" }, note: "Everyday 9:00 AM - 4:00 PM.", short: "Daily 9:00 AM - 4:00 PM", priceNote: "Price depends on requested view/area and plates." },
   { id: "ultrasound", name: "Ultrasound", provider: "Dra. Cecile", schedule: { days: [1,3,5], start: "14:00", end: "17:00" }, note: "Mon, Wed, Fri 2:00 PM - 5:00 PM.", short: "Mon/Wed/Fri 2-5", priceNote: "Price depends on study (upper abdomen, pelvic, breast)." },
-  { id: "ibogaine", name: "Ibogaine", provider: "Dra. Aklan", schedule: { days: [2,4,6], start: "14:00", end: "17:00" }, note: "Tue, Thu, Sat 2:00 PM - 5:00 PM.", short: "Tue/Thu/Sat 2:00 PM - 5:00 PM" },
+  { id: "obgyne", name: "OB‑Gyne", provider: "OB‑Gyne Specialist", schedule: { days: [2,4,6], start: "14:00", end: "17:00" }, note: "Tue, Thu, Sat 2:00 PM - 5:00 PM.", short: "Tue/Thu/Sat 2:00 PM - 5:00 PM" },
   { id: "surgeon", name: "Surgeon", provider: "Dr. forgor", type: "per-appointment", note: "Per Appointment Only.", short: "By appointment" },
   { id: "consultation", name: "Consultation", provider: "Pediatrician & Internal Medicine (Dra. Joy)", schedule: { days: [0,1,2,3,4,5,6], start: "07:00", end: "16:00" }, note: "Daily 7:00 AM - 4:00 PM.", short: "Daily 7:00 AM - 4:00 PM", priceNote: "Professional fee varies by doctor and case." },
   { id: "ecg", name: "12-Lead ECG", provider: "Prime Medical Laboratory", schedule: { days: [0,1,2,3,4,5,6], start: "07:00", end: "16:00" }, note: "Daily 7:00 AM - 4:00 PM.", short: "Daily 7:00 AM - 4:00 PM", price: "PHP 250" },
@@ -43,7 +43,7 @@ const servicesCatalog = [
   { title: 'Complete Laboratory', summary: 'Chemistry, hematology and urinalysis; bundled panels available.' },
   { title: 'X-ray', summary: 'Provider: Mr. Batoon. Everyday 9:00 AM - 4:00 PM.' },
   { title: 'Ultrasound', summary: 'Provider: Dra. Cecile. Mon/Wed/Fri 2:00 PM - 5:00 PM.' },
-  { title: 'Ibogaine', summary: 'Provider: Dra. Aklan. Tue/Thu/Sat 2:00 PM - 5:00 PM.' },
+  { title: 'OB‑Gyne', summary: 'Provider: OB‑Gyne Specialist. Tue/Thu/Sat 2:00 PM - 5:00 PM.' },
   { title: 'Surgeon', summary: 'Provider: Dr. forgor. Per Appointment Only.' },
   { title: '12-Lead ECG', summary: 'Heart rhythm analysis (rate posted on Services page).' },
   { title: 'Drug Testing', summary: 'Standard screening (rate posted on Services page).' },
@@ -128,7 +128,7 @@ export function BookAppointment() {
     const t = title.toLowerCase();
     if (t.includes("x-ray") || t.includes("xray")) return "xray";
     if (t.includes("ultrasound")) return "ultrasound";
-    if (t.includes("ibogaine")) return "ibogaine";
+    if (t.includes("ob-gyne") || t.includes("obgyne") || (t.includes("ob") && t.includes("gyne"))) return "obgyne";
     if (t.includes("surgeon") || t.includes("surgery")) return "surgeon";
     if (t.includes("ecg")) return "ecg";
     if (t.includes("drug")) return "drugtest";

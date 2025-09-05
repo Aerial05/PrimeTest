@@ -159,9 +159,9 @@ export default function ServicesContent() {
       lines.push('Provider: Dra. Cecile — Mon/Wed/Fri 2:00 PM – 5:00 PM');
       return { provider: 'Dra. Cecile', availability: lines };
     }
-    if (t.includes('ibogaine')) {
-      lines.push('Provider: Dra. Aklan — Tue/Thu/Sat 2:00 PM – 5:00 PM');
-      return { provider: 'Dra. Aklan', availability: lines };
+    if (t.includes('ob-gyne') || t.includes('obgyne') || (t.includes('ob') && t.includes('gyne'))) {
+      lines.push('Provider: OB‑Gyne Specialist — Tue/Thu/Sat 2:00 PM – 5:00 PM');
+      return { provider: 'OB‑Gyne Specialist', availability: lines };
     }
     if (t.includes('surgeon') || t.includes('surgery')) {
       lines.push('Provider: Dr. forgor — Per Appointment Only');

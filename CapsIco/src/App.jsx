@@ -18,7 +18,8 @@ import { UserSettingsPage } from "./pages/user/settings/UserSettingsPage";
   // ADMIN
 }
 import { AdminDashboard } from "./pages/admin/adminDashboard/AdminDashboard";
-import { StaffManagement } from "./pages/admin/staffManagement/StaffManagement";
+import { Appointments } from "./pages/admin/appointments/Appointments";
+import { AccountManagement } from "./pages/admin/accountManagement/AccountManagement";
 import { ReportsPage } from "./pages/admin/reports/ReportsPage";
 import { SettingsPage } from "./pages/admin/settings/SettingsPage";
 import { PackagesPage } from "./pages/admin/packages/PackagesPage";
@@ -38,6 +39,7 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      <div className="appShell">
       {Loggedin && admin ? (
         <AdminNavBar />
       ) : (
@@ -51,6 +53,7 @@ export default function App() {
         // NEED LOGIC PARA SA RENDERING NG NAVBAR AND HEADER INFO BASED ON AUTHENTICATION STATUS
       }
 
+      <main className="appMain">
       <Routes>
         {
           // USER
@@ -71,14 +74,17 @@ export default function App() {
         {
           // ADMIN
         }
-        <Route path="/staff-management" element={<StaffManagement />} />
+        <Route path="/staff-management" element={<Appointments />} />
+        <Route path="/account-management" element={<AccountManagement />} />
         <Route path="/admin-dashboard" element={<AdminDashboard />} />
         <Route path="/admin-reports" element={<ReportsPage />} />
         <Route path="/admin-settings" element={<SettingsPage />} />
         <Route path="/admin-packages" element={<PackagesPage />} />
         <Route path="/admin-messages" element={<MessagesPage />} />
       </Routes>
+      </main>
       {Loggedin && admin ? <AdminFooter /> : <Footer />}
+      </div>
     </BrowserRouter>
   );
 }

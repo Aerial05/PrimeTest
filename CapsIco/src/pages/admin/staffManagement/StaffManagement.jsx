@@ -8,15 +8,15 @@ export function StaffManagement() {
     <>
       <div className={styles.banner}>
         <div className={styles.container}>
-          <p>Admin</p>
-          <h1>Appointment Management</h1>
+          <p>Super Admin</p>
+          <h1>Account Management</h1>
         </div>
       </div>
 
       <main className={styles.main}>
         <div className={styles.card}>
           <div className={styles.cardHeader}>
-            <h2>Appointments</h2>
+            <h2>Accounts</h2>
           </div>
           <AppointmentsTable />
         </div>

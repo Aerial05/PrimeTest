@@ -14,7 +14,7 @@ export function SettingsContent() {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="fullName">Full Name</label>
-              <input type="text" id="fullName" defaultValue="Admin User" />
+              <input type="text" id="fullName" defaultValue="Super Admin" />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="email">Email Address</label>

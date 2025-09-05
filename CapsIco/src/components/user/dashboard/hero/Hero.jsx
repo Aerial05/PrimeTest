@@ -9,7 +9,7 @@ const TABS = [
   { name: 'X‑RAY WORKROOM', src: 'https://momento360.com/e/u/fdeffb07ef184fa4a27f8e845cea301c?utm_campaign=embed&utm_source=other&heading=128&pitch=0.25&field-of-view=75&size=medium&display-plan=true '},
   { name: 'X‑RAY ROOM', src: 'https://momento360.com/e/u/3e379cea55cf45cabefdd5ee79ef7348?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
   { name: 'ECG ROOM', src: 'https://momento360.com/e/u/2c1f712f62414ecaa4a1d634e3e2bcff?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
-  { name: 'IBOGAINE ROOM', src: 'https://momento360.com/e/u/cb63f1673a38414a8497e73496085e5f?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
+  { name: 'OB‑GYNE ROOM', src: 'https://momento360.com/e/u/cb63f1673a38414a8497e73496085e5f?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
   { name: 'LABORATORY', src: 'https://momento360.com/e/u/2692612ce8e24f96b4f35576d8c04e19?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
 ];
 
@@ -50,9 +50,9 @@ const TAB_INFO = [
     desc: "Our ECG Room provides advanced cardiac monitoring to ensure your heart’s well-being. Patients are guided through the process by skilled staff who prioritize comfort and clarity. The equipment delivers precise readings that help doctors evaluate heart activity effectively. With a focus on accuracy, the ECG room plays a vital role in preventive and diagnostic care.",
   },
   {
-    label: "IBOGAINE ROOM",
-    heading: "Innovative Therapy Space",
-    desc: "Discover our Ibogaine Room, dedicated to progressive treatments in a safe and supportive setting. The space is designed for comfort, with careful attention to both privacy and professional supervision. Patients benefit from innovative approaches aimed at improving health and recovery. It is a specialized environment where care and innovation meet.",
+    label: "OB‑GYNE ROOM",
+    heading: "Women’s Care and Wellness",
+    desc: "Our OB‑Gyne Room is set up for comfortable, private consultations focused on women’s health. From prenatal care to routine gynecologic evaluations, our specialists provide attentive, compassionate service in a professional setting.",
   },
   {
     label: "LABORATORY",
