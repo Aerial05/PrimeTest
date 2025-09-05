@@ -1,5 +1,6 @@
 .servicesSection {
-  padding: 3rem 1rem;
+  padding: 3.5rem 1rem 3rem;
+  margin-top: 1rem;
 }
 
 .container {
@@ -10,37 +11,67 @@
 .title {
   font-size: 2.5rem;
   font-weight: bold;
-  color: #4c1d95;
+  color: var(--text-dark);
   margin-bottom: 2rem;
   text-align: left;
 }
 
+.controlsBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: .75rem;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.06);
+  margin-bottom: 1.25rem;
+}
+
 .tabs {
   display: flex;
-  gap: 1rem;
-  margin-bottom: 2rem;
+  gap: .5rem;
+}
+
+.searchWrap {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.searchInput {
+  min-width: 260px;
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border-color);
+  border-radius: 9999px;
+  background: #fff;
+  font-size: 0.95rem;
+  color: var(--text-dark);
+  outline: none;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.06);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.searchInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
 }
 
 .tabBtn {
-  padding: 0.75rem 2rem;
-  font-size: 1rem;
-  font-weight: bold;
-  background: #ede9fe;
-  color: #6b21a8;
-  border: none;
-  border-radius: 0.5rem 0.5rem 0 0;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  background: #f1f5f9;
+  color: var(--primary-dark);
+  border: 1px solid transparent;
+  border-radius: 9999px;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
 }
 
-.tabBtn:hover {
-  background: #c4b5fd;
-}
+.tabBtn:hover { background: #dbeafe; }
 
-.active {
-  background: #6b21a8;
-  color: #fff;
-}
+.active { background: var(--primary-color); color: #fff; border-color: var(--primary-dark); }
 
 .grid {
   display: grid;
@@ -51,15 +82,15 @@
 .card {
   background-color: #fff;
   padding: 1.25rem 1.5rem;
-  border-radius: 0.75rem;
-  box-shadow: 0 6px 16px rgba(76, 29, 149, 0.08);
-  border: 1px solid #eee;
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.08);
+  border: 1px solid var(--border-color);
 }
 
 .subheading {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #6b21a8;
+  color: var(--primary-dark);
   margin-bottom: 1rem;
 }
 
@@ -75,10 +106,19 @@
   gap: 2rem;
 }
 
+.noResults {
+  text-align: center;
+  color: var(--text-light);
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
 .price {
   font-size: 1.2rem;
   font-weight: bold;
-  color: #4c1d95;
+  color: var(--primary-dark);
   margin-top: 0.5rem;
 }
 
@@ -120,17 +160,17 @@
 .appointmentBtn {
   order: 2;
   margin-left: auto; /* push to the right */
-  background: linear-gradient(135deg, #6b21a8 0%, #4c1d95 100%);
+  background: var(--gradient-primary);
   color: #fff;
   border: none;
-  border-radius: 0.75rem;
+  border-radius: 9999px;
   padding: 0.8rem 1.2rem;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(107, 33, 168, 0.25);
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
   transition: transform 0.15s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
-.appointmentBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(107,33,168,0.3); }
+.appointmentBtn:hover { transform: translateY(-1px); box-shadow: 0 10px 22px rgba(37,99,235,0.3); }
 .appointmentBtn:active { transform: translateY(0); opacity: 0.95; }
 
 .cardContent {
@@ -139,6 +179,12 @@
 }
 
 @media (max-width: 640px) {
+  .controlsBar { flex-direction: column; align-items: stretch; gap: .75rem; }
   .cardRow { flex-direction: column; }
   .appointmentBtn { width: 100%; margin-left: 0; }
 }
+
+.meta { margin: .25rem 0 .5rem; color: var(--text-dark); }
+.metaRow { font-size: .95rem; margin-bottom: .25rem; }
+.metaAvail { font-size: .9rem; color: var(--text-light); }
+

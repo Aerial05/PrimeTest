@@ -7,7 +7,7 @@ export function HeaderInfoBar() {
     <header className={styles.siteHeader}>
       <div className={styles.container}>
         <div className={styles.headerContent}>
-          <Link to="/dashboard" className={styles.logoLink}>
+          <Link to="/" className={styles.logoLink}>
             <Activity className={styles.logoIcon} />
             <span className={styles.brandName}>
               <span className={styles.textPrimary}>PRIME</span>
@@ -20,7 +20,7 @@ export function HeaderInfoBar() {
               <Phone className={styles.infoIcon} />
               <div className={styles.infoText}>
                 <span className={styles.infoLabel}>EMERGENCY</span>
-                <a href="tel:0926-638-6300" className={styles.infoValue}>0926-638-6300</a>
+                <span className={styles.infoValue}>0926-638-6300</span>
               </div>
             </div>
 
@@ -39,7 +39,7 @@ export function HeaderInfoBar() {
               <MapPin className={styles.infoIcon} />
               <div className={styles.infoText}>
                 <span className={styles.infoLabel}>LOCATION</span>
-                <span className={styles.infoValue}>Bulihan, Malolos, Bulacan</span>
+                <Link to="/contact" className={styles.infoValue}>Bulihan, Malolos, Bulacan</Link>
               </div>
             </div>
           </div>

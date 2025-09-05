@@ -108,7 +108,7 @@ export function AdminNavBar() {
                       <Link to="/admin-settings" className={styles}>
                         View Profile
                       </Link>
-                      <Link to="/" className={styles}>
+                      <Link to="/login" className={styles}>
                         Log Out
                       </Link>
                     </div>

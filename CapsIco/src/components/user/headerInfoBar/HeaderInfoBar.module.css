@@ -1,8 +1,4 @@
-.siteHeader {
-  background: #ffffff;
-  border-bottom: 1px solid #f3f4f6;
-  box-shadow: 0 4px 14px rgba(139, 92, 246, 0.08);
-}
+.siteHeader { background: #ffffff; border-bottom: 1px solid #f3f4f6; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.08); }
 
 .container {
   margin: 0 auto;
@@ -23,20 +19,20 @@
   text-decoration: none;
 }
 
-.logoIcon { width: 28px; height: 28px; color: #8b5cf6; }
+.logoIcon { width: 28px; height: 28px; color: var(--primary-color); }
 
 .brandName {
   font-weight: bold;
   font-size: 1.25rem;
 }
 
-.textPrimary { color: #8b5cf6; }
-.textSecondary { color: #ec4899; }
+.textPrimary { color: var(--primary-color); }
+.textSecondary { color: var(--secondary-color); }
 
 .contactInfo { display: flex; gap: 1rem; flex-wrap: wrap; }
 
 .infoItem { display:flex; align-items:center; gap:.6rem; background:#f8fafc; padding:.5rem .75rem; border-radius:9999px; transition: box-shadow .2s ease, transform .15s ease; }
-.infoItem:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(107, 33, 168, 0.12); }
+.infoItem:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(37, 99, 235, 0.12); }
 
 .infoIcon { width: 18px; height: 18px; color:#6b7280; }
 

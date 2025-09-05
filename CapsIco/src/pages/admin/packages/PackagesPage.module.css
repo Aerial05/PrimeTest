@@ -1,9 +1,5 @@
 /* Banner */
-.banner {
-  background: linear-gradient(to bottom right, #8b5cf6, #e879f9, #8b5cf6);
-  padding: 3rem 0;
-  color: var(--white);
-}
+.banner { display: none; }
 
 .container {
   width: 90%;

@@ -138,7 +138,47 @@ const services = [
 
 export default function ServicesContent() {
   const [activeTab, setActiveTab] = useState('all');
+  const [query, setQuery] = useState('');
   const navigate = useNavigate();
+
+  // Provider and schedule mapping
+  const infoFor = (title = '') => {
+    const t = (title || '').toLowerCase();
+    const lines = [];
+    // Combined X-ray/Ultrasound card
+    if (t.includes('x-ray') && t.includes('ultrasound')) {
+      lines.push('X-ray • Provider: Mr. Batoon — Everyday 9:00 AM – 4:00 PM');
+      lines.push('Ultrasound • Provider: Dra. Cecile — Mon/Wed/Fri 2:00 PM – 5:00 PM');
+      return { provider: 'Mr. Batoon / Dra. Cecile', availability: lines };
+    }
+    if (t.includes('x-ray') || t.includes('xray')) {
+      lines.push('Provider: Mr. Batoon — Everyday 9:00 AM – 4:00 PM');
+      return { provider: 'Mr. Batoon', availability: lines };
+    }
+    if (t.includes('ultrasound')) {
+      lines.push('Provider: Dra. Cecile — Mon/Wed/Fri 2:00 PM – 5:00 PM');
+      return { provider: 'Dra. Cecile', availability: lines };
+    }
+    if (t.includes('ibogaine')) {
+      lines.push('Provider: Dra. Aklan — Tue/Thu/Sat 2:00 PM – 5:00 PM');
+      return { provider: 'Dra. Aklan', availability: lines };
+    }
+    if (t.includes('surgeon') || t.includes('surgery')) {
+      lines.push('Provider: Dr. forgor — Per Appointment Only');
+      return { provider: 'Dr. forgor', availability: lines };
+    }
+    if (t.includes('consult')) {
+      lines.push('Provider: Pediatrician & Internal Medicine (Dra. Joy) — Daily 9:00 AM – 6:00 PM');
+      return { provider: 'Pediatrician & Internal Medicine (Dra. Joy)', availability: lines };
+    }
+    if (t.includes('laboratory') || t.includes('package') || t.includes('pre-employment') || t.includes('comprehensive')) {
+      lines.push('Provider: Prime Medical Laboratory');
+      lines.push('Mon–Sat 7:00 AM – 4:00 PM (Cutoff 3:30 PM)');
+      lines.push('Sun 7:30 AM – 11:30 AM');
+      return { provider: 'Prime Medical Laboratory', availability: lines };
+    }
+    return { provider: 'Prime Medical Laboratory', availability: [] };
+  };
 
   const items = useMemo(() => {
     let arr;
@@ -149,42 +189,88 @@ export default function ServicesContent() {
     return [...arr].sort((a, b) => (b && b.pinned ? 1 : 0) - (a && a.pinned ? 1 : 0));
   }, [activeTab]);
 
+  const filteredItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+    const match = (text) => (text || '').toString().toLowerCase().includes(q);
+    return [...items]
+      .filter((item) => {
+        if (match(item.title) || match(item.desc) || match(item.badge) || match(item.priceNote)) return true;
+        if (Array.isArray(item.features) && item.features.some((f) => match(f))) return true;
+        if (match(item.philhealthPrice) || match(item.discountedPrice) || match(item.originalPrice)) return true;
+        return false;
+      })
+      .sort((a, b) => (b && b.pinned ? 1 : 0) - (a && a.pinned ? 1 : 0));
+  }, [items, query]);
+
   return (
     <section className={styles.servicesSection}>
       <div className={styles.container}>
         <h2 className={styles.title}>Our Services & Packages</h2>
-        <div className={styles.tabs}>
-          <button
-            className={`${styles.tabBtn} ${activeTab === 'all' ? styles.active : ''}`}
-            onClick={() => setActiveTab('all')}
-          >
-            All
-          </button>
-          <button
-            className={`${styles.tabBtn} ${activeTab === 'packages' ? styles.active : ''}`}
-            onClick={() => setActiveTab('packages')}
-          >
-            Packages
-          </button>
-          <button
-            className={`${styles.tabBtn} ${activeTab === 'services' ? styles.active : ''}`}
-            onClick={() => setActiveTab('services')}
-          >
-            Services
-          </button>
+        <div className={styles.controlsBar}>
+          <div className={styles.tabs}>
+            <button
+              className={`${styles.tabBtn} ${activeTab === 'all' ? styles.active : ''}`}
+              onClick={() => setActiveTab('all')}
+            >
+              All
+            </button>
+            <button
+              className={`${styles.tabBtn} ${activeTab === 'packages' ? styles.active : ''}`}
+              onClick={() => setActiveTab('packages')}
+            >
+              Packages
+            </button>
+            <button
+              className={`${styles.tabBtn} ${activeTab === 'services' ? styles.active : ''}`}
+              onClick={() => setActiveTab('services')}
+            >
+              Services
+            </button>
+          </div>
+          <div className={styles.searchWrap}>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search services or packages..."
+              className={styles.searchInput}
+              aria-label="Search services"
+            />
+          </div>
         </div>
         <div className={styles.verticalGrid}>
-          {items.map((item, idx) => (
+          {filteredItems.length === 0 && (
+            <div className={styles.noResults}>No matching services found.</div>
+          )}
+          {filteredItems.map((item, idx) => (
             <div key={idx} className={styles.card}>
               <div className={styles.cardRow}>
-                <button
-                  className={styles.appointmentBtn}
-                  onClick={() => navigate('/appointment', { state: { selectedItem: item } })}
-                >
-                  Book Appointment
-                </button>
+                {item.title.includes('X-ray / Ultrasound') ? (
+                  <div style={{display:'flex', gap:'.5rem', marginLeft:'auto'}}>
+                    <button className={styles.appointmentBtn} onClick={() => navigate('/appointment', { state: { selectedItem: { title: 'X-ray' } } })}>Book X-ray</button>
+                    <button className={styles.appointmentBtn} onClick={() => navigate('/appointment', { state: { selectedItem: { title: 'Ultrasound' } } })}>Book Ultrasound</button>
+                  </div>
+                ) : (
+                  <button
+                    className={styles.appointmentBtn}
+                    onClick={() => navigate('/appointment', { state: { selectedItem: item } })}
+                  >
+                    Book Appointment
+                  </button>
+                )}
                 <div className={styles.cardContent}>
                   <h3 className={styles.subheading}>{item.title}</h3>
+                  {(() => { const info = infoFor(item.title); return (
+                    <div className={styles.meta}>
+                      <div className={styles.metaRow}><strong>Provider:</strong> {info.provider}</div>
+                      {info.availability && info.availability.length > 0 && (
+                        <div className={styles.metaAvail}>
+                          {info.availability.map((ln, i) => (<div key={i}>{ln}</div>))}
+                        </div>
+                      )}
+                    </div>
+                  ); })()}
                   {item.badge && (
                     <p className={styles.paragraph}><b>{item.badge}</b></p>
                   )}

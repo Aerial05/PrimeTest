@@ -24,6 +24,7 @@ export function ContactInfoGrid() {
               EMERGENCY
             </h3>
             <p>0926-638-6300</p>
+            <p>(044) 802 7336 • 0956-098-0099</p>
           </div>
 
           <div className={`${styles.infoCard} ${styles.bgBlue600} ${styles.textWhite}`}>
@@ -31,7 +32,7 @@ export function ContactInfoGrid() {
               <i data-lucide="map-pin"></i>
               LOCATION
             </h3>
-            <p>Bulihan, Plaridel, Malolos</p>
+            <p>Builders Warehouse Commercial Bldg, Unit 1, McArthur Hi‑way, Bulihan, Malolos, Bulacan (near Shell and Convention)</p>
           </div>
 
           <div className={`${styles.infoCard} ${styles.bgBlue100}`}>
@@ -39,8 +40,7 @@ export function ContactInfoGrid() {
               <i data-lucide="mail"></i>
               EMAIL
             </h3>
-            <p className="whitespace-pre-line">primemedicallaboratory25
-              @gmail.com</p>
+            <p>primemedicallaboratory25@gmail.com</p>
           </div>
 
           <div className={`${styles.infoCard} ${styles.bgBlue600} ${styles.textWhite}`}>
@@ -48,8 +48,9 @@ export function ContactInfoGrid() {
               <i data-lucide="timer"></i>
               WORKING HOURS
             </h3>
-            <p>Mon - Sun 07:00 AM - 4:00PM </p>
-            <p className={styles.cutoffRed}>(3:30PM Cutoff)</p>
+            <p>Mon–Sat 7:00 AM – 4:00 PM</p>
+            <p>Sun 7:30 AM – 11:30 AM</p>
+            <p className={styles.cutoffRed}>Cutoff: 3:30 PM</p>
           </div>
         </div>
       </div>

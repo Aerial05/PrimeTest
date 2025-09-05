@@ -30,6 +30,7 @@ import { HeaderInfoBar } from "./components/user/headerInfoBar/HeaderInfoBar";
 import { Footer } from "./components/user/footer/Footer";
 
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
+import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 
 export default function App() {
   const Loggedin = true;
@@ -77,7 +78,7 @@ export default function App() {
         <Route path="/admin-packages" element={<PackagesPage />} />
         <Route path="/admin-messages" element={<MessagesPage />} />
       </Routes>
-      <Footer />
+      {Loggedin && admin ? <AdminFooter /> : <Footer />}
     </BrowserRouter>
   );
 }

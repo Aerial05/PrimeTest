@@ -4,30 +4,32 @@ export function AboutContent() {
   return (
     <section className={styles.aboutSection}>
       <div className={styles.container}>
-        <h1 className={styles.title}>About PrimeLab</h1>
+        <h1 className={styles.title}>About Prime Medical Laboratory</h1>
         <div className={styles.grid}>
-          
           <div className={styles.textColumn}>
             <p className={styles.paragraph}>
-              PrimeLab is a state-of-the-art medical laboratory dedicated to providing precise and timely diagnostic services. With over 20 years of experience, we have established ourselves as a trusted partner in healthcare.
+              Prime Medical Laboratory is a community-first diagnostics clinic in Malolos, Bulacan. We focus on precise, timely, and cost‑friendly care so patients can make informed health decisions with confidence.
             </p>
             <p className={styles.paragraph}>
-              Our team of expert pathologists, technicians, and support staff work tirelessly to ensure that every test is conducted with the utmost accuracy and care. We utilize cutting-edge technology and adhere to strict quality control measures to deliver reliable results.
+              We are among the first private diagnostic clinics accredited for PhilHealth Konsulta and Animal Bite Treatment assistance. Patients may receive support for select laboratory tests and consultations as assessed by a physician.
             </p>
             <p className={styles.paragraph}>
-              At PrimeLab, we believe in the power of preventive healthcare and aim to empower individuals and healthcare providers with the information they need to make informed decisions about health and wellness.
+              Clinic hours: Mon–Sat 7:00 AM – 4:00 PM (cutoff 3:30 PM); Sun 7:30 AM – 11:30 AM.
             </p>
           </div>
 
-          {/* Right column - mission and vision */}
           <div className={styles.card}>
-            <h2 className={styles.subheading}>Our Mission</h2>
+            <h2 className={styles.subheading}>PhilHealth Assistance</h2>
             <p className={styles.paragraph}>
-              To provide accurate, timely, and affordable diagnostic services that contribute to better health outcomes for our community.
+              PhilHealth Konsulta: assistance available for Members, Dependents, and Seniors (subject to doctor’s request and PhilHealth rules).
             </p>
-            <h2 className={styles.subheading}>Our Vision</h2>
+            <h2 className={styles.subheading}>Animal Bite Care</h2>
             <p className={styles.paragraph}>
-              To be the leading medical laboratory, known for excellence in diagnostics, research, and patient care.
+              Free Anti‑Rabies Vaccine on Mon, Wed, Thu, and Sat (8:00 AM – 4:00 PM, last call 3:30 PM), first‑come, first‑served for the first 30 patients and based on eligibility.
+            </p>
+            <h2 className={styles.subheading}>Core Services</h2>
+            <p className={styles.paragraph}>
+              Complete Laboratory • X‑ray • Ultrasound • 12‑Lead ECG • Drug Testing • Animal Bite Center • Pap Smear • Vaccination • Pre‑Employment Packages • Annual Medical Exam • Home Service Laboratory & Checkup • Medical Certificates • Rapid Antigen Test • Multispecialty Clinic • HMO/Healthcards
             </p>
           </div>
         </div>

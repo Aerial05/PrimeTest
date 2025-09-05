@@ -1,11 +1,23 @@
 .nav {
-  background-color: #8b5cf6; /* Tailwind's purple-500 */
-  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--gradient-primary);
+  color: #fff;
   padding: 1rem 2rem;
-  border-bottom: 2px solid #a78bfa; /* subtle border */
+  border-bottom: 2px solid var(--primary-light);
   border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px; /* rounded bottom corners */
-  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.25);
+  border-bottom-right-radius: 16px;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+}
+
+.nav::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,.0), rgba(255,255,255,.6), rgba(255,255,255,.0));
+  pointer-events: none;
 }
 
 .container {
@@ -13,6 +25,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  max-width: 1200px;
+  width: 100%;
 }
 
 .left {
@@ -31,9 +45,7 @@
   text-decoration: none;
 }
 
-.navLink:hover {
-  color: #ddd6fe; /* Tailwind's purple-200 */
-}
+.navLink:hover { color: #e0ecff; }
 
 .btnIcon {
   background-color: transparent;
@@ -44,18 +56,31 @@
   border-radius: 9999px;
 }
 
+.btnIcon:hover { background-color: rgba(255,255,255,.15); }
+
 .btnAppointment {
-  background-color: #dbeafe;
-  color: #8b5cf6;
-  border: 1px solid #c4b5fd;
-  padding: 0.5rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  background: var(--gradient-primary);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,.25);
+  padding: 0.7rem 1.25rem; /* bigger */
   border-radius: 9999px;
   cursor: pointer;
+  font-weight: 800;
+  letter-spacing: .02em;
+  font-size: .95rem;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.25);
+  transition: transform .15s ease, box-shadow .2s ease, opacity .15s ease;
 }
 
+.btnAppointment:hover { transform: translateY(-1px); box-shadow: 0 12px 26px rgba(37,99,235,.32); }
+.btnAppointment:active { transform: translateY(0); opacity: .95; }
+
 .btnLogout {
-  background-color: #ec4899;
-  color: white;
+  background-color: var(--primary-dark);
+  color: #fff;
   border: none;
   padding: 0.5rem 1rem;
   border-radius: 9999px;
@@ -74,8 +99,8 @@
   right: 0;
   border-radius: 10px;
   background-color: white;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border-color);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.1);
   padding: 0.5rem;
   z-index: 10000;
   min-width: 160px;
@@ -96,17 +121,14 @@
 .dropDownMenu a {
   display: block;
   padding: 0.5rem;
-  color: var(--primary-light);
+  color: var(--primary-dark);
   background: none;
   text-decoration: none;
   border-radius: 5px;
   transition: ease-in 0.15s;
 }
 
-.dropDownMenu a:hover {
-  background-color: var(--primary-light);
-  color: white;
-}
+.dropDownMenu a:hover { background-color: var(--primary-light); color: #fff; }
 .navLink {
   color: white;
   text-decoration: none;
@@ -116,11 +138,7 @@
   transition: all 0.2s ease-in-out;
 }
 
-.navLink:hover {
-  border-color: white;
-  background-color: rgba(255, 255, 255, 0.15);
-  color: #f9f9f9;
-}
+.navLink:hover { border-color: #fff; background-color: rgba(255,255,255,0.15); color: #f9f9f9; }
 
 /* When on active page */
 .active {

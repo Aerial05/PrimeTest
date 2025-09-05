@@ -1,29 +1,17 @@
 import styles from './BookingCard.module.css';
+import { Link } from 'react-router-dom';
+import { Calendar } from 'lucide-react';
 
 export function BookingCard() {
   return (
     <div className={styles.container}>
-      
-        <div className={styles.card}>
-          <a href="/appointment">
-          <span className={styles.text}>Click here to book an Appointment!</span>
-          <div className={styles.iconContainer}>
-            <svg
-              className={styles.icon}
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-              />
-            </svg>
-          </div>
-          </a>
+      <Link to="/appointment" className={styles.card}>
+        <Calendar className={styles.icon} />
+        <div className={styles.content}>
+          <span className={styles.title}>Book an appointment</span>
+          <span className={styles.subtitle}>Fast and Secure</span>
         </div>
+      </Link>
     </div>
   );
 }

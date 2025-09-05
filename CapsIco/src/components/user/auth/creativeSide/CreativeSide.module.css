@@ -8,7 +8,7 @@
   justify-content: center;
   gap: 40px;
   height: 100%;
-  background: rgba(91, 33, 182, 0.15);
+  background: rgba(37, 99, 235, 0.12);
   backdrop-filter: blur(10px);
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.3);
@@ -27,22 +27,17 @@
   margin-bottom: 15px;
 }
 
-.logoIconLarge {
-  font-size: 40px;
-  color: #f472b6;
-  margin-right: 15px;
-  filter: drop-shadow(0 0 8px rgba(244, 114, 182, 0.5));
-}
+.logoIconLarge { font-size: 40px; color: var(--primary-color); margin-right: 15px; filter: drop-shadow(0 0 8px rgba(37,99,235,0.3)); }
 
-.logoLarge h1 {
+.logoLarge h1 { 
   font-size: 36px;
   font-weight: 700;
-  color: #5B21B6;
+  color: var(--primary-dark);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .logoLarge h1 span {
-  color: #f472b6;
+  color: var(--primary-light);
   font-weight: 400;
 }
 
@@ -84,7 +79,7 @@
 .featureIcon {
   width: 50px;
   height: 50px;
-  background: rgba(91, 33, 182, 0.3);
+  background: rgba(37, 99, 235, 0.25);
   border-radius: 50%;
   display: flex;
   align-items: center;

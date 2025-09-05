@@ -2,9 +2,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #ffffff;
-  padding: 1rem 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: var(--gradient-primary);
+  color: #fff;
+  padding: 0.85rem 1.5rem;
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
 }
 
 .logoLink {
@@ -18,7 +21,7 @@
   width: 1.5rem;
   height: 1.5rem;
   margin-right: 0.5rem;
-  color: #8b5cf6;
+  color: #ffffff;
 }
 
 .brandName {
@@ -27,13 +30,8 @@
   letter-spacing: 0.025em;
 }
 
-.textPrimary {
-  color: #8b5cf6;
-}
-
-.textSecondary {
-  color: #ec4899;
-}
+.textPrimary { color: #ffffff; }
+.textSecondary { color: #e0ecff; }
 
 .navList {
   display: flex;
@@ -43,14 +41,11 @@
 
 .navList a {
   text-decoration: none;
-  color: #333;
-  font-weight: 500;
+  color: #ffffff;
+  font-weight: 600;
 }
 
-.active {
-  color: #8b5cf6;
-  font-weight: bold;
-}
+.active { color: #ffffff; text-decoration: underline; text-underline-offset: 6px; }
 
 .userInfo {
   display: flex;
@@ -71,7 +66,7 @@
   right: 0;
   border-radius: 10px;
   background-color: white;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
   padding: 0.5rem;
   z-index: 10000;
   min-width: 160px;
@@ -92,22 +87,19 @@
 .dropDownMenu a {
   display: block;
   padding: 0.5rem;
-  color: var(--primary-light);
+  color: var(--primary-dark);
   background: none;
   text-decoration: none;
   border-radius: 5px;
   transition: ease-in 0.15s;
 }
 
-.dropDownMenu a:hover {
-  background-color: var(--primary-light);
-  color: white;
-}
+.dropDownMenu a:hover { background-color: var(--primary-light); color: white; }
 
 .btnIcon {
   background-color: transparent;
   border: none;
-  color: black;
+  color: #ffffff;
   cursor: pointer;
   padding: 0.5rem;
   border-radius: 9999px;

@@ -39,9 +39,7 @@
   text-decoration: none;
 }
 
-.link:hover {
-  color: #ddd6fe;
-}
+.link:hover { color: #ddd6fe; }
 
 .newsletterForm {
   display: flex;

@@ -1,4 +1,4 @@
-:root { --primary:#8b5cf6; --primary-light:#a78bfa; --text-dark:#1f2937; }
+:root { --primary: var(--primary-color); --primary-light: var(--primary-light); --text-dark:#1f2937; }
 
 .wrapper { display:grid; grid-template-columns: 340px 1fr 280px; gap:1rem; margin: 1rem auto; max-width: 1200px; padding: 0 1rem; }
 

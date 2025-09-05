@@ -6,7 +6,7 @@
 }
 
 .header { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
-.header h2 { margin: 0; color: #8b5cf6; font-size: 1.25rem; }
+.header h2 { margin: 0; color: var(--primary-color); font-size: 1.25rem; }
 
 .filters { display: flex; gap: 0.5rem; }
 .search { padding: 0.5rem 0.75rem; border: 1px solid #e5e7eb; border-radius: 8px; min-width: 220px; }

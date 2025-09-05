@@ -4,25 +4,30 @@
 
 .infoGrid {
   display: grid;
-  grid-template-columns: repeat(4, 250px);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 1.5rem;
-  max-width: 1000px;
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
-  justify-content: center;
+  align-items: stretch;
 }
 
 .infoCard {
   padding: 1.5rem;
   border-radius: 0.5rem;
+  display: flex;
+  flex-direction: column;
 }
 
-.bgBlue100 {
-  background-color: #dbeafe;
+/* Prevent long content (like emails) from overflowing */
+.infoCard p {
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
-.bgBlue600 {
-  background-color: #2563eb;
-}
+.bgBlue100 { background-color: #dbeafe; }
+
+.bgBlue600 { background-color: var(--primary-color); }
 
 .textWhite {
   color: white;
