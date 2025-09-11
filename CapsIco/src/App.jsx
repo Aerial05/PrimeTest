@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 {
   // USER
@@ -34,13 +34,13 @@ import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 
 export default function App() {
-  const Loggedin = true;
+  const Loggedin = false;
   const admin = false;
 
   return (
     <BrowserRouter>
       <div className="appShell">
-      {Loggedin && admin ? (
+  {admin ? (
         <AdminNavBar />
       ) : (
         <>
@@ -58,7 +58,10 @@ export default function App() {
         {
           // USER
         }
-        <Route path="/" element={<Dashboard />} />
+        <Route
+          path="/"
+          element={admin ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
+        />
 
         {
           // NEW LOGIN
@@ -83,7 +86,7 @@ export default function App() {
         <Route path="/admin-messages" element={<MessagesPage />} />
       </Routes>
       </main>
-      {Loggedin && admin ? <AdminFooter /> : <Footer />}
+  {admin ? <AdminFooter /> : <Footer />}
       </div>
     </BrowserRouter>
   );
