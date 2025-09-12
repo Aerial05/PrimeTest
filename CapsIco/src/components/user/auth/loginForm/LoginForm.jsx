@@ -13,6 +13,9 @@ export function LoginForm({ onSwitch }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showWelcome, setShowWelcome] = useState(false);
+  const [welcomeName, setWelcomeName] = useState("");
+  const [welcomeHide, setWelcomeHide] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -24,7 +27,13 @@ export function LoginForm({ onSwitch }) {
         remember ? browserLocalPersistence : browserSessionPersistence
       );
       await signInWithEmailAndPassword(auth, email, password);
-      navigate("/");
+      const user = auth.currentUser;
+      const name = user?.displayName || (user?.email ? user.email.split("@")[0] : "");
+      setWelcomeName(name);
+      setShowWelcome(true);
+      // Trigger fade-out then navigate
+      setTimeout(() => setWelcomeHide(true), 2400);
+      setTimeout(() => navigate("/", { replace: true }), 3400);
     } catch (err) {
       setError(err.message || "Failed to log in. Please try again.");
     } finally {
@@ -42,7 +51,12 @@ export function LoginForm({ onSwitch }) {
       );
       const provider = new GoogleAuthProvider();
       await signInWithPopup(auth, provider);
-      navigate("/");
+      const user = auth.currentUser;
+      const name = user?.displayName || (user?.email ? user.email.split("@")[0] : "");
+      setWelcomeName(name);
+      setShowWelcome(true);
+      setTimeout(() => setWelcomeHide(true), 2400);
+      setTimeout(() => navigate("/", { replace: true }), 3400);
     } catch (err) {
       setError(err.message || "Google sign-in failed. Please try again.");
     } finally {
@@ -52,7 +66,7 @@ export function LoginForm({ onSwitch }) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} id="login-form" className={styles.formBox}>
+      <form onSubmit={handleSubmit} id="login-form" className={`${styles.formBox} ${styles.fadeIn}`}>
         <div className={styles.formHeader}>
           <div className={styles.logo}>
             <Activity className={styles.logoIconLarge} />
@@ -185,6 +199,20 @@ export function LoginForm({ onSwitch }) {
           </p>
         </div>
       </form>
+      {showWelcome && (
+        <div className={`${styles.welcomeOverlay} ${welcomeHide ? styles.hide : ""}`}>
+          <div className={styles.welcomeCard}>
+            <div className={styles.welcomeLogoWrap}>
+              <Activity className={styles.welcomeLogo} />
+            </div>
+            <div className={styles.welcomeTextBlock}>
+              <h2 className={styles.welcomeTitle}>Welcome to PrimeLab Appoint</h2>
+              <div className={styles.welcomeName}>{welcomeName}</div>
+            </div>
+            <div className={styles.welcomeSub}>Preparing your dashboard…</div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

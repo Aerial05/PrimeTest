@@ -1,5 +1,7 @@
-import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import React, { useRef } from "react";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { CSSTransition, SwitchTransition } from "react-transition-group";
+import "/src/styles/routeTransitions.css";
 
 {
   // USER
@@ -33,6 +35,51 @@ import { Footer } from "./components/user/footer/Footer";
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 
+function AnimatedRoutes({ admin }) {
+  const location = useLocation();
+  const nodeRef = useRef(null);
+
+  return (
+    <SwitchTransition mode="out-in">
+      <CSSTransition key={location.key} classNames="page" timeout={350} unmountOnExit nodeRef={nodeRef}>
+        <div ref={nodeRef} className="page-wrapper">
+          <Routes location={location}>
+            {
+              // USER
+            }
+            <Route
+              path="/"
+              element={admin ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
+            />
+
+            {
+              // NEW LOGIN
+            }
+            <Route path="/login" element={<Login />} />
+
+            <Route path="/about" element={<AboutUs />} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/appointment" element={<Appointment />} />
+            <Route path="/profile" element={<UserSettingsPage />} />
+            <Route path="/services" element={<Services />} />
+
+            {
+              // ADMIN
+            }
+            <Route path="/staff-management" element={<Appointments />} />
+            <Route path="/account-management" element={<AccountManagement />} />
+            <Route path="/admin-dashboard" element={<AdminDashboard />} />
+            <Route path="/admin-reports" element={<ReportsPage />} />
+            <Route path="/admin-settings" element={<SettingsPage />} />
+            <Route path="/admin-packages" element={<PackagesPage />} />
+            <Route path="/admin-messages" element={<MessagesPage />} />
+          </Routes>
+        </div>
+      </CSSTransition>
+    </SwitchTransition>
+  );
+}
+
 export default function App() {
   const Loggedin = false;
   const admin = false;
@@ -54,37 +101,7 @@ export default function App() {
       }
 
       <main className="appMain">
-      <Routes>
-        {
-          // USER
-        }
-        <Route
-          path="/"
-          element={admin ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
-        />
-
-        {
-          // NEW LOGIN
-        }
-        <Route path="/login" element={<Login />} />
-
-        <Route path="/about" element={<AboutUs />} />
-        <Route path="/contact" element={<Contact />} />
-        <Route path="/appointment" element={<Appointment />} />
-        <Route path="/profile" element={<UserSettingsPage />} />
-        <Route path="/services" element={<Services />} />
-
-        {
-          // ADMIN
-        }
-        <Route path="/staff-management" element={<Appointments />} />
-        <Route path="/account-management" element={<AccountManagement />} />
-        <Route path="/admin-dashboard" element={<AdminDashboard />} />
-        <Route path="/admin-reports" element={<ReportsPage />} />
-        <Route path="/admin-settings" element={<SettingsPage />} />
-        <Route path="/admin-packages" element={<PackagesPage />} />
-        <Route path="/admin-messages" element={<MessagesPage />} />
-      </Routes>
+        <AnimatedRoutes admin={admin} />
       </main>
   {admin ? <AdminFooter /> : <Footer />}
       </div>

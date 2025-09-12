@@ -42,8 +42,12 @@
 
 .usernameText {
   color: #fff;
-  font-weight: 600;
+  font-weight: 700;
   opacity: 0.95;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+  height: 40px; /* aligns visually with buttons */
 }
 
 .navLink {
@@ -96,7 +100,9 @@
 
 .profileWrapper {
   position: relative;
-  display: inline-block; 
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
 }
 
 .dropDownMenu {

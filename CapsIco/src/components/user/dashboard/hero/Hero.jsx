@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import styles from './Hero.module.css';
 import { onValue, ref } from 'firebase/database';
 import { usersDB } from '../../../../config/firebase-config';
+import { Link } from 'react-router-dom';
 
 const TABS = [
   { name: 'PRIME MEDICAL LABORATORY', src: 'https://momento360.com/e/u/4614a6341be84cb4808f9634ca46f65e?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
@@ -103,9 +104,9 @@ useEffect(() => {
             <p className={styles.subText}>
               {TAB_INFO[activeTab].desc}
             </p>
-            <a href="/services">
+            <Link to="/services">
               <button className={styles.button}>Our Services</button>
-            </a>
+            </Link>
           </div>
           {/* Right Image Embed */}
           <div className={styles.embed}>
