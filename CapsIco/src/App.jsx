@@ -15,6 +15,7 @@ import { Contact } from "./pages/user/contact/Contact";
 import { Services } from "./pages/user/Services/Services";
 import { Appointment } from "./pages/user/bookAppointment/Appointment";
 import { UserSettingsPage } from "./pages/user/settings/UserSettingsPage";
+import { ProfileWithMeta } from "./pages/user/settings/ProfileWithMeta";
 
 {
   // ADMIN
@@ -60,7 +61,7 @@ function AnimatedRoutes({ admin }) {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/appointment" element={<Appointment />} />
-            <Route path="/profile" element={<UserSettingsPage />} />
+            <Route path="/profile" element={<ProfileWithMeta />} />
             <Route path="/services" element={<Services />} />
 
             {

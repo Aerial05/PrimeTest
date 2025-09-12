@@ -43,6 +43,102 @@
   font-size: 14px;
 }
 
+/* Password toggle */
+.inputWrap {
+  position: relative;
+}
+
+.inputWrap input {
+  padding-right: 38px; /* space for eye icon */
+}
+
+.eyeBtn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+}
+
+.eyeBtn:hover {
+  color: #111827;
+  background: #f3f4f6;
+}
+
+/* Inline status + actions */
+.statusRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  margin: 6px 0 0;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.verified { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+.unverified { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: currentColor;
+}
+
+.linkBtn {
+  background: transparent;
+  border: none;
+  color: var(--primary-color);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.muted { color: #6b7280; font-size: 12px; }
+
+/* Modal */
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,23,42,.45);
+  display: grid;
+  place-items: center;
+  z-index: 9999;
+}
+
+.modal {
+  width: min(560px, 92vw);
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 20px 60px rgba(0,0,0,.15);
+  padding: 18px 18px 16px;
+}
+
+.modalHeader { display:flex; align-items:center; justify-content:space-between; margin-bottom: 8px; }
+.modalTitle { font-size: 18px; font-weight: 700; margin: 0; }
+.modalBody { padding: 8px 2px 2px; }
+.modalActions { display:flex; justify-content:flex-end; gap:10px; margin-top: 12px; }
+.closeBtn { background: transparent; border: none; cursor: pointer; font-weight: 700; color: #374151; }
+
+.input { width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:14px; }
+
 /* Form Actions */
 .formActions {
   display: flex;

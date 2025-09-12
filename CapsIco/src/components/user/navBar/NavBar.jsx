@@ -4,7 +4,8 @@ import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth } from "/src/config/firebase-config";
+import { auth, usersDB } from "/src/config/firebase-config";
+import { onValue, ref } from "firebase/database";
 
 
 export function NavBar() {
@@ -12,6 +13,7 @@ export function NavBar() {
   const [isDropDownOpen, setIsDropDownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [currentUser, setCurrentUser] = useState(null);
+  const [profileName, setProfileName] = useState("");
   const navigate = useNavigate();
 
   const toggleDropDown = () => {
@@ -26,10 +28,27 @@ export function NavBar() {
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    const unsub = onAuthStateChanged(auth, (user) => setCurrentUser(user));
+    let dbUnsub = () => {};
+    const unsub = onAuthStateChanged(auth, (user) => {
+      setCurrentUser(user);
+      setProfileName("");
+      if (user) {
+        const r = ref(usersDB, `users/${user.uid}`);
+        dbUnsub();
+        dbUnsub = onValue(r, (snap) => {
+          const v = snap.exists() ? snap.val() : {};
+          const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(" ");
+          const fallback = user.displayName || (user.email ? user.email.split("@")[0] : "User");
+          setProfileName(nameFromDb || fallback);
+        });
+      } else {
+        dbUnsub();
+      }
+    });
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
       unsub();
+      dbUnsub();
     };
   }, []);
 
@@ -88,7 +107,7 @@ export function NavBar() {
           <div ref={dropdownRef} className={styles.profileWrapper}>
             {currentUser && (
               <span className={styles.usernameText} title={currentUser.email}>
-                {currentUser.displayName || (currentUser.email ? currentUser.email.split("@")[0] : "User")}
+                {profileName}
               </span>
             )}
             <button

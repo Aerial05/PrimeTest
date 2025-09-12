@@ -4,7 +4,8 @@ import styles from "./RegisterForm.module.css";
 import { Activity } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
 import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth } from "../../../../config/firebase-config";
+import { auth, usersDB } from "../../../../config/firebase-config";
+import { ref, set, update } from "firebase/database";
 
 export function RegisterForm({ onSwitch }) {
   const navigate = useNavigate();
@@ -36,12 +37,58 @@ export function RegisterForm({ onSwitch }) {
       if (displayName) {
         await updateProfile(cred.user, { displayName });
       }
+      // Persist profile details for autofill across the app
+      const uid = cred.user.uid;
+      const createdAt = cred.user.metadata?.creationTime || new Date().toISOString();
+      const phoneE164 = toE164(phone);
+      await set(ref(usersDB, `users/${uid}`), {
+        firstName,
+        middleName,
+        lastName,
+        username,
+        phone: phoneE164,
+        email,
+        joinedAt: createdAt,
+        createdAt,
+        updatedAt: createdAt,
+      });
+      if (username) {
+        // Optional username -> email mapping for lookups (e.g., forgot password username flow)
+        await set(ref(usersDB, `usernames/${username}`), email);
+        await update(ref(usersDB, `usersByUsername/${username}`), { email });
+      }
       navigate("/");
     } catch (err) {
       setError(err.message || "Failed to create account");
     } finally {
       setLoading(false);
     }
+  };
+
+  // Philippines format: +63 9XX XXX XXXX (store as E.164 +639XXXXXXXXX)
+  const formatPhone = (value) => {
+    const digits = (value || "").replace(/\D/g, "");
+    let rest = digits;
+    if (rest.startsWith("63")) rest = rest.slice(2);
+    else if (rest.startsWith("0")) rest = rest.slice(1);
+    // ensure starts with 9 and at most 10 digits
+    rest = rest.replace(/^(?!9)/, "");
+    rest = rest.slice(0, 10);
+    const p1 = rest.slice(0, 3);
+    const p2 = rest.slice(3, 6);
+    const p3 = rest.slice(6, 10);
+    const tail = [p1, p2, p3].filter(Boolean).join(" ");
+    return "+63 " + tail;
+  };
+
+  const toE164 = (value) => {
+    const digits = (value || "").replace(/\D/g, "");
+    let rest = digits;
+    if (rest.startsWith("63")) rest = rest.slice(2);
+    else if (rest.startsWith("0")) rest = rest.slice(1);
+    if (!rest) return "";
+    rest = rest.slice(0, 10);
+    return "+63" + rest;
   };
 
   return (
@@ -118,7 +165,15 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-phone"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="tel" pattern="[0-9]{10}" value={phone} onChange={(e)=>setPhone(e.target.value)} required />
+              <input
+                type="tel"
+                inputMode="numeric"
+                maxLength={16}
+                value={phone}
+                onChange={(e)=> setPhone(formatPhone(e.target.value))}
+                placeholder="+63 912 345 6789"
+                required
+              />
               <label>Phone Number</label>
             </div>
           </div>

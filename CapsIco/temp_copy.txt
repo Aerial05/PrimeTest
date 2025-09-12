@@ -1,13 +1,10 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import styles from './SettingsContentUser.module.css';
 import { auth, usersDB } from '/src/config/firebase-config';
-import { onAuthStateChanged, updateProfile, sendEmailVerification, reload, signOut } from 'firebase/auth';
-import AuthService from '/src/services/AuthService';
+import { onAuthStateChanged, updateProfile, sendEmailVerification, updateEmail, fetchSignInMethodsForEmail, reload } from 'firebase/auth';
 import { get, ref, set, update } from 'firebase/database';
-import { useNavigate } from 'react-router-dom';
 
 export function SettingsContent() {
-  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -17,17 +14,6 @@ export function SettingsContent() {
   const [emailVerified, setEmailVerified] = useState(false);
   const [verifyMsg, setVerifyMsg] = useState('');
   const [emailError, setEmailError] = useState('');
-  const [reauthNeeded, setReauthNeeded] = useState(false);
-  // Password change state
-  const [curPass, setCurPass] = useState('');
-  const [newPass, setNewPass] = useState('');
-  const [confPass, setConfPass] = useState('');
-  const [passSaving, setPassSaving] = useState(false);
-  const [passError, setPassError] = useState('');
-  const [passSuccess, setPassSuccess] = useState('');
-  const [showCur, setShowCur] = useState(false);
-  const [showNew, setShowNew] = useState(false);
-  const [showConf, setShowConf] = useState(false);
 
   // Modal state for change-email flow
   const [emailModalOpen, setEmailModalOpen] = useState(false);
@@ -81,8 +67,7 @@ export function SettingsContent() {
         const uname = dbv.username ?? '';
         setUsername(uname);
         setPrevUsername(uname);
-        const rawPhone = dbv.phone ?? (u.phoneNumber || '');
-        setPhone(formatPhone(rawPhone));
+        setPhone(dbv.phone ?? (u.phoneNumber || ''));
       } catch (e) {
         setError('Failed to load profile');
       } finally {
@@ -93,34 +78,6 @@ export function SettingsContent() {
   }, []);
 
   const fullName = useMemo(() => `${firstName} ${lastName}`.trim(), [firstName, lastName]);
-  const isPasswordProvider = useMemo(() => {
-    return !!(user?.providerData || []).some(p => p.providerId === 'password');
-  }, [user]);
-
-  // PH format: +63 9XX XXX XXXX for display, store E.164 +639XXXXXXXXX
-  const formatPhone = (value) => {
-    const digits = (value || '').replace(/\D/g, '');
-    let rest = digits;
-    if (rest.startsWith('63')) rest = rest.slice(2);
-    else if (rest.startsWith('0')) rest = rest.slice(1);
-    rest = rest.replace(/^(?!9)/, '');
-    rest = rest.slice(0, 10);
-    const p1 = rest.slice(0, 3);
-    const p2 = rest.slice(3, 6);
-    const p3 = rest.slice(6, 10);
-    const tail = [p1, p2, p3].filter(Boolean).join(' ');
-    return '+63 ' + tail;
-  };
-
-  const toE164 = (value) => {
-    const digits = (value || '').replace(/\D/g, '');
-    let rest = digits;
-    if (rest.startsWith('63')) rest = rest.slice(2);
-    else if (rest.startsWith('0')) rest = rest.slice(1);
-    if (!rest) return '';
-    rest = rest.slice(0, 10);
-    return '+63' + rest;
-  };
 
   const handleCancel = () => {
     // Re-trigger auth listener derived values without reloading
@@ -142,7 +99,7 @@ export function SettingsContent() {
         setFirstName(v.firstName ?? first);
         setLastName(v.lastName ?? last);
         setUsername(v.username ?? '');
-        setPhone(formatPhone(v.phone ?? (user.phoneNumber || '')));
+        setPhone(v.phone ?? (user.phoneNumber || ''));
         setSuccess('Changes discarded');
         setError('');
       } finally {
@@ -165,7 +122,35 @@ export function SettingsContent() {
         await updateProfile(user, { displayName });
       }
 
-      // Email changing is disabled for now; skipping auth email updates.
+      // Update email if allowed and changed
+      const trimmedEmail = (email || '').trim();
+      if (emailVerified && trimmedEmail && trimmedEmail !== initialEmail) {
+        try {
+          // Basic local validation
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+          if (!emailRegex.test(trimmedEmail)) {
+            throw new Error('Please enter a valid email address.');
+          }
+          // Optional: probe sign-in methods to catch obvious invalids per Firebase rules
+          await fetchSignInMethodsForEmail(auth, trimmedEmail);
+          await updateEmail(user, trimmedEmail);
+          await sendEmailVerification(user);
+          setEmailVerified(false);
+          setVerifyMsg('Email updated. Please verify the new address via the email we just sent.');
+          setInitialEmail(trimmedEmail);
+        } catch (e) {
+          if (e?.code === 'auth/requires-recent-login') {
+            throw new Error('Please re-login to change your email (security requirement).');
+          }
+          if (e?.code === 'auth/invalid-email') {
+            setEmailError('That email address is not valid.');
+          }
+          if (e?.code === 'auth/email-already-in-use') {
+            setEmailError('That email is already in use.');
+          }
+          throw e;
+        }
+      }
       // Upsert DB profile
       const uid = user.uid;
       const profileRef = ref(usersDB, `users/${uid}`);
@@ -173,8 +158,8 @@ export function SettingsContent() {
         firstName,
         lastName,
         username,
-        phone: toE164(phone),
-        email: user.email || email,
+        phone,
+        email: trimmedEmail || user.email || email,
         joinedAt: user.metadata?.creationTime || joinedDate,
         updatedAt: new Date().toISOString(),
       });
@@ -213,52 +198,9 @@ export function SettingsContent() {
       await sendEmailVerification(user);
       setVerifyMsg('Verification email sent. Please check your inbox.');
     } catch (e) {
-      if (e?.code === 'auth/requires-recent-login') {
-        setReauthNeeded(true);
-        setVerifyMsg('Session expired. Please re-authenticate to send verification.');
-      } else {
-        setVerifyMsg('Failed to send verification email');
-      }
+      setVerifyMsg('Failed to send verification email');
     } finally {
       setVerifSending(false);
-    }
-  };
-
-  const handlePasswordSubmit = async (e) => {
-    e.preventDefault();
-    setPassError('');
-    setPassSuccess('');
-    if (!user) return;
-    if (!isPasswordProvider) {
-      setPassError('This account was created with a provider (e.g., Google) and does not have a password.');
-      return;
-    }
-    if (!newPass || newPass.length < 6) {
-      setPassError('New password must be at least 6 characters.');
-      return;
-    }
-    if (newPass !== confPass) {
-      setPassError('New passwords do not match.');
-      return;
-    }
-    if (curPass === newPass) {
-      setPassError('New password must be different from current.');
-      return;
-    }
-    setPassSaving(true);
-    try {
-      await AuthService.changePassword(auth, curPass, newPass);
-      setPassSuccess('Password updated successfully.');
-      setCurPass('');
-      setNewPass('');
-      setConfPass('');
-    } catch (e) {
-      setPassError(e?.message || 'Failed to update password.');
-      if (e?.message && e.message.includes('re-login')) {
-        setReauthNeeded(true);
-      }
-    } finally {
-      setPassSaving(false);
     }
   };
 
@@ -267,20 +209,8 @@ export function SettingsContent() {
     try {
       await reload(user);
       setEmailVerified(!!auth.currentUser?.emailVerified);
-      const cur = auth.currentUser;
-      if (cur?.email && cur.email !== email) {
-        setEmail(cur.email);
-        try {
-          await update(ref(usersDB, `users/${cur.uid}`), { email: cur.email, updatedAt: new Date().toISOString() });
-        } catch (_) {
-          // ignore DB sync failure
-        }
-      }
     } catch (_e) {
-      if (_e?.code === 'auth/requires-recent-login') {
-        setReauthNeeded(true);
-        setVerifyMsg('Session expired. Please re-authenticate to refresh status.');
-      }
+      // ignore
     }
   };
 
@@ -320,45 +250,31 @@ export function SettingsContent() {
                 </span>
                 {!emailVerified && (
                   <button type="button" onClick={sendVerification} disabled={verifSending} className={styles.linkBtn}>
-                    {verifSending ? 'Sending…' : 'Send verification email'}
+                    {verifSending ? 'Sendingâ€¦' : 'Send verification email'}
                   </button>
                 )}
                 <button type="button" onClick={recheckVerification} className={styles.linkBtn}>
                   Recheck status
                 </button>
                 {verifyMsg && <span className={styles.muted}>{verifyMsg}</span>}
-                {reauthNeeded && (
-                  <>
-                    <span className={styles.muted}> — Re-auth required.</span>
-                    <button
-                      type="button"
-                      className={styles.linkBtn}
-                      onClick={async ()=>{ try { await signOut(auth); } finally { navigate('/login'); } }}
-                    >Re-authenticate</button>
-                  </>
-                )}
               </div>
               <div className={styles.muted}>
                 {emailVerified
-                  ? 'Your email is verified.'
-                  : 'Verify your current email to enable more account actions.'}
+                  ? 'You can change your email. We will send a verification to the new address.'
+                  : 'Verify your current email to enable changing it.'}
               </div>
+              {emailVerified && (
+                <div style={{marginTop:8}}>
+                  <button type="button" className={styles.btnSecondary} onClick={() => { setEmailModalOpen(true); setEmailModalStep('verify'); setModalMsg(''); setModalCode(''); setModalNewEmail(''); }}>Change Email</button>
+                </div>
+              )}
             </div>
           </div>
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="phone">Phone Number</label>
-              <input
-                type="tel"
-                id="phone"
-                inputMode="numeric"
-                maxLength={16}
-                value={phone}
-                onChange={(e)=> setPhone(formatPhone(e.target.value))}
-                placeholder="+63 912 345 6789"
-                disabled={loading}
-              />
+              <input type="tel" id="phone" value={phone} onChange={(e)=>setPhone(e.target.value)} disabled={loading} />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="joinDate">Join Date</label>
@@ -375,7 +291,7 @@ export function SettingsContent() {
 
           <div className={styles.formActions}>
             <button type="button" onClick={handleCancel} className={styles.btnSecondary} disabled={saving || loading}>Cancel</button>
-            <button type="submit" className={styles.btnPrimary} disabled={saving || loading}>{saving ? 'Saving…' : 'Save Changes'}</button>
+            <button type="submit" className={styles.btnPrimary} disabled={saving || loading}>{saving ? 'Savingâ€¦' : 'Save Changes'}</button>
           </div>
         </form>
       </section>
@@ -400,141 +316,29 @@ export function SettingsContent() {
         ))}
       </section>
 
-      {/* Password */}
+      {/* Password section kept as-is (no changes yet) */}
       <section className={styles.section}>
         <h3>Password</h3>
-        <form onSubmit={handlePasswordSubmit}>
+        <form>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="currentPassword">Current Password</label>
-              <div className={styles.inputWrap}>
-                <input
-                  type={showCur ? 'text' : 'password'}
-                  id="currentPassword"
-                  value={curPass}
-                  onChange={(e)=>setCurPass(e.target.value)}
-                  disabled={loading || passSaving || !isPasswordProvider}
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  className={styles.eyeBtn}
-                  aria-label={showCur ? 'Hide password' : 'Show password'}
-                  onClick={()=>setShowCur(v=>!v)}
-                  disabled={loading || passSaving || !isPasswordProvider}
-                >
-                  {showCur ? (
-                    // eye-off
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.76-4.99 5-6.42"/>
-                      <path d="M1 1l22 22"/>
-                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/>
-                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a11.66 11.66 0 0 1-2.17 3.19"/>
-                    </svg>
-                  ) : (
-                    // eye
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <input type="password" id="currentPassword" disabled />
             </div>
           </div>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="newPassword">New Password</label>
-              <div className={styles.inputWrap}>
-                <input
-                  type={showNew ? 'text' : 'password'}
-                  id="newPassword"
-                  value={newPass}
-                  onChange={(e)=>setNewPass(e.target.value)}
-                  disabled={loading || passSaving || !isPasswordProvider}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className={styles.eyeBtn}
-                  aria-label={showNew ? 'Hide password' : 'Show password'}
-                  onClick={()=>setShowNew(v=>!v)}
-                  disabled={loading || passSaving || !isPasswordProvider}
-                >
-                  {showNew ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.76-4.99 5-6.42"/>
-                      <path d="M1 1l22 22"/>
-                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/>
-                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a11.66 11.66 0 0 1-2.17 3.19"/>
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <input type="password" id="newPassword" disabled />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="confirmPassword">Confirm New Password</label>
-              <div className={styles.inputWrap}>
-                <input
-                  type={showConf ? 'text' : 'password'}
-                  id="confirmPassword"
-                  value={confPass}
-                  onChange={(e)=>setConfPass(e.target.value)}
-                  disabled={loading || passSaving || !isPasswordProvider}
-                  autoComplete="new-password"
-                />
-                <button
-                  type="button"
-                  className={styles.eyeBtn}
-                  aria-label={showConf ? 'Hide password' : 'Show password'}
-                  onClick={()=>setShowConf(v=>!v)}
-                  disabled={loading || passSaving || !isPasswordProvider}
-                >
-                  {showConf ? (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.76-4.99 5-6.42"/>
-                      <path d="M1 1l22 22"/>
-                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/>
-                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a11.66 11.66 0 0 1-2.17 3.19"/>
-                    </svg>
-                  ) : (
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-                      <circle cx="12" cy="12" r="3"/>
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <input type="password" id="confirmPassword" disabled />
             </div>
           </div>
-          {(passError || passSuccess || (!isPasswordProvider && user)) && (
-            <div className={styles.formRow}>
-              {!isPasswordProvider && user && (
-                <p className={styles.muted} style={{margin:0}}>
-                  Your account uses a federated provider (e.g., Google). Password changes are not available.
-                </p>
-              )}
-              {passError && <p style={{color:'#ef4444', margin:0}}>{passError}</p>}
-              {passSuccess && <p style={{color:'#10b981', margin:0}}>{passSuccess}</p>}
-            </div>
-          )}
           <div className={styles.formActions}>
-            <button
-              type="button"
-              className={styles.btnSecondary}
-              disabled={passSaving || loading}
-              onClick={()=>{ setCurPass(''); setNewPass(''); setConfPass(''); setPassError(''); setPassSuccess(''); }}
-            >Cancel</button>
-            <button
-              type="submit"
-              className={styles.btnPrimary}
-              disabled={passSaving || loading || !isPasswordProvider}
-            >{passSaving ? 'Updating…' : 'Update Password'}</button>
+            <button type="button" className={styles.btnSecondary} disabled>Cancel</button>
+            <button type="submit" className={styles.btnPrimary} disabled>Update Password</button>
           </div>
         </form>
       </section>
@@ -547,7 +351,7 @@ export function SettingsContent() {
               <h4 className={styles.modalTitle}>
                 {emailModalStep === 'verify' ? 'Verify your current email' : 'Enter new email'}
               </h4>
-              <button className={styles.closeBtn} onClick={() => setEmailModalOpen(false)}>×</button>
+              <button className={styles.closeBtn} onClick={() => setEmailModalOpen(false)}>Ã—</button>
             </div>
             <div className={styles.modalBody}>
               {emailModalStep === 'verify' && (
@@ -561,7 +365,7 @@ export function SettingsContent() {
                   />
                   {modalMsg && <p className={styles.muted} style={{marginTop:8}}>{modalMsg}</p>}
                   <div className={styles.modalActions}>
-                    <button className={styles.btnSecondary} onClick={async ()=>{ setModalBusy(true); setModalMsg('Sending…'); try { await sendEmailVerification(user); setModalMsg('Verification email sent. Check your inbox.'); } finally { setModalBusy(false); }}}>Send code</button>
+                    <button className={styles.btnSecondary} onClick={async ()=>{ setModalBusy(true); setModalMsg('Sendingâ€¦'); try { await sendEmailVerification(user); setModalMsg('Verification email sent. Check your inbox.'); } finally { setModalBusy(false); }}}>Send code</button>
                     <button className={styles.btnPrimary} onClick={async ()=>{ setModalBusy(true); try { await reload(user); const verified = !!auth.currentUser?.emailVerified; setEmailVerified(verified); if (verified) { setModalMsg('Verified!'); setEmailModalStep('enterNew'); } else { setModalMsg('Still not verified. Please open the email link.'); } } finally { setModalBusy(false); }}}>I clicked the link</button>
                   </div>
                 </>
@@ -569,7 +373,7 @@ export function SettingsContent() {
 
               {emailModalStep === 'enterNew' && (
                 <>
-                  <p className={styles.muted}>Enter your new email address. We’ll send a verification to that email.</p>
+                  <p className={styles.muted}>Enter your new email address. Weâ€™ll send a verification to that email.</p>
                   <input
                     className={styles.input}
                     placeholder="newemail@example.com"
