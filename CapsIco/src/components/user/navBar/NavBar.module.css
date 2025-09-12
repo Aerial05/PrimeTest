@@ -40,6 +40,12 @@
   align-items: center;
 }
 
+.usernameText {
+  color: #fff;
+  font-weight: 600;
+  opacity: 0.95;
+}
+
 .navLink {
   color: white;
   text-decoration: none;

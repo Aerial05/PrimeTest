@@ -1,8 +1,66 @@
-import React from "react";
+import React, { useState } from "react";
 import styles from "./ForgetPasswordForm.module.css";
 import { Activity } from "lucide-react";
+import { sendPasswordResetEmail, fetchSignInMethodsForEmail } from "firebase/auth";
+import { get, ref } from "firebase/database";
+import { auth, usersDB } from "../../../../config/firebase-config";
 
 export function ForgetPasswordForm({ onSwitch }) {
+  const [identifier, setIdentifier] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+    try {
+      setLoading(true);
+
+      const id = identifier.trim();
+      if (!id) throw new Error("Please enter your email or username.");
+
+      // Resolve to an email
+      let emailToUse = "";
+      const isEmail = id.includes("@");
+
+      if (isEmail) {
+        emailToUse = id;
+      } else {
+        // Try common username->email mappings in Realtime DB
+        const paths = [
+          `usernames/${id}`,
+          `usersByUsername/${id}/email`,
+          `users/${id}/email`,
+        ];
+        for (const p of paths) {
+          // eslint-disable-next-line no-await-in-loop
+          const snap = await get(ref(usersDB, p));
+          if (snap.exists()) {
+            const val = snap.val();
+            emailToUse = typeof val === "string" ? val : (val?.email || "");
+            if (emailToUse) break;
+          }
+        }
+        if (!emailToUse) throw new Error("Username not found.");
+      }
+
+      // Check if an account exists for this email
+      const methods = await fetchSignInMethodsForEmail(auth, emailToUse);
+      if (!methods || methods.length === 0) {
+        throw new Error("No account found for that email.");
+      }
+
+      await sendPasswordResetEmail(auth, emailToUse);
+      setMessage("Password reset email sent. Check your inbox.");
+    } catch (err) {
+      setError(err.message || "Failed to send reset email");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={styles.formBox}>
       <div className={styles.formHeader}>
@@ -28,7 +86,7 @@ export function ForgetPasswordForm({ onSwitch }) {
         </div>
       </div>
 
-      <form>
+      <form onSubmit={handleSubmit}>
         <div className={styles.formIconHeader}>
           <div className={styles.formIconCircle}>
             <i className="fas fa-key"></i>
@@ -44,13 +102,16 @@ export function ForgetPasswordForm({ onSwitch }) {
             <i className="fas fa-envelope"></i>
           </div>
           <div className={styles.inputField}>
-            <input type="email" required />
-            <label>Email Address</label>
+            <input type="text" value={identifier} onChange={(e)=>setIdentifier(e.target.value)} required />
+            <label>Email or Username</label>
           </div>
         </div>
 
-        <button type="submit" className={`${styles.btn} ${styles.forgotBtn}`}>
-          <span className={styles.btnText}>Send Verification Code</span>
+        {message && <p className={styles.successText}>{message}</p>}
+        {error && <p className={styles.errorText}>{error}</p>}
+
+        <button type="submit" disabled={loading} className={`${styles.btn} ${styles.forgotBtn}`}>
+          <span className={styles.btnText}>{loading ? "Sending..." : "Send Verification Code"}</span>
           <span className={styles.btnIcon}>
             <i className="fas fa-paper-plane"></i>
           </span>

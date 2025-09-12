@@ -66,7 +66,7 @@ const TAB_INFO = [
 
 export function Hero() {
   const [activeTab, setActiveTab] = useState(0); // Default to first tab
-  const [name, setName] = useState();
+  const [name, setName] = useState('Prime Medical Laboratory');
 useEffect(() => {
     onValue(ref(usersDB, '/name'), (snapshot) => {
       if(snapshot.exists()){

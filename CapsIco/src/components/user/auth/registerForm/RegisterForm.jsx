@@ -2,12 +2,48 @@
 import React, { useState } from "react";
 import styles from "./RegisterForm.module.css";
 import { Activity } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { auth } from "../../../../config/firebase-config";
 
 export function RegisterForm({ onSwitch }) {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
-    
+  const [firstName, setFirstName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [username, setUsername] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      return;
+    }
+    try {
+      setLoading(true);
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      const displayName = username || `${firstName} ${lastName}`.trim();
+      if (displayName) {
+        await updateProfile(cred.user, { displayName });
+      }
+      navigate("/");
+    } catch (err) {
+      setError(err.message || "Failed to create account");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className={styles.formBox}>
       <div className={styles.formHeader}>
@@ -30,7 +66,7 @@ export function RegisterForm({ onSwitch }) {
         </div>
       </div>
 
-      <form>
+      <form onSubmit={handleSubmit}>
         {/* Name Row */}
         <div className={styles.formRow}>
           <div className={`${styles.inputGroup} ${styles.half}`}>
@@ -38,7 +74,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-user"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" required />
+              <input type="text" value={firstName} onChange={(e)=>setFirstName(e.target.value)} required />
               <label>First Name</label>
             </div>
           </div>
@@ -48,7 +84,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-user"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" required />
+              <input type="text" value={middleName} onChange={(e)=>setMiddleName(e.target.value)} />
               <label>Middle Name</label>
             </div>
           </div>
@@ -60,7 +96,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-user"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" required />
+              <input type="text" value={lastName} onChange={(e)=>setLastName(e.target.value)} required />
               <label>Last Name</label>
             </div>
           </div>
@@ -70,7 +106,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-at"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" required />
+              <input type="text" value={username} onChange={(e)=>setUsername(e.target.value)} />
               <label>Username</label>
             </div>
           </div>
@@ -82,7 +118,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-phone"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="tel" pattern="[0-9]{10}" required />
+              <input type="tel" pattern="[0-9]{10}" value={phone} onChange={(e)=>setPhone(e.target.value)} required />
               <label>Phone Number</label>
             </div>
           </div>
@@ -92,7 +128,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-envelope"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="email" required />
+              <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
               <label>Email</label>
             </div>
           </div>
@@ -106,6 +142,8 @@ export function RegisterForm({ onSwitch }) {
   <div className={styles.inputField}>
     <input
       type={showPassword ? "text" : "password"}
+      value={password}
+      onChange={(e)=>setPassword(e.target.value)}
       required
     />
     <label>Password</label>
@@ -125,8 +163,9 @@ export function RegisterForm({ onSwitch }) {
   <div className={styles.inputField}>
     <input
       type={showConfirm ? "text" : "password"}
+      value={confirmPassword}
+      onChange={(e)=>setConfirmPassword(e.target.value)}
       required
-      
     />
     <label>Confirm Password</label>
     <span
@@ -152,8 +191,10 @@ export function RegisterForm({ onSwitch }) {
           </label>
         </div>
 
-        <button type="submit" className={`${styles.btn} ${styles.registerBtn}`}>
-          <span className={styles.btnText}>Create Account</span>
+        {error && <p className={styles.errorText}>{error}</p>}
+
+        <button type="submit" disabled={loading} className={`${styles.btn} ${styles.registerBtn}`}>
+          <span className={styles.btnText}>{loading ? "Creating..." : "Create Account"}</span>
           <span className={styles.btnIcon}>
             <i className="fas fa-user-plus"></i>
           </span>
