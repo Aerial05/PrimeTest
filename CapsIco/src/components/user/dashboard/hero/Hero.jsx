@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import styles from './Hero.module.css';
+import { onValue, ref } from 'firebase/database';
+import { usersDB } from '../../../../config/firebase-config';
 
 const TABS = [
   { name: 'PRIME MEDICAL LABORATORY', src: 'https://momento360.com/e/u/4614a6341be84cb4808f9634ca46f65e?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
@@ -64,10 +66,19 @@ const TAB_INFO = [
 
 export function Hero() {
   const [activeTab, setActiveTab] = useState(0); // Default to first tab
-
+  const [name, setName] = useState();
+useEffect(() => {
+    onValue(ref(usersDB, '/name'), (snapshot) => {
+      if(snapshot.exists()){
+        setName(snapshot.val());
+      }
+    })
+  }, []);
   return (
+    
     <section className={styles.heroSection}>
       <div className={styles.container}>
+        <h1>{name}</h1>
         {/* Tabs on Top Right */}
         <div className={styles.tabsWrapper}>
           <div className={styles.tabsContainer}>
