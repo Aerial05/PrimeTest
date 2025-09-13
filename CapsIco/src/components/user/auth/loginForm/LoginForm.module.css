@@ -317,3 +317,9 @@
 
 /* Form subtle fade-in */
 .fadeIn { animation: fadeIn .25s ease both; }
+
+/* OAuth Row + Facebook */
+.oauthRow { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 420px) { .oauthRow { grid-template-columns: 1fr; } }
+.facebookBtn { background: #1877f2; color: #fff; border-color: #1877f2; }
+.facebookBtn:hover { background: #1565d1; }
