@@ -75,18 +75,19 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: #f8fafc;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f9fafb;
   border: 1px solid #e5e7eb;
-  margin: 6px 0 0;
+  margin: 8px 0 0;
+  flex-wrap: wrap; /* allow message to wrap nicely */
 }
 
 .statusBadge {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 6px 12px;
   border-radius: 9999px;
   font-weight: 600;
   font-size: 12px;
@@ -96,8 +97,8 @@
 .unverified { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
 
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 9999px;
   background: currentColor;
 }
@@ -107,8 +108,15 @@
   border: none;
   color: var(--primary-color);
   font-weight: 600;
+  font-size: 13px;
   cursor: pointer;
+  padding: 0;
 }
+.linkBtn:hover { text-decoration: underline; }
+.linkBtn:disabled { color: #9ca3af; cursor: not-allowed; }
+
+/* Let the status helper text sit to the right or wrap below */
+.statusRow .muted { flex: 1 1 220px; }
 
 .muted { color: #6b7280; font-size: 12px; }
 

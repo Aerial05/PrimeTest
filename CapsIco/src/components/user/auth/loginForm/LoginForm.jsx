@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState, useRef } from "react";
+﻿import React, { useState } from "react";
 import styles from "./LoginForm.module.css";
 import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -10,7 +10,6 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   FacebookAuthProvider,
-  signInWithCredential,
 } from "firebase/auth";
 import { auth } from "../../../../config/firebase-config";
 
@@ -25,50 +24,6 @@ export function LoginForm({ onSwitch }) {
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("");
   const [welcomeHide, setWelcomeHide] = useState(false);
-
-  // Facebook SDK state
-  const [fbReady, setFbReady] = useState(false);
-  const fbInitRef = useRef(false);
-
-  // Load and init Facebook SDK once
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (fbInitRef.current) return;
-
-    const appId = import.meta.env.VITE_FACEBOOK_APP_ID || "YOUR_FACEBOOK_APP_ID";
-    const apiVersion = import.meta.env.VITE_FACEBOOK_API_VERSION || "v19.0";
-
-    function initFB() {
-      if (!window.FB) return;
-      try {
-        window.FB.init({ appId, cookie: true, xfbml: false, version: apiVersion });
-        setFbReady(true);
-      } catch (e) {
-        // ignore init error, user can retry click
-      }
-    }
-
-    if (window.FB) {
-      initFB();
-      fbInitRef.current = true;
-      return;
-    }
-
-    if (!document.getElementById("facebook-jssdk")) {
-      const js = document.createElement("script");
-      js.id = "facebook-jssdk";
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      js.async = true;
-      js.defer = true;
-      js.onload = () => initFB();
-      document.body.appendChild(js);
-    } else {
-      const t = setTimeout(initFB, 300);
-      return () => clearTimeout(t);
-    }
-
-    fbInitRef.current = true;
-  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -121,49 +76,27 @@ export function LoginForm({ onSwitch }) {
   };
 
   const handleFacebook = async () => {
-    setError("");
-    setLoading(true);
-    try {
-      await setPersistence(
-        auth,
-        remember ? browserLocalPersistence : browserSessionPersistence
-      );
+  setError("");
+  setLoading(true);
+  try {
+    await setPersistence(
+      auth,
+      remember ? browserLocalPersistence : browserSessionPersistence
+    );
 
-      if (!window.FB) {
-        throw new Error("Facebook SDK not loaded. Please try again.");
-      }
+    const provider = new FacebookAuthProvider();
+    provider.addScope("public_profile");
+    provider.addScope("email");
+    provider.setCustomParameters({ display: "popup" });
 
-      const getAccessToken = () =>
-        new Promise((resolve, reject) => {
-          window.FB.getLoginStatus((response) => {
-            if (response?.status === "connected") {
-              return resolve(response.authResponse?.accessToken);
-            }
-            window.FB.login(
-              (resp) => {
-                if (resp?.status === "connected") {
-                  resolve(resp.authResponse?.accessToken);
-                } else {
-                  reject(new Error("Facebook login was cancelled or failed."));
-                }
-              },
-              { scope: "public_profile,email" }
-            );
-          });
-        });
-
-      const accessToken = await getAccessToken();
-      if (!accessToken) throw new Error("No Facebook access token.");
-
-      const credential = FacebookAuthProvider.credential(accessToken);
-      await signInWithCredential(auth, credential);
-      completeWelcomeAndNavigate();
-    } catch (err) {
-      setError(err.message || "Facebook sign-in failed. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    await signInWithPopup(auth, provider);
+    completeWelcomeAndNavigate();
+  } catch (err) {
+    setError(err.message || "Facebook sign-in failed. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <>
@@ -289,10 +222,10 @@ export function LoginForm({ onSwitch }) {
           <button
             type="button"
             onClick={handleFacebook}
-            disabled={loading || !fbReady}
+            disabled={loading}
             className={`${styles.oauthBtn} ${styles.facebookBtn}`}
             aria-label="Continue with Facebook"
-            title={!fbReady ? "Loading Facebook SDK..." : "Continue with Facebook"}
+            title="Continue with Facebook"
           >
             <span className={styles.oauthIcon}>
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -337,3 +270,5 @@ export function LoginForm({ onSwitch }) {
     </>
   );
 }
+
+

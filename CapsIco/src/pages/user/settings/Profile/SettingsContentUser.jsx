@@ -516,7 +516,7 @@ export function SettingsContent() {
             <div className={styles.formRow}>
               {!isPasswordProvider && user && (
                 <p className={styles.muted} style={{margin:0}}>
-                  Your account uses a federated provider (e.g., Google). Password changes are not available.
+                  Your account uses a federated provider (e.g., Google, Facebook). Password changes are not available.
                 </p>
               )}
               {passError && <p style={{color:'#ef4444', margin:0}}>{passError}</p>}
