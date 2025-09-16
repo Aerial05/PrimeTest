@@ -141,7 +141,50 @@ APIS OR BACKEDN FROM FIREBASE PAGKA NAGSETUP NA, ALL OF EM ARE NOW IN ARRAYS MUN
 
 
 
-Things to do.
+Things to do. URGENT 
+DOUBLE CHECK THE Flow of the Appointments Page
+1. When user selects a service, the details of the service must appear in the right side
+2. The user must be able to select the date and time after selecting the service
+3. The user must be able to select the staff after selecting the date and time
+4. The user must be able to see the summary of the appointment before confirming
+5. The user must be able to confirm the appointment and see a success message
+
+PROFILE
+Must have appointment history (Picture na galing sa Prime medical lab (proof successful appointment))
+
+USE Object Oriented Programming IN ALL OF THE BACKEND CODES
+
+1. Create Classes for Accounts, Services, Appointments, Reports
+2. Create Methods for CRUD operations
+3. Integrate the classes and methods to the components and pages that needs them
+
+BACKEND: 
+1. Admin account (google/facebook) must go to admin dashboard
+2. User account (google/facebook) must go to user dashboard
+3. Admin must be able to manage accounts (CRUD)
+4. Services(Packages and Single Services) must come from database and can be edited and be Added in admin panel
+5. Services in the Appointment Page (Browse Services) must update based on the Services in the database and
+ must have appropriate attributes (must have same attributes per Service)
+ when Appointment is confirmed, the appointment must be saved in the database with appropriate attributes
+ and can be managed in admin panel
+ When choosing time, the available time slots must be updated based on 
+ timeslots already booked in the database(check for conflicts(Service, Date, Time(Especially for Surgical Procedures)))
+
+6. Accounts must come from database and can be edited in admin panel
+7. Reports must be generated from database and can be viewed in admin panel
+
+Admin must insert image per successful appointment and Users must be able to view the image in their profile appointment history
+
+8. Messages must be stored in database and can be viewed in admin panel
+9. Contact form must send message to database and can be viewed in admin panel
+            
+
+
+
+
+
+
+
 appointment Page
 profile sa navbar ng admin and user (DONE)
 
