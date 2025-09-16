@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import styles from "./ForgetPasswordForm.module.css";
 import { Activity } from "lucide-react";
 import { sendPasswordResetEmail, fetchSignInMethodsForEmail } from "firebase/auth";
-import { get, ref } from "firebase/database";
+import { get, ref, query, orderByChild, equalTo } from "firebase/database";
 import { auth, usersDB } from "../../../../config/firebase-config";
 
 export function ForgetPasswordForm({ onSwitch }) {
@@ -10,6 +10,53 @@ export function ForgetPasswordForm({ onSwitch }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+
+  const resolveEmailFromUsername = async (rawUsername) => {
+    const username = (rawUsername || "").trim();
+    if (!username) return "";
+
+    const candidates = Array.from(new Set([username, username.toLowerCase()]));
+
+    for (const candidate of candidates) {
+      const candidatePaths = [
+        `usernames/${candidate}`,
+        `usersByUsername/${candidate}/email`,
+        `users/${candidate}/email`,
+      ];
+
+      for (const path of candidatePaths) {
+        // eslint-disable-next-line no-await-in-loop
+        const snap = await get(ref(usersDB, path));
+        if (snap.exists()) {
+          const val = snap.val();
+          const email = typeof val === "string" ? val : val?.email;
+          if (typeof email === "string" && email.trim()) {
+            return email.trim().toLowerCase();
+          }
+        }
+      }
+
+      // Fall back to querying the users collection by username
+      // eslint-disable-next-line no-await-in-loop
+      const userQuery = query(
+        ref(usersDB, "users"),
+        orderByChild("username"),
+        equalTo(candidate)
+      );
+      // eslint-disable-next-line no-await-in-loop
+      const resultSnap = await get(userQuery);
+      if (resultSnap.exists()) {
+        const found = Object.values(resultSnap.val() || {}).find(
+          (entry) => entry && typeof entry.email === "string" && entry.email.trim()
+        );
+        if (found?.email) {
+          return found.email.trim().toLowerCase();
+        }
+      }
+    }
+
+    return "";
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -26,36 +73,33 @@ export function ForgetPasswordForm({ onSwitch }) {
       const isEmail = id.includes("@");
 
       if (isEmail) {
-        emailToUse = id;
+        emailToUse = id.toLowerCase();
       } else {
-        // Try common username->email mappings in Realtime DB
-        const paths = [
-          `usernames/${id}`,
-          `usersByUsername/${id}/email`,
-          `users/${id}/email`,
-        ];
-        for (const p of paths) {
-          // eslint-disable-next-line no-await-in-loop
-          const snap = await get(ref(usersDB, p));
-          if (snap.exists()) {
-            const val = snap.val();
-            emailToUse = typeof val === "string" ? val : (val?.email || "");
-            if (emailToUse) break;
-          }
-        }
+        emailToUse = await resolveEmailFromUsername(id);
         if (!emailToUse) throw new Error("Username not found.");
       }
 
-      // Check if an account exists for this email
-      const methods = await fetchSignInMethodsForEmail(auth, emailToUse);
-      if (!methods || methods.length === 0) {
-        throw new Error("No account found for that email.");
+      try {
+        const methods = await fetchSignInMethodsForEmail(auth, emailToUse);
+        if (methods && methods.length === 0) {
+          console.warn(`fetchSignInMethodsForEmail found no providers for ${emailToUse}`);
+        }
+      } catch (lookupErr) {
+        console.warn("fetchSignInMethodsForEmail failed:", lookupErr);
       }
 
       await sendPasswordResetEmail(auth, emailToUse);
       setMessage("Password reset email sent. Check your inbox.");
     } catch (err) {
-      setError(err.message || "Failed to send reset email");
+      if (err?.code === "auth/user-not-found") {
+        setError("No account found for that email.");
+      } else if (err?.code === "auth/missing-android-pkg-name" || err?.code === "auth/missing-continue-uri" || err?.code === "auth/missing-ios-bundle-id") {
+        setError("Password reset is not configured for this Firebase project. Please contact support.");
+      } else if (err?.code === "auth/invalid-email") {
+        setError("Please enter a valid email address.");
+      } else {
+        setError(err?.message || "Failed to send reset email");
+      }
     } finally {
       setLoading(false);
     }
@@ -80,7 +124,7 @@ export function ForgetPasswordForm({ onSwitch }) {
         <div className={styles.infoContent}>
           <h3>Password Recovery</h3>
           <p>
-            We’ll send a verification code to your email to help you reset your
+            We'll send a verification code to your email to help you reset your
             password securely.
           </p>
         </div>
@@ -93,7 +137,7 @@ export function ForgetPasswordForm({ onSwitch }) {
           </div>
           <h3>Forgot Password?</h3>
           <p>
-            Enter your email address and we’ll send you a verification code.
+            Enter your email address and we'll send you a verification code.
           </p>
         </div>
 
@@ -123,8 +167,8 @@ export function ForgetPasswordForm({ onSwitch }) {
             <a
               href="#"
               onClick={(e) => {
-                e.preventDefault(); 
-                onSwitch("login"); 
+                e.preventDefault();
+                onSwitch("login");
               }}
             >
               Back to login
