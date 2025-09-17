@@ -84,17 +84,21 @@
   pointer-events: auto;
 }
 
-.dropDownMenu a {
+.dropDownItem {
   display: block;
+  width: 100%;
   padding: 0.5rem;
   color: var(--primary-dark);
   background: none;
-  text-decoration: none;
+  border: none;
+  text-align: left;
   border-radius: 5px;
+  font: inherit;
+  cursor: pointer;
   transition: ease-in 0.15s;
 }
 
-.dropDownMenu a:hover { background-color: var(--primary-light); color: white; }
+.dropDownItem:hover { background-color: var(--primary-light); color: white; }
 
 .btnIcon {
   background-color: transparent;
@@ -104,3 +108,5 @@
   padding: 0.5rem;
   border-radius: 9999px;
 }
+
+

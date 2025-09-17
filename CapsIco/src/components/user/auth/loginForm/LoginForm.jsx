@@ -1,17 +1,8 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import styles from "./LoginForm.module.css";
 import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import {
-  signInWithEmailAndPassword,
-  setPersistence,
-  browserLocalPersistence,
-  browserSessionPersistence,
-  GoogleAuthProvider,
-  signInWithPopup,
-  FacebookAuthProvider,
-} from "firebase/auth";
-import { auth } from "../../../../config/firebase-config";
+import authService from "../../../../services/AuthService";
 
 export function LoginForm({ onSwitch }) {
   const navigate = useNavigate();
@@ -24,23 +15,37 @@ export function LoginForm({ onSwitch }) {
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("");
   const [welcomeHide, setWelcomeHide] = useState(false);
+  const [showRolePrompt, setShowRolePrompt] = useState(false);
+
+  const completeWelcomeAndNavigate = (destination = "/") => {
+    const user = authService.currentUser;
+    const name = authService.getDisplayName(user);
+    setWelcomeName(name);
+    setShowWelcome(true);
+    setTimeout(() => setWelcomeHide(true), 2400);
+    setTimeout(() => navigate(destination, { replace: true }), 3400);
+  };
+
+  const handlePostSignIn = async () => {
+    try {
+      const role = await authService.getUserRole();
+      if (role === "admin") {
+        setShowRolePrompt(true);
+        return;
+      }
+    } catch (roleErr) {
+      console.warn("Failed to determine user role", roleErr);
+    }
+    completeWelcomeAndNavigate("/");
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
     setLoading(true);
     try {
-      await setPersistence(
-        auth,
-        remember ? browserLocalPersistence : browserSessionPersistence
-      );
-      await signInWithEmailAndPassword(auth, email, password);
-      const user = auth.currentUser;
-      const name = user?.displayName || (user?.email ? user.email.split("@")[0] : "");
-      setWelcomeName(name);
-      setShowWelcome(true);
-      setTimeout(() => setWelcomeHide(true), 2400);
-      setTimeout(() => navigate("/", { replace: true }), 3400);
+      await authService.signInWithEmail({ email, password, remember });
+      await handlePostSignIn();
     } catch (err) {
       setError(err.message || "Failed to log in. Please try again.");
     } finally {
@@ -48,26 +53,12 @@ export function LoginForm({ onSwitch }) {
     }
   };
 
-  const completeWelcomeAndNavigate = () => {
-    const user = auth.currentUser;
-    const name = user?.displayName || (user?.email ? user.email.split("@")[0] : "");
-    setWelcomeName(name);
-    setShowWelcome(true);
-    setTimeout(() => setWelcomeHide(true), 2400);
-    setTimeout(() => navigate("/", { replace: true }), 3400);
-  };
-
   const handleGoogle = async () => {
     setError("");
     setLoading(true);
     try {
-      await setPersistence(
-        auth,
-        remember ? browserLocalPersistence : browserSessionPersistence
-      );
-      const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      completeWelcomeAndNavigate();
+      await authService.signInWithProvider("google", { remember });
+      await handlePostSignIn();
     } catch (err) {
       setError(err.message || "Google sign-in failed. Please try again.");
     } finally {
@@ -76,27 +67,22 @@ export function LoginForm({ onSwitch }) {
   };
 
   const handleFacebook = async () => {
-  setError("");
-  setLoading(true);
-  try {
-    await setPersistence(
-      auth,
-      remember ? browserLocalPersistence : browserSessionPersistence
-    );
+    setError("");
+    setLoading(true);
+    try {
+      await authService.signInWithProvider("facebook", { remember });
+      await handlePostSignIn();
+    } catch (err) {
+      setError(err.message || "Facebook sign-in failed. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const provider = new FacebookAuthProvider();
-    provider.addScope("public_profile");
-    provider.addScope("email");
-    provider.setCustomParameters({ display: "popup" });
-
-    await signInWithPopup(auth, provider);
-    completeWelcomeAndNavigate();
-  } catch (err) {
-    setError(err.message || "Facebook sign-in failed. Please try again.");
-  } finally {
-    setLoading(false);
-  }
-};
+  const handleChooseDashboard = (path) => {
+    setShowRolePrompt(false);
+    completeWelcomeAndNavigate(path);
+  };
 
   return (
     <>
@@ -195,7 +181,7 @@ export function LoginForm({ onSwitch }) {
 
         <div className={styles.divider}>
           <span className={styles.dividerLine}></span>
-          <span className={styles.dividerText}>or</span>
+          <span className={styles.dividerText}>Log In or Register</span>
           <span className={styles.dividerLine}></span>
         </div>
 
@@ -253,6 +239,33 @@ export function LoginForm({ onSwitch }) {
         </div>
       </form>
 
+      {showRolePrompt && (
+        <div className={styles.rolePromptOverlay}>
+          <div className={styles.rolePromptCard}>
+            <h2>Welcome, Admin!</h2>
+            <p>Where would you like to go?</p>
+            <div className={styles.rolePromptButtons}>
+              <button
+                type="button"
+                className={styles.rolePromptUser}
+                onClick={() => handleChooseDashboard("/")}
+                disabled={loading}
+              >
+                User Dashboard
+              </button>
+              <button
+                type="button"
+                className={styles.rolePromptAdmin}
+                onClick={() => handleChooseDashboard("/admin")}
+                disabled={loading}
+              >
+                Admin Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showWelcome && (
         <div className={`${styles.welcomeOverlay} ${welcomeHide ? styles.hide : ""}`}>
           <div className={styles.welcomeCard}>
@@ -263,12 +276,10 @@ export function LoginForm({ onSwitch }) {
               <h2 className={styles.welcomeTitle}>Welcome to PrimeLab Appoint</h2>
               <div className={styles.welcomeName}>{welcomeName}</div>
             </div>
-            <div className={styles.welcomeSub}>Preparing your dashboard…</div>
+            <div className={styles.welcomeSub}>Preparing your dashboard.</div>
           </div>
         </div>
       )}
     </>
   );
 }
-
-

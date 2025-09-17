@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import styles from './SettingsContentUser.module.css';
 import { auth, usersDB } from '/src/config/firebase-config';
 import { onAuthStateChanged, updateProfile, sendEmailVerification, reload, signOut } from 'firebase/auth';
-import AuthService from '/src/services/AuthService';
+import authService from '/src/services/AuthService';
 import { get, ref, set, update } from 'firebase/database';
 import { useNavigate } from 'react-router-dom';
 
@@ -247,7 +247,7 @@ export function SettingsContent() {
     }
     setPassSaving(true);
     try {
-      await AuthService.changePassword(auth, curPass, newPass);
+      await authService.changePassword(curPass, newPass);
       setPassSuccess('Password updated successfully.');
       setCurPass('');
       setNewPass('');
@@ -642,3 +642,4 @@ export function SettingsContent() {
     </div>
   );
 }
+

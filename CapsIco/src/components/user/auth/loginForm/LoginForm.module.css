@@ -323,3 +323,66 @@
 @media (max-width: 420px) { .oauthRow { grid-template-columns: 1fr; } }
 .facebookBtn { background: #1877f2; color: #fff; border-color: #1877f2; }
 .facebookBtn:hover { background: #1565d1; }
+.rolePromptOverlay {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(1200px 600px at 20% -10%, rgba(37,99,235,.25), transparent),
+              radial-gradient(1200px 600px at 120% 110%, rgba(109,40,217,.25), transparent),
+              rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.rolePromptCard {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 32px;
+  width: min(420px, 90%);
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
+  text-align: center;
+}
+
+.rolePromptCard h2 {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.rolePromptCard p {
+  color: var(--text-light);
+  margin-bottom: 24px;
+}
+
+.rolePromptButtons {
+  display: flex;
+  gap: 16px;
+}
+
+.rolePromptButtons button {
+  flex: 1;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.rolePromptButtons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(15, 23, 42, 0.18);
+}
+
+.rolePromptUser {
+  background: #ffffff;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.rolePromptAdmin {
+  background: var(--primary-color);
+  color: #ffffff;
+}
+

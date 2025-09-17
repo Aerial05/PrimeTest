@@ -1,41 +1,49 @@
-import React from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import styles from './AdminNavBar.module.css';
 import { Activity } from 'lucide-react';
-import { Link, useLocation } from 'react-router-dom';
-import { useState, useRef, useEffect } from "react";
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import authService from '/src/services/AuthService';
 
 export function AdminNavBar() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isActive = (path) => location.pathname === path;
 
+  const [isDropDownOpen, setIsDropDownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
-    //PROFILE DROPDOWN
-    const [isDropDownOpen, setIsDropDownOpen] = useState(false);
-    const dropdownRef = useRef(null);
-  
-    const toggleDropDown = () => {
-      setIsDropDownOpen((prev) => !prev);
+  const toggleDropDown = () => {
+    setIsDropDownOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropDownOpen(false);
+      }
     };
-  
-    useEffect(() => {
-      const handleClickOutside = (event) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-          setIsDropDownOpen(false);
-        }
-      };
-  
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => {
-        document.removeEventListener("mousedown", handleClickOutside);
-      };
-    }, []);
 
-    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await authService.signOut();
+    } catch (err) {
+      console.warn('Failed to sign out', err);
+    } finally {
+      setIsDropDownOpen(false);
+      navigate('/login', { replace: true });
+    }
+  };
 
   return (
     <header className={styles.header}>
-      <Link to="/admin/dashboard" className={styles.logoLink}>
+      <Link to="/admin-dashboard" className={styles.logoLink}>
         <Activity className={styles.logoIcon} />
         <span className={styles.brandName}>
           <span className={styles.textPrimary}>PRIME</span>
@@ -95,34 +103,31 @@ export function AdminNavBar() {
           </li>
         </ul>
       </nav>
-      
-                <div ref={dropdownRef} className={styles.profileWrapper}>
-                  <button
-                    className={styles.btnIcon}
-                    aria-label="User"
-                    onClick={toggleDropDown}
-                  >
-                    <div className={styles.userInfo}>
-        <span>Super Admin</span>
-        <i className="fas fa-user-circle"></i>
+
+      <div ref={dropdownRef} className={styles.profileWrapper}>
+        <button
+          className={styles.btnIcon}
+          aria-label="User"
+          onClick={toggleDropDown}
+        >
+          <div className={styles.userInfo}>
+            <span>Super Admin</span>
+            <i className="fas fa-user-circle"></i>
+          </div>
+        </button>
+
+        {isDropDownOpen && (
+          <div className={`${styles.dropDownMenu} ${isDropDownOpen ? styles.show : ''}`}>
+            <Link to="/admin-settings" className={styles.dropDownItem}>
+              View Profile
+            </Link>
+            <button type="button" className={styles.dropDownItem} onClick={handleLogout}>
+              Log Out
+            </button>
+          </div>
+        )}
       </div>
-                  </button>
-      
-                  {isDropDownOpen && (
-                    <div
-        className={`${styles.dropDownMenu} ${isDropDownOpen ? styles.show : ''}`}
-      >
-        {/* lagyan pa ng customization */}
-                      <Link to="/admin-settings" className={styles}>
-                        View Profile
-                      </Link>
-                      <Link to="/login" className={styles}>
-                        Log Out
-                      </Link>
-                    </div>
-                  )}
-                </div>
-          
     </header>
   );
 }
+

@@ -1,11 +1,8 @@
-
 import React, { useState } from "react";
 import styles from "./RegisterForm.module.css";
-import { Activity } from 'lucide-react';
+import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { auth, usersDB } from "../../../../config/firebase-config";
-import { ref, set, update } from "firebase/database";
+import authService from "../../../../services/AuthService";
 
 export function RegisterForm({ onSwitch }) {
   const navigate = useNavigate();
@@ -32,31 +29,16 @@ export function RegisterForm({ onSwitch }) {
     }
     try {
       setLoading(true);
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      const displayName = username || `${firstName} ${lastName}`.trim();
-      if (displayName) {
-        await updateProfile(cred.user, { displayName });
-      }
-      // Persist profile details for autofill across the app
-      const uid = cred.user.uid;
-      const createdAt = cred.user.metadata?.creationTime || new Date().toISOString();
       const phoneE164 = toE164(phone);
-      await set(ref(usersDB, `users/${uid}`), {
+      await authService.registerUser({
         firstName,
         middleName,
         lastName,
         username,
-        phone: phoneE164,
+        phoneE164,
         email,
-        joinedAt: createdAt,
-        createdAt,
-        updatedAt: createdAt,
+        password,
       });
-      if (username) {
-        // Optional username -> email mapping for lookups (e.g., forgot password username flow)
-        await set(ref(usersDB, `usernames/${username}`), email);
-        await update(ref(usersDB, `usersByUsername/${username}`), { email });
-      }
       navigate("/");
     } catch (err) {
       setError(err.message || "Failed to create account");
