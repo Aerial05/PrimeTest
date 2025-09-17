@@ -55,7 +55,7 @@ function AnimatedRoutes({ role }) {
             />
             <Route
               path="/login"
-              element={isLoggedIn ? <Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace /> : <Login />}
+              element={isLoggedIn ? (isAdmin ? <Navigate to="/admin-dashboard" replace /> : <Login />) : <Login />}
             />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
