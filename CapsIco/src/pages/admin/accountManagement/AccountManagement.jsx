@@ -4,8 +4,10 @@ import { AdminTable } from '/src/components/admin/adminTable/AdminTable';
 import { AddAdminForm } from '/src/components/admin/adminForm/AddAdminForm';
 import { usersDB } from '@/config/firebase-config';
 import { ref, onValue, update as dbUpdate, remove as dbRemove, set as dbSet, get as dbGet } from 'firebase/database';
+import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
 
 export function AccountManagement() {
+  const { show } = useToast();
   const [showAdd, setShowAdd] = useState(false);
   const [mode, setMode] = useState('add');
   const [selected, setSelected] = useState(null);
@@ -38,23 +40,43 @@ export function AccountManagement() {
     }
   };
 
+  const normalizeRole = (r) => {
+    const s = (r || '').toString().trim();
+    return /^admin$/i.test(s) ? 'Admin' : 'User';
+  };
+
   // Subscribe to Realtime DB users and map to table rows
   useEffect(() => {
     const usersRef = ref(usersDB, 'users');
     const off = onValue(usersRef, (snap) => {
       const val = snap.val() || {};
-      const next = Object.entries(val).map(([uid, u]) => ({
-        id: uid,
-        firstName: u.firstName || '',
-        middleName: u.middleName || '',
-        lastName: u.lastName || '',
-        role: u.role || 'User',
-        email: u.email || '',
-        phone: u.phone || '',
-        joinDate: normalizeDate(u.joinDate || u.joinedDate || u.createdAt || u.created_at || u.createdOn || ''),
-        lastActive: normalizeDate(u.lastActive || u.last_active || u.lastSeen || u.last_seen || u.updatedAt || u.updated_at || u.lastLogin || u.last_login || ''),
-        status: u.status || 'Active',
-      }));
+      const next = Object.entries(val).map(([uid, u]) => {
+        const email = u.email || '';
+        const username =
+          u.username ||
+          u.userName ||
+          u.uname ||
+          (u.profile && (u.profile.username || u.profile.userName)) ||
+          (u.account && (u.account.username || u.account.userName)) ||
+          (email ? String(email).split('@')[0] : '') ||
+          '';
+        const joinDateRaw = u.joinDate || u.joinedDate || u.joinedAt || u.joined_at || u.joinDateAt || u.createdAt || u.created_at || u.createdOn || u.joined || u.signupAt || '';
+        const lastActiveRaw = u.lastActive || u.last_active || u.lastActiveAt || u.lastSeen || u.last_seen || u.lastLogin || u.last_login || u.logoutAt || u.logout_at || u.updatedAt || u.updated_at || '';
+        return {
+          id: uid,
+          firstName: u.firstName || '',
+          middleName: u.middleName || '',
+          lastName: u.lastName || '',
+          username,
+          role: normalizeRole(u.role || 'User'),
+          email,
+          phone: u.phone || '',
+          authProvider: u.authProvider || u.provider || u.providerId || '',
+          joinDate: normalizeDate(joinDateRaw),
+          lastActive: normalizeDate(lastActiveRaw),
+          status: u.status || 'Active',
+        };
+      });
       // Optional: sort by lastActive desc
       next.sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
       setRows(next);
@@ -112,7 +134,7 @@ export function AccountManagement() {
               // Persist account fields to Realtime DB; table auto-updates via onValue
               const uid = String(data.id || '').trim();
               if (!uid) {
-                alert('Cannot save without a user ID (uid). Editing existing users is supported. Creating new Auth users requires server-side Admin SDK.');
+                show({ type: 'error', title: 'Save failed', message: 'Missing user ID (uid). Editing existing users is supported. Creating new Auth users requires server-side Admin SDK.' });
                 return;
               }
               // Convert datetime-local to ISO; if empty, preserve from DB
@@ -126,11 +148,12 @@ export function AccountManagement() {
               let joinDate = localToISO(data.joinDate);
               if (!joinDate) {
                 try {
-                  const snap = await dbGet(ref(usersDB, `users/${uid}/joinDate`));
-                  const existing = snap.exists() ? snap.val() : '';
-                  joinDate = normalizeDate(existing);
+                  const snap = await dbGet(ref(usersDB, `users/${uid}`));
+                  const existing = snap.exists() ? snap.val() : {};
+                  const joinRaw = existing.joinDate || existing.joinedDate || existing.joinedAt || existing.createdAt || existing.created_at || existing.createdOn || '';
+                  joinDate = normalizeDate(joinRaw) || new Date().toISOString();
                 } catch {
-                  // ignore
+                  joinDate = new Date().toISOString();
                 }
               }
               const nowIso = new Date().toISOString();
@@ -138,20 +161,20 @@ export function AccountManagement() {
                 firstName: data.firstName || '',
                 middleName: data.middleName || '',
                 lastName: data.lastName || '',
+                username: data.username || '',
                 email: data.email || '',
                 phone: data.phone || '',
-                role: data.role || 'User',
+                role: normalizeRole(data.role || 'User'),
                 status: data.status || 'Active',
                 joinDate,
-                lastActive: nowIso,
                 updatedAt: nowIso,
               };
               try {
                 await dbUpdate(ref(usersDB, `users/${uid}`), payload);
-                setShowAdd(false);
+                show({ type: 'success', title: 'Saved', message: 'Account changes were saved successfully.' });
               } catch (e) {
                 console.error('Failed to save user to DB', e);
-                alert('Failed to save changes. Please try again.');
+                show({ type: 'error', title: 'Save failed', message: 'Failed to save changes. Please try again.' });
               }
             }}
           />

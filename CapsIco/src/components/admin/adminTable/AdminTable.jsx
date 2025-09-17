@@ -4,9 +4,9 @@ import styles from "./AdminTable.module.css";
 export function AdminTable({ rows, onEdit, onDelete, onSelect }) {
   // Fallback demo data if no rows provided
   const staffData = rows && rows.length ? rows : [
-    { id: 1001, firstName: "John", middleName: "A.", lastName: "Smith", role: "Super Admin", email: "john.smith@primelab.com", phone: "+1 (555) 111-2222", joinDate: "2023-01-15T09:00", lastActive: "2025-09-05T14:22", status: "Active" },
-    { id: 1002, firstName: "Sarah", middleName: "", lastName: "Johnson", role: "Admin", email: "sarah.j@primelab.com", phone: "+1 (555) 333-4444", joinDate: "2023-03-22T10:00", lastActive: "2025-09-04T09:10", status: "Active" },
-    { id: 1003, firstName: "Michael", middleName: "B.", lastName: "Chen", role: "User", email: "m.chen@primelab.com", phone: "+1 (555) 555-6666", joinDate: "2023-05-10T08:00", lastActive: "2025-08-29T18:45", status: "Inactive" },
+    { id: 1001, firstName: "John", middleName: "A.", lastName: "Smith", username: "johnsmith", role: "Super Admin", email: "john.smith@primelab.com", phone: "+1 (555) 111-2222", joinDate: "2023-01-15T09:00", lastActive: "2025-09-05T14:22", status: "Active" },
+    { id: 1002, firstName: "Sarah", middleName: "", lastName: "Johnson", username: "sarahj", role: "Admin", email: "sarah.j@primelab.com", phone: "+1 (555) 333-4444", joinDate: "2023-03-22T10:00", lastActive: "2025-09-04T09:10", status: "Active" },
+    { id: 1003, firstName: "Michael", middleName: "B.", lastName: "Chen", username: "mchen", role: "User", email: "m.chen@primelab.com", phone: "+1 (555) 555-6666", joinDate: "2023-05-10T08:00", lastActive: "2025-08-29T18:45", status: "Inactive" },
   ];
 
   const fmt = (v) => {
@@ -28,6 +28,7 @@ export function AdminTable({ rows, onEdit, onDelete, onSelect }) {
             <tr>
               <th>ID</th>
               <th>Name</th>
+              <th>Username</th>
               <th>Role</th>
               <th>Email</th>
               <th>Phone Number</th>
@@ -43,6 +44,7 @@ export function AdminTable({ rows, onEdit, onDelete, onSelect }) {
               <tr key={staff.id}>
                 <td>{staff.id}</td>
                 <td>{`${staff.lastName}, ${staff.firstName}${staff.middleName ? ' ' + staff.middleName : ''}`}</td>
+                <td>{staff.username || ''}</td>
                 <td>{staff.role}</td>
                 <td>{staff.email}</td>
                 <td>{staff.phone}</td>

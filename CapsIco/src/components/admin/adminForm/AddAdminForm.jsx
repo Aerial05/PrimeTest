@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import styles from './AddAdminForm.module.css';
+import { auth } from '@/config/firebase-config';
 
 export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
   const toLocalDatetime = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
@@ -15,6 +16,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
     firstName: initialData?.firstName ?? '',
     middleName: initialData?.middleName ?? '',
     lastName: initialData?.lastName ?? '',
+    username: initialData?.username ?? '',
     email: initialData?.email ?? '',
     phone: initialData?.phone ?? '',
     role: initialData?.role ?? 'User',
@@ -30,6 +32,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
       firstName: initialData?.firstName ?? '',
       middleName: initialData?.middleName ?? '',
       lastName: initialData?.lastName ?? '',
+      username: initialData?.username ?? '',
       email: initialData?.email ?? '',
       phone: initialData?.phone ?? '',
       role: initialData?.role ?? 'User',
@@ -49,7 +52,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
     e.preventDefault();
     console.log("Account form submitted:", formData);
     if (onSubmit) onSubmit(formData);
-    if (onClose) onClose();
+    // keep modal open after save; do not auto-close here
   };
 
   // Separate change password section (optional)
@@ -111,6 +114,13 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
+              <label htmlFor="username">Username</label>
+              <input type="text" id="username" name="username" value={formData.username} onChange={handleChange} />
+            </div>
+          </div>
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
               <label htmlFor="email">Email</label>
               <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required />
             </div>
@@ -162,29 +172,67 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
 
           <div className={styles.formActions}>
             <button type="button" className={styles.btnSecondary} onClick={onClose}>Cancel</button>
-            <button type="submit" className={styles.btnPrimary}>Add Account</button>
             <button type="submit" className={styles.btnPrimary}>Save Changes</button>
           </div>
         </form>
 
-        {/* Separate Change Password section (for editing) */}
-        <form onSubmit={onSavePassword} style={{ marginTop: '1rem' }}>
-          <h3>Change Password</h3>
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="newPassword">New Password</label>
-              <input type="password" id="newPassword" value={newPwd} onChange={(e)=>setNewPwd(e.target.value)} />
-            </div>
-            <div className={styles.formGroup}>
-              <label htmlFor="confirmNewPassword">Confirm New Password</label>
-              <input type="password" id="confirmNewPassword" value={newPwdConfirm} onChange={(e)=>setNewPwdConfirm(e.target.value)} />
-            </div>
-          </div>
-          {pwdError && <div style={{ color:'crimson', marginBottom: '.5rem' }}>{pwdError}</div>}
-          <div className={styles.formActions}>
-            <button type="submit" className={styles.btnPrimary}>Save Password</button>
-          </div>
-        </form>
+        {/* Separate Change Password section: render always; disable if federated (Google/Facebook) */}
+        {(() => {
+          const currentUid = auth.currentUser?.uid ? String(auth.currentUser.uid) : '';
+          const rowUid = initialData?.id != null ? String(initialData.id) : '';
+          const providerFromAuth = rowUid && rowUid === currentUid
+            ? (auth.currentUser?.providerData?.[0]?.providerId || '')
+            : '';
+          const resolvedProvider = (initialData?.authProvider || providerFromAuth || '').toString();
+          const providerRaw = resolvedProvider.toLowerCase();
+          const isFederated = providerRaw.includes('google') || providerRaw.includes('facebook');
+          return (
+            <form onSubmit={onSavePassword} style={{ marginTop: '1rem' }}>
+              <h3>Change Password</h3>
+              {isFederated && (
+                <p style={{ color: '#6b7280', marginTop: '.25rem' }}>
+                  Your account uses a federated provider (e.g., Google, Facebook). Password changes are not available.
+                </p>
+              )}
+              {!!resolvedProvider && (
+                <p style={{ color: '#9ca3af', marginTop: '.25rem', fontSize: '.85rem' }}>
+                  Provider: {resolvedProvider}
+                </p>
+              )}
+              <div className={styles.formRow}>
+                <div className={styles.formGroup}>
+                  <label htmlFor="newPassword">New Password</label>
+                  <input
+                    type="password"
+                    id="newPassword"
+                    value={newPwd}
+                    onChange={(e)=>setNewPwd(e.target.value)}
+                    disabled={isFederated}
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label htmlFor="confirmNewPassword">Confirm New Password</label>
+                  <input
+                    type="password"
+                    id="confirmNewPassword"
+                    value={newPwdConfirm}
+                    onChange={(e)=>setNewPwdConfirm(e.target.value)}
+                    disabled={isFederated}
+                  />
+                </div>
+              </div>
+              {pwdError && <div style={{ color:'crimson', marginBottom: '.5rem' }}>{pwdError}</div>}
+              <div className={styles.formActions}>
+                <button
+                  type="submit"
+                  className={styles.btnPrimary}
+                  disabled={isFederated}
+                  title={isFederated ? 'Password changes are not available for federated accounts.' : undefined}
+                >Save Password</button>
+              </div>
+            </form>
+          );
+        })()}
       </div>
     </div>
   );

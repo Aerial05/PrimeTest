@@ -5,7 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, usersDB } from "/src/config/firebase-config";
-import { onValue, ref } from "firebase/database";
+import { onValue, ref, update as dbUpdate } from "firebase/database";
 
 
 export function NavBar() {
@@ -54,6 +54,12 @@ export function NavBar() {
 
   const handleLogout = async () => {
     try {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        try {
+          await dbUpdate(ref(usersDB, `users/${uid}`), { lastActive: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        } catch (_) {}
+      }
       await signOut(auth);
       setIsDropDownOpen(false);
       navigate("/login");

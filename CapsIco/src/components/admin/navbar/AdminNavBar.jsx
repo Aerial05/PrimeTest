@@ -3,6 +3,8 @@ import styles from './AdminNavBar.module.css';
 import { Activity } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import authService from '/src/services/AuthService';
+import { ref, update as dbUpdate } from 'firebase/database';
+import { auth, usersDB } from '@/config/firebase-config';
 
 export function AdminNavBar() {
   const location = useLocation();
@@ -32,6 +34,12 @@ export function AdminNavBar() {
 
   const handleLogout = async () => {
     try {
+      const uid = auth.currentUser?.uid;
+      if (uid) {
+        try {
+          await dbUpdate(ref(usersDB, `users/${uid}`), { lastActive: new Date().toISOString(), updatedAt: new Date().toISOString() });
+        } catch (_) {}
+      }
       await authService.signOut();
     } catch (err) {
       console.warn('Failed to sign out', err);

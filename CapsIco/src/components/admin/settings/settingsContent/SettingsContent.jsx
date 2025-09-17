@@ -4,8 +4,10 @@ import { auth, usersDB } from '@/config/firebase-config';
 import { onAuthStateChanged, updateProfile, updateEmail, reload, sendEmailVerification, signOut } from 'firebase/auth';
 import authService from '@/services/AuthService';
 import { ref, get, update as dbUpdate } from 'firebase/database';
+import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
 
 export function SettingsContent() {
+  const { show } = useToast();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -117,8 +119,10 @@ export function SettingsContent() {
   await reload(user);
   setEmailVerified(!!auth.currentUser?.emailVerified);
       setSuccess('Profile saved');
+      show({ type: 'success', title: 'Saved', message: 'Your profile changes were saved successfully.' });
     } catch (err) {
       setError(err?.message || 'Failed to save profile');
+      show({ type: 'error', title: 'Save failed', message: err?.message || 'Failed to save profile.' });
     } finally {
       setSaving(false);
     }
@@ -194,11 +198,13 @@ export function SettingsContent() {
     try {
       await authService.changePassword(curPass, newPass);
       setPassSuccess('Password updated successfully.');
+      show({ type: 'success', title: 'Password updated', message: 'Your password was changed successfully.' });
       setCurPass('');
       setNewPass('');
       setConfPass('');
     } catch (e) {
       setPassError(e?.message || 'Failed to update password.');
+      show({ type: 'error', title: 'Password update failed', message: e?.message || 'Failed to update password.' });
       if (e?.message && e.message.includes('re-login')) {
         setReauthNeeded(true);
       }
