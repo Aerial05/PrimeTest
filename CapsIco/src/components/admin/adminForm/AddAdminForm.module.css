@@ -1,8 +1,9 @@
 .card {
   background-color: #ffffff;
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem 1.25rem;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border: 1px solid #eef2f7;
   margin-top: 2rem;
 }
 
@@ -35,10 +36,12 @@
 .formGroup input, .formGroup select { padding: 0.75rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; font-size: 0.875rem; }
 
 .formActions { display: flex; justify-content: flex-end; gap: 1rem; }
-.btnPrimary { background-color: #8b5cf6; color: white; border: none; padding: 0.75rem 2rem; border-radius: 0.5rem; font-weight: bold; cursor: pointer; }
+.btnPrimary { background-color: #8b5cf6; color: white; border: 1px solid transparent; padding: 0.75rem 1.25rem; border-radius: 10px; font-weight: 700; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.06); transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.06s ease; }
 .btnPrimary:hover { background-color: #7c3aed; }
-.btnSecondary { background-color: #e5e7eb; color: #1f2937; border: none; padding: 0.75rem 2rem; border-radius: 0.5rem; font-weight: 500; cursor: pointer; }
-.btnSecondary:hover { background-color: #d1d5db; }
+.btnPrimary:active { transform: translateY(1px); }
+.btnSecondary { background-color: #f3f4f6; color: #1f2937; border: 1px solid #e5e7eb; padding: 0.75rem 1.25rem; border-radius: 10px; font-weight: 600; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.06); transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.06s ease; }
+.btnSecondary:hover { background-color: #e5e7eb; }
+.btnSecondary:active { transform: translateY(1px); }
 
 /* Responsive */
 @media (max-width: 768px) { .formRow { flex-direction: column; } }

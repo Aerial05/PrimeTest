@@ -3,6 +3,12 @@ import styles from './AddAdminForm.module.css';
 
 export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
   const toLocalDatetime = (d = new Date()) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+  const isoToLocalDatetime = (iso) => {
+    if (!iso) return '';
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return toLocalDatetime(d);
+  };
   const nowLocal = toLocalDatetime();
   const [formData, setFormData] = useState(() => ({
     id: initialData?.id ?? Date.now(),
@@ -11,10 +17,10 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
     lastName: initialData?.lastName ?? '',
     email: initialData?.email ?? '',
     phone: initialData?.phone ?? '',
-    role: initialData?.role ?? '',
+    role: initialData?.role ?? 'User',
     status: initialData?.status ?? 'Active',
-    joinDate: initialData?.joinDate ?? nowLocal,
-    lastActive: initialData?.lastActive ?? nowLocal,
+  joinDate: initialData?.joinDate ? isoToLocalDatetime(initialData.joinDate) : nowLocal,
+  lastActive: initialData?.lastActive ? isoToLocalDatetime(initialData.lastActive) : nowLocal,
   }));
 
   // Sync when switching between different users while the modal is open
@@ -26,10 +32,10 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
       lastName: initialData?.lastName ?? '',
       email: initialData?.email ?? '',
       phone: initialData?.phone ?? '',
-      role: initialData?.role ?? '',
+      role: initialData?.role ?? 'User',
       status: initialData?.status ?? 'Active',
-      joinDate: initialData?.joinDate ?? toLocalDatetime(),
-      lastActive: initialData?.lastActive ?? toLocalDatetime(),
+  joinDate: initialData?.joinDate ? isoToLocalDatetime(initialData.joinDate) : toLocalDatetime(),
+  lastActive: initialData?.lastActive ? isoToLocalDatetime(initialData.lastActive) : toLocalDatetime(),
     };
     setFormData(next);
   }, [initialData, mode]);
@@ -117,9 +123,14 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="role">Role</label>
-              <select id="role" name="role" value={formData.role} onChange={handleChange} required>
-                <option value="">Select Role</option>
-                <option value="Super Admin">Super Admin</option>
+              <select
+                id="role"
+                name="role"
+                value={formData.role}
+                onChange={handleChange}
+                required
+                // If editing an existing account, role comes from DB; keep editable but only Admin/User
+              >
                 <option value="Admin">Admin</option>
                 <option value="User">User</option>
               </select>
