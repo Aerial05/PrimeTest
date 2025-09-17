@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+﻿import React, { useState } from "react";
 import styles from "./LoginForm.module.css";
 import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +17,12 @@ export function LoginForm({ onSwitch }) {
   const [welcomeHide, setWelcomeHide] = useState(false);
   const [showRolePrompt, setShowRolePrompt] = useState(false);
 
+  const setPreferredDashboard = (preference) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("preferredDashboard", preference);
+    }
+  };
+
   const completeWelcomeAndNavigate = (destination = "/") => {
     const user = authService.currentUser;
     const name = authService.getDisplayName(user);
@@ -25,17 +31,22 @@ export function LoginForm({ onSwitch }) {
     setTimeout(() => setWelcomeHide(true), 2400);
     setTimeout(() => navigate(destination, { replace: true }), 3400);
   };
-
+      // Handles post-sign-in logic including role check and navigation
+      // Refresh the page if admin to load admin UI
   const handlePostSignIn = async () => {
     try {
       const role = await authService.getUserRole();
       if (role === "admin") {
-        setShowRolePrompt(true);
-        return;
+        setPreferredDashboard("admin");
+        // Force a full reload so the app picks up the admin preference and shows admin UI
+        // small timeout ensures localStorage write completes before reload
+        setTimeout(() => window.location.reload(), 100);
+        return;        
       }
     } catch (roleErr) {
       console.warn("Failed to determine user role", roleErr);
     }
+    setPreferredDashboard("user");
     completeWelcomeAndNavigate("/");
   };
 
@@ -80,6 +91,11 @@ export function LoginForm({ onSwitch }) {
   };
 
   const handleChooseDashboard = (path) => {
+    if (path === "/") {
+      setPreferredDashboard("user");
+    } else {
+      setPreferredDashboard("admin");
+    }
     setShowRolePrompt(false);
     completeWelcomeAndNavigate(path);
   };

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+﻿import React, { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { onAuthStateChanged } from "firebase/auth";
@@ -33,12 +33,18 @@ import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 import authService from "./services/AuthService";
 import { auth } from "./config/firebase-config";
 
+const getPreferredDashboard = () => {
+  if (typeof window === "undefined") return "user";
+  return localStorage.getItem("preferredDashboard") || "user";
+};
+
 function AnimatedRoutes({ role }) {
   const location = useLocation();
   const nodeRef = useRef(null);
 
   const isAdmin = role === "admin";
   const isLoggedIn = !!role;
+  const preferredDashboard = isAdmin ? getPreferredDashboard() : "user";
 
   const guardAdminRoute = (element) =>
     isAdmin ? element : <Navigate to={isLoggedIn ? "/" : "/login"} replace />;
@@ -50,11 +56,22 @@ function AnimatedRoutes({ role }) {
           <Routes location={location}>
             <Route
               path="/"
-              element={isAdmin ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
+              element={isAdmin && preferredDashboard === "admin" ? (
+                <Navigate to="/admin-dashboard" replace />
+              ) : (
+                <Dashboard />
+              )}
             />
             <Route
               path="/login"
-              element={isLoggedIn ? <Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace /> : <Login />}
+              element={isLoggedIn ? (
+                <Navigate
+                  to={preferredDashboard === "admin" ? "/admin-dashboard" : "/"}
+                  replace
+                />
+              ) : (
+                <Login />
+              )}
             />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
@@ -71,7 +88,10 @@ function AnimatedRoutes({ role }) {
             <Route path="/admin-packages" element={guardAdminRoute(<PackagesPage />)} />
             <Route path="/admin-messages" element={guardAdminRoute(<MessagesPage />)} />
 
-            <Route path="*" element={<Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace />} />
+            <Route
+              path="*"
+              element={<Navigate to={preferredDashboard === "admin" ? "/admin-dashboard" : "/"} replace />}
+            />
           </Routes>
         </div>
       </CSSTransition>
@@ -103,11 +123,12 @@ export default function App() {
   }, []);
 
   const isAdmin = role === "admin";
+  const preferredDashboard = isAdmin ? getPreferredDashboard() : "user";
 
   return (
     <BrowserRouter>
       <div className="appShell">
-        {checkingAuth ? null : isAdmin ? (
+        {checkingAuth ? null : isAdmin && preferredDashboard === "admin" ? (
           <AdminNavBar />
         ) : (
           <>
@@ -120,7 +141,7 @@ export default function App() {
           {!checkingAuth && <AnimatedRoutes role={role} />}
         </main>
 
-        {checkingAuth ? null : isAdmin ? <AdminFooter /> : <Footer />}
+        {checkingAuth ? null : isAdmin && preferredDashboard === "admin" ? <AdminFooter /> : <Footer />}
       </div>
     </BrowserRouter>
   );

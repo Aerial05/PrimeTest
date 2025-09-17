@@ -213,6 +213,9 @@ export class AuthService extends BaseFirebaseService {
 
   async signOut() {
     await firebaseSignOut(this.auth);
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('preferredDashboard');
+    }
   }
 
   isAdminEmail(email) {
@@ -383,3 +386,6 @@ export class AuthService extends BaseFirebaseService {
 
 const authService = new AuthService();
 export default authService;
+
+
+
