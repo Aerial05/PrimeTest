@@ -21,8 +21,6 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
     phone: initialData?.phone ?? '',
     role: initialData?.role ?? 'User',
     status: initialData?.status ?? 'Active',
-  joinDate: initialData?.joinDate ? isoToLocalDatetime(initialData.joinDate) : nowLocal,
-  lastActive: initialData?.lastActive ? isoToLocalDatetime(initialData.lastActive) : nowLocal,
   }));
 
   // Sync when switching between different users while the modal is open
@@ -37,8 +35,6 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
       phone: initialData?.phone ?? '',
       role: initialData?.role ?? 'User',
       status: initialData?.status ?? 'Active',
-  joinDate: initialData?.joinDate ? isoToLocalDatetime(initialData.joinDate) : toLocalDatetime(),
-  lastActive: initialData?.lastActive ? isoToLocalDatetime(initialData.lastActive) : toLocalDatetime(),
     };
     setFormData(next);
   }, [initialData, mode]);
@@ -150,17 +146,6 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           {/* Password fields removed from main details form */}
 
           <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="joinDate">Join Date</label>
-              <input type="datetime-local" id="joinDate" name="joinDate" value={formData.joinDate} readOnly />
-            </div>
-          </div>
-
-          <div className={styles.formRow}>
-            <div className={styles.formGroup}>
-              <label htmlFor="lastActive">Last Active</label>
-              <input type="datetime-local" id="lastActive" name="lastActive" value={formData.lastActive} readOnly />
-            </div>
             <div className={styles.formGroup}>
               <label htmlFor="status">Status</label>
               <select id="status" name="status" value={formData.status} onChange={handleChange} required>

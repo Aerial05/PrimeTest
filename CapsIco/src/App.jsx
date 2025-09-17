@@ -1,7 +1,8 @@
-﻿import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { onAuthStateChanged } from "firebase/auth";
+import { ref, update as dbUpdate, get as dbGet } from 'firebase/database';
 import "/src/styles/routeTransitions.css";
 
 // User pages
@@ -31,12 +32,7 @@ import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 
 import authService from "./services/AuthService";
-import { auth } from "./config/firebase-config";
-
-const getPreferredDashboard = () => {
-  if (typeof window === "undefined") return "user";
-  return localStorage.getItem("preferredDashboard") || "user";
-};
+import { auth, usersDB } from "./config/firebase-config";
 
 function AnimatedRoutes({ role }) {
   const location = useLocation();
@@ -44,7 +40,6 @@ function AnimatedRoutes({ role }) {
 
   const isAdmin = role === "admin";
   const isLoggedIn = !!role;
-  const preferredDashboard = isAdmin ? getPreferredDashboard() : "user";
 
   const guardAdminRoute = (element) =>
     isAdmin ? element : <Navigate to={isLoggedIn ? "/" : "/login"} replace />;
@@ -56,22 +51,11 @@ function AnimatedRoutes({ role }) {
           <Routes location={location}>
             <Route
               path="/"
-              element={isAdmin && preferredDashboard === "admin" ? (
-                <Navigate to="/admin-dashboard" replace />
-              ) : (
-                <Dashboard />
-              )}
+              element={isAdmin ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
             />
             <Route
               path="/login"
-              element={isLoggedIn ? (
-                <Navigate
-                  to={preferredDashboard === "admin" ? "/admin-dashboard" : "/"}
-                  replace
-                />
-              ) : (
-                <Login />
-              )}
+              element={isLoggedIn ? <Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace /> : <Login />}
             />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
@@ -88,10 +72,7 @@ function AnimatedRoutes({ role }) {
             <Route path="/admin-packages" element={guardAdminRoute(<PackagesPage />)} />
             <Route path="/admin-messages" element={guardAdminRoute(<MessagesPage />)} />
 
-            <Route
-              path="*"
-              element={<Navigate to={preferredDashboard === "admin" ? "/admin-dashboard" : "/"} replace />}
-            />
+            <Route path="*" element={<Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace />} />
           </Routes>
         </div>
       </CSSTransition>
@@ -102,19 +83,54 @@ function AnimatedRoutes({ role }) {
 export default function App() {
   const [role, setRole] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const heartbeatRef = useRef(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
+          // Auto-sync provider to Realtime DB for this user
+          try {
+            const pids = (user.providerData || []).map(p => p.providerId).filter(Boolean);
+            let providerId = 'password';
+            if (pids.includes('google.com')) providerId = 'google.com';
+            else if (pids.includes('facebook.com')) providerId = 'facebook.com';
+            else if (pids.includes('password')) providerId = 'password';
+            else providerId = pids[0] || 'password';
+            const userRef = ref(usersDB, `users/${user.uid}`);
+            await dbUpdate(userRef, {
+              authProvider: providerId,
+              email: user.email || '',
+              lastLoginAt: new Date().toISOString(),
+            });
+            // Ensure createdAt exists for provider-based first-time sign-ins
+            try {
+              const createdSnap = await dbGet(ref(usersDB, `users/${user.uid}/createdAt`));
+              if (!createdSnap.exists() || !createdSnap.val()) {
+                const created = user.metadata?.creationTime || new Date().toISOString();
+                await dbUpdate(userRef, { createdAt: created });
+              }
+            } catch (_inner) {
+              // best-effort; ignore
+            }
+          } catch (e) {
+            console.warn('Failed to sync auth provider to DB', e);
+          }
+
           const fetchedRole = await authService.getUserRole(user);
           setRole(fetchedRole === "admin" ? "admin" : "user");
+
+          // Remove lastActive/updatedAt heartbeat. Only lastLoginAt is tracked on sign-in.
         } catch (error) {
           console.warn("Failed to resolve user role", error);
           setRole("user");
         }
       } else {
         setRole(null);
+        if (heartbeatRef.current) {
+          clearInterval(heartbeatRef.current);
+          heartbeatRef.current = null;
+        }
       }
       setCheckingAuth(false);
     });
@@ -123,12 +139,11 @@ export default function App() {
   }, []);
 
   const isAdmin = role === "admin";
-  const preferredDashboard = isAdmin ? getPreferredDashboard() : "user";
 
   return (
     <BrowserRouter>
       <div className="appShell">
-        {checkingAuth ? null : isAdmin && preferredDashboard === "admin" ? (
+        {checkingAuth ? null : isAdmin ? (
           <AdminNavBar />
         ) : (
           <>
@@ -141,8 +156,109 @@ export default function App() {
           {!checkingAuth && <AnimatedRoutes role={role} />}
         </main>
 
-        {checkingAuth ? null : isAdmin && preferredDashboard === "admin" ? <AdminFooter /> : <Footer />}
+        {checkingAuth ? null : isAdmin ? <AdminFooter /> : <Footer />}
       </div>
     </BrowserRouter>
   );
 }
+
+//TO REMEMBER
+// I INSTALLED LUCID
+// REACT ICONS
+// PATH
+// REACT TRANSITION GROUP - FOR TRANSITIONS AT HINDI MAG SCROLL TO TOP
+//THROUGH NPM
+
+
+//TO USE LOCALY DO:
+// npm install
+// npm run dev
+// IF WANT TO GET OUT ON NPM RUN DEV USE             Q+Enter 
+
+
+
+/*
+
+THINGS TO KNOW:
+COMPONENTS SHOULD HAVE THE BULK OF THE LOGIC CODE.
+PAGES SHOULD HAVE THE RENDERING AND PATH OF THE COMPONENTS
+
+TRY TO KEEP THE FILE HIERARCHY CLEAN.
+
+
+
+
+-ALL BACKEND IS MOSTLY SIMULATED. SINCE GAGAMITIN IS EITHER 
+APIS OR BACKEDN FROM FIREBASE PAGKA NAGSETUP NA, ALL OF EM ARE NOW IN ARRAYS MUNA
+
+
+
+Things to do. URGENT 
+DOUBLE CHECK THE Flow of the Appointments Page
+1. When user selects a service, the details of the service must appear in the right side
+2. The user must be able to select the date and time after selecting the service
+3. The user must be able to select the staff after selecting the date and time
+4. The user must be able to see the summary of the appointment before confirming
+5. The user must be able to confirm the appointment and see a success message
+
+PROFILE
+Must have appointment history (Picture na galing sa Prime medical lab (proof successful appointment))
+
+USE Object Oriented Programming IN ALL OF THE BACKEND CODES
+
+1. Create Classes for Accounts, Services, Appointments, Reports
+2. Create Methods for CRUD operations
+3. Integrate the classes and methods to the components and pages that needs them
+
+BACKEND: 
+1. Admin account (google/facebook) must go to admin dashboard
+2. User account (google/facebook) must go to user dashboard
+3. Admin must be able to manage accounts (CRUD)
+4. Services(Packages and Single Services) must come from database and can be edited and be Added in admin panel
+5. Services in the Appointment Page (Browse Services) must update based on the Services in the database and
+ must have appropriate attributes (must have same attributes per Service)
+ when Appointment is confirmed, the appointment must be saved in the database with appropriate attributes
+ and can be managed in admin panel
+ When choosing time, the available time slots must be updated based on 
+ timeslots already booked in the database(check for conflicts(Service, Date, Time(Especially for Surgical Procedures)))
+
+6. Accounts must come from database and can be edited in admin panel
+7. Reports must be generated from database and can be viewed in admin panel
+
+Admin must insert image per successful appointment and Users must be able to view the image in their profile appointment history
+
+8. Messages must be stored in database and can be viewed in admin panel
+9. Contact form must send message to database and can be viewed in admin panel
+            
+
+
+
+
+
+
+
+appointment Page
+profile sa navbar ng admin and user (DONE)
+
+sa profile ng user, ilagay ung dropdown ng choices at yung logout button(DONE)
+
+
+THIS VIOLATIONS AY DAHIL SA GOOGLE MAPS IFRAMES
+
+[Violation] Permissions policy violation: accelerometer is not allowed in this document.
+initialize @ sa.js:1516Understand this error
+sa.js:1516 The deviceorientation events are blocked by permissions policy. See https://github.com/w3c/webappsec-permissions-policy/blob/master/features.md#sensor-features
+initialize @ sa.js:1516Understand this warning
+index.js:67 [Violation] Permissions policy violation: accelerometer is not allowed in this document.
+connect @ index.js:67Understand this error
+index.js:67 The deviceorientation events are blocked by permissions policy. See https://github.com/w3c/webappsec-permissions-policy/blob/master/features.md#sensor-features
+
+
+
+
+
+
+
+
+
+*/

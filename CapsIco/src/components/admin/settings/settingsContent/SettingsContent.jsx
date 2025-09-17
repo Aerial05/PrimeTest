@@ -38,6 +38,8 @@ export function SettingsContent() {
   // Store only the local part for PH numbers (e.g., 9XXXXXXXXX)
   const [phoneLocal, setPhoneLocal] = useState('');
   const [email, setEmail] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
+  const [lastLoginAt, setLastLoginAt] = useState('');
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -72,6 +74,12 @@ export function SettingsContent() {
   if (local.startsWith('63')) local = local.slice(2);
   if (local.startsWith('0')) local = local.slice(1);
   setPhoneLocal(local.slice(0, 10)); // cap to 10 digits typical PH mobile local part
+
+        // createdAt from auth metadata (fallback) and DB; prefer DB if present
+        const metaCreated = u.metadata?.creationTime ? new Date(u.metadata.creationTime).toISOString() : '';
+        const dbCreated = dbv.createdAt ? new Date(dbv.createdAt).toISOString() : '';
+        setCreatedAt(dbCreated || metaCreated);
+        setLastLoginAt(dbv.lastLoginAt ? new Date(dbv.lastLoginAt).toISOString() : '');
       } catch (e) {
         setError('Failed to load admin profile');
       } finally {
@@ -111,7 +119,6 @@ export function SettingsContent() {
         lastName,
         username,
         phone: fullPhone,
-        updatedAt: new Date().toISOString(),
       };
       await dbUpdate(ref(usersDB, `users/${user.uid}`), updates);
 
@@ -154,13 +161,13 @@ export function SettingsContent() {
   const recheckVerification = async () => {
     if (!user) return;
     try {
-      await reload(user);
-      setEmailVerified(!!auth.currentUser?.emailVerified);
+  await reload(user);
+  setEmailVerified(!!auth.currentUser?.emailVerified);
       const cur = auth.currentUser;
-      if (cur?.email && cur.email !== email) {
+      if (cur?.email) {
         setEmail(cur.email);
         try {
-          await dbUpdate(ref(usersDB, `users/${cur.uid}`), { email: cur.email, updatedAt: new Date().toISOString() });
+          await dbUpdate(ref(usersDB, `users/${cur.uid}`), { email: cur.email });
         } catch (_) {
           // ignore DB sync failure
         }
@@ -299,6 +306,17 @@ export function SettingsContent() {
                 />
               </div>
               <div className={styles.muted}>Philippine numbers. Enter the 10-digit mobile number after +63.</div>
+            </div>
+          </div>
+
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label htmlFor="createdAt">Created</label>
+              <input type="text" id="createdAt" value={createdAt ? new Date(createdAt).toLocaleString() : ''} disabled />
+            </div>
+            <div className={styles.formGroup}>
+              <label htmlFor="lastLoginAt">Last Login</label>
+              <input type="text" id="lastLoginAt" value={lastLoginAt ? new Date(lastLoginAt).toLocaleString() : ''} disabled />
             </div>
           </div>
 

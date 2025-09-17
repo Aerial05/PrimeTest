@@ -44,7 +44,8 @@ export function SettingsContent() {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [initialEmail, setInitialEmail] = useState('');
-  const [joinedDate, setJoinedDate] = useState('');
+  const [createdAt, setCreatedAt] = useState('');
+  const [lastLoginAt, setLastLoginAt] = useState('');
 
   // Load current auth user and profile data from DB
   useEffect(() => {
@@ -68,21 +69,21 @@ export function SettingsContent() {
 
         // Joined from metadata
         const created = u.metadata?.creationTime ? new Date(u.metadata.creationTime) : null;
-        if (created) {
-          setJoinedDate(created.toISOString().slice(0, 10));
-        }
+        if (created) setCreatedAt(created.toISOString());
 
         // Load DB profile
         const snap = await get(ref(usersDB, `users/${uid}`));
-        const dbv = snap.exists() ? snap.val() : {};
+  const dbv = snap.exists() ? snap.val() : {};
 
-        setFirstName(dbv.firstName ?? first);
+  setFirstName(dbv.firstName ?? first);
         setLastName(dbv.lastName ?? last);
         const uname = dbv.username ?? '';
         setUsername(uname);
         setPrevUsername(uname);
         const rawPhone = dbv.phone ?? (u.phoneNumber || '');
         setPhone(formatPhone(rawPhone));
+  if (dbv?.createdAt) try { setCreatedAt(new Date(dbv.createdAt).toISOString()); } catch {}
+  if (dbv?.lastLoginAt) try { setLastLoginAt(new Date(dbv.lastLoginAt).toISOString()); } catch {}
       } catch (e) {
         setError('Failed to load profile');
       } finally {
@@ -175,8 +176,6 @@ export function SettingsContent() {
         username,
         phone: toE164(phone),
         email: user.email || email,
-        joinedAt: user.metadata?.creationTime || joinedDate,
-        updatedAt: new Date().toISOString(),
       });
       // Handle username mapping updates used across the app
       const trimmedNew = (username || '').trim();
@@ -271,7 +270,7 @@ export function SettingsContent() {
       if (cur?.email && cur.email !== email) {
         setEmail(cur.email);
         try {
-          await update(ref(usersDB, `users/${cur.uid}`), { email: cur.email, updatedAt: new Date().toISOString() });
+          await update(ref(usersDB, `users/${cur.uid}`), { email: cur.email });
         } catch (_) {
           // ignore DB sync failure
         }
@@ -361,8 +360,8 @@ export function SettingsContent() {
               />
             </div>
             <div className={styles.formGroup}>
-              <label htmlFor="joinDate">Join Date</label>
-              <input type="date" id="joinDate" value={joinedDate} disabled />
+              <label htmlFor="createdAt">Created</label>
+              <input type="text" id="createdAt" value={createdAt ? new Date(createdAt).toLocaleString() : ''} disabled />
             </div>
           </div>
 
@@ -594,7 +593,7 @@ export function SettingsContent() {
                         setModalMsg('New email saved. Please verify via the email we sent.');
                         // save to DB immediately
                         const uid = user.uid;
-                        await update(ref(usersDB, `users/${uid}`), { email: newEmail, updatedAt: new Date().toISOString() });
+                        await update(ref(usersDB, `users/${uid}`), { email: newEmail });
                       } catch(e) {
                         if (e?.code === 'auth/email-already-in-use') setEmailError('That email is already in use.');
                         else if (e?.code === 'auth/requires-recent-login') setEmailError('Please re-login to change your email.');
@@ -620,7 +619,7 @@ export function SettingsContent() {
                           setInitialEmail(target);
                           setEmailVerified(false);
                           // persist to DB as well
-                          const uid = user.uid; await update(ref(usersDB, `users/${uid}`), { email: target, updatedAt: new Date().toISOString() });
+                          const uid = user.uid; await update(ref(usersDB, `users/${uid}`), { email: target });
                         }
                         await sendEmailVerification(user);
                         setModalMsg(`Verification email sent to ${target}.`);
@@ -642,4 +641,3 @@ export function SettingsContent() {
     </div>
   );
 }
-

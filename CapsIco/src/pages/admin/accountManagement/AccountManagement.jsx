@@ -60,8 +60,8 @@ export function AccountManagement() {
           (u.account && (u.account.username || u.account.userName)) ||
           (email ? String(email).split('@')[0] : '') ||
           '';
-        const joinDateRaw = u.joinDate || u.joinedDate || u.joinedAt || u.joined_at || u.joinDateAt || u.createdAt || u.created_at || u.createdOn || u.joined || u.signupAt || '';
-        const lastActiveRaw = u.lastActive || u.last_active || u.lastActiveAt || u.lastSeen || u.last_seen || u.lastLogin || u.last_login || u.logoutAt || u.logout_at || u.updatedAt || u.updated_at || '';
+        const createdRaw = u.createdAt || u.created_at || u.createdOn || '';
+        const lastLoginRaw = u.lastLoginAt || u.last_login_at || u.lastLogin || '';
         return {
           id: uid,
           firstName: u.firstName || '',
@@ -72,13 +72,13 @@ export function AccountManagement() {
           email,
           phone: u.phone || '',
           authProvider: u.authProvider || u.provider || u.providerId || '',
-          joinDate: normalizeDate(joinDateRaw),
-          lastActive: normalizeDate(lastActiveRaw),
+          createdAt: normalizeDate(createdRaw),
+          lastLoginAt: normalizeDate(lastLoginRaw),
           status: u.status || 'Active',
         };
       });
-      // Optional: sort by lastActive desc
-      next.sort((a, b) => String(b.lastActive).localeCompare(String(a.lastActive)));
+      // Optional: sort by lastLoginAt desc
+      next.sort((a, b) => String(b.lastLoginAt).localeCompare(String(a.lastLoginAt)));
       setRows(next);
     });
     return () => off();
@@ -145,17 +145,10 @@ export function AccountManagement() {
                 return d.toISOString();
               };
 
-              let joinDate = localToISO(data.joinDate);
-              if (!joinDate) {
-                try {
-                  const snap = await dbGet(ref(usersDB, `users/${uid}`));
-                  const existing = snap.exists() ? snap.val() : {};
-                  const joinRaw = existing.joinDate || existing.joinedDate || existing.joinedAt || existing.createdAt || existing.created_at || existing.createdOn || '';
-                  joinDate = normalizeDate(joinRaw) || new Date().toISOString();
-                } catch {
-                  joinDate = new Date().toISOString();
-                }
-              }
+              const existingSnap = await dbGet(ref(usersDB, `users/${uid}`));
+              const existing = existingSnap.exists() ? existingSnap.val() : {};
+              // Preserve createdAt if present; otherwise, set now
+              const createdAt = existing.createdAt ? normalizeDate(existing.createdAt) : new Date().toISOString();
               const nowIso = new Date().toISOString();
               const payload = {
                 firstName: data.firstName || '',
@@ -166,8 +159,8 @@ export function AccountManagement() {
                 phone: data.phone || '',
                 role: normalizeRole(data.role || 'User'),
                 status: data.status || 'Active',
-                joinDate,
-                updatedAt: nowIso,
+                createdAt,
+                lastLoginAt: existing.lastLoginAt || '',
               };
               try {
                 await dbUpdate(ref(usersDB, `users/${uid}`), payload);

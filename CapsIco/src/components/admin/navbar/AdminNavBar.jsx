@@ -34,12 +34,7 @@ export function AdminNavBar() {
 
   const handleLogout = async () => {
     try {
-      const uid = auth.currentUser?.uid;
-      if (uid) {
-        try {
-          await dbUpdate(ref(usersDB, `users/${uid}`), { lastActive: new Date().toISOString(), updatedAt: new Date().toISOString() });
-        } catch (_) {}
-      }
+      // No DB writes on logout; lastLoginAt is set on sign-in
       await authService.signOut();
     } catch (err) {
       console.warn('Failed to sign out', err);

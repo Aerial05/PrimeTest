@@ -54,12 +54,7 @@ export function NavBar() {
 
   const handleLogout = async () => {
     try {
-      const uid = auth.currentUser?.uid;
-      if (uid) {
-        try {
-          await dbUpdate(ref(usersDB, `users/${uid}`), { lastActive: new Date().toISOString(), updatedAt: new Date().toISOString() });
-        } catch (_) {}
-      }
+      // No heartbeat/update on logout; lastLoginAt is set on login in App.jsx
       await signOut(auth);
       setIsDropDownOpen(false);
       navigate("/login");
