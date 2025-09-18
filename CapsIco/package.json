@@ -9,9 +9,11 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "csv:xlsx": "node ./scripts/csv-to-xlsx.mjs",
-    "csv:utf16": "node ./scripts/csv-to-utf16.mjs"
+    "csv:utf16": "node ./scripts/csv-to-utf16.mjs",
+    "import:service-packages": "node ./scripts/import-service-packages.mjs"
   },
   "dependencies": {
+    "csv-parse": "^5.5.6",
     "firebase": "^12.2.1",
     "lucide": "^0.525.0",
     "lucide-react": "^0.525.0",
@@ -33,5 +35,8 @@
     "globals": "^16.3.0",
     "vite": "^7.0.4",
     "xlsx": "^0.18.5"
+  },
+  "optionalDependencies": {
+    "dotenv": "^16.4.5"
   }
 }
