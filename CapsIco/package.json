@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "csv:xlsx": "node ./scripts/csv-to-xlsx.mjs",
     "csv:utf16": "node ./scripts/csv-to-utf16.mjs",
-    "import:service-packages": "node ./scripts/import-service-packages.mjs"
+    "import:service-packages": "node ./scripts/import-service-packages.mjs",
+    "import:single-services": "node ./scripts/import-single-services.mjs"
   },
   "dependencies": {
     "csv-parse": "^5.5.6",
