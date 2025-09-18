@@ -21,7 +21,7 @@ import { Appointments } from "./pages/admin/appointments/Appointments";
 import { AccountManagement } from "./pages/admin/accountManagement/AccountManagement";
 import { ReportsPage } from "./pages/admin/reports/ReportsPage";
 import { SettingsPage } from "./pages/admin/settings/SettingsPage";
-import { PackagesPage } from "./pages/admin/packages/PackagesPage";
+import { PackagesPage } from "./pages/admin/Services/PackagesPage";
 import { MessagesPage } from "./pages/admin/messages/MessagesPage";
 
 // Shared components
