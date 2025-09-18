@@ -90,10 +90,10 @@ export function AdminNavBar() {
           </li>
           <li>
             <Link
-              to="/admin-packages"
-              className={isActive('/admin-packages') ? styles.active : undefined}
+              to="/admin-services"
+              className={isActive('/admin-services') ? styles.active : undefined}
             >
-              Packages
+              Services
             </Link>
           </li>
           <li>

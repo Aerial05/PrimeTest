@@ -69,7 +69,7 @@ function AnimatedRoutes({ role }) {
             <Route path="/admin-dashboard" element={guardAdminRoute(<AdminDashboard />)} />
             <Route path="/admin-reports" element={guardAdminRoute(<ReportsPage />)} />
             <Route path="/admin-settings" element={guardAdminRoute(<SettingsPage />)} />
-            <Route path="/admin-packages" element={guardAdminRoute(<PackagesPage />)} />
+            <Route path="/admin-services" element={guardAdminRoute(<PackagesPage />)} />
             <Route path="/admin-messages" element={guardAdminRoute(<MessagesPage />)} />
 
             <Route path="*" element={<Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace />} />
