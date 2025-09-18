@@ -211,10 +211,11 @@ USE Object Oriented Programming IN ALL OF THE BACKEND CODES
 3. Integrate the classes and methods to the components and pages that needs them
 
 BACKEND: 
-1. Admin account (google/facebook) must go to admin dashboard
-2. User account (google/facebook) must go to user dashboard
-3. Admin must be able to manage accounts (CRUD)
+1. Admin account (google/facebook) must go to admin dashboard (done)
+2. User account (google/facebook) must go to user dashboard (done)
+3. Admin must be able to manage accounts (CRUD) (done)
 4. Services(Packages and Single Services) must come from database and can be edited and be Added in admin panel
+   Attributes per Service: 11
 5. Services in the Appointment Page (Browse Services) must update based on the Services in the database and
  must have appropriate attributes (must have same attributes per Service)
  when Appointment is confirmed, the appointment must be saved in the database with appropriate attributes
