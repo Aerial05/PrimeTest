@@ -1,11 +1,12 @@
 import styles from "./NavBar.module.css";
-import { Search, User, Calendar } from "lucide-react";
+import { Search, User, Calendar, Activity } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { NavLink } from "react-router-dom";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth, usersDB } from "/src/config/firebase-config";
 import { onValue, ref, update as dbUpdate } from "firebase/database";
+import authService from "/src/services/AuthService";
 
 
 export function NavBar() {
@@ -14,6 +15,7 @@ export function NavBar() {
   const dropdownRef = useRef(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [profileName, setProfileName] = useState("");
+  const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
   const toggleDropDown = () => {
@@ -32,6 +34,7 @@ export function NavBar() {
     const unsub = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setProfileName("");
+      setIsAdmin(false);
       if (user) {
         const r = ref(usersDB, `users/${user.uid}`);
         dbUnsub();
@@ -40,6 +43,9 @@ export function NavBar() {
           const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(" ");
           const fallback = user.displayName || (user.email ? user.email.split("@")[0] : "User");
           setProfileName(nameFromDb || fallback);
+          const allowlist = authService.isAdminEmail(user.email || "");
+          const roleIsAdmin = (typeof v.role === 'string' && v.role.toLowerCase() === 'admin');
+          setIsAdmin(Boolean(allowlist || roleIsAdmin));
         });
       } else {
         dbUnsub();
@@ -61,6 +67,16 @@ export function NavBar() {
     } catch (e) {
       // optionally handle error (toast/log)
     }
+  };
+
+  const goToAdmin = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('preferredDashboard', 'admin');
+        window.dispatchEvent(new CustomEvent('preferred-dashboard-changed', { detail: 'admin' }));
+      }
+    } catch(_e) {}
+    navigate('/admin-dashboard', { replace: true });
   };
 
   return (
@@ -98,6 +114,12 @@ export function NavBar() {
         </div>
 
         <div className={styles.right}>
+          {isAdmin && (
+            <button className={styles.btnAdmin} onClick={goToAdmin} title="Go to Admin">
+              <Activity size={18} />
+              ADMIN
+            </button>
+          )}
           <Link to="/appointment">
             <button className={styles.btnAppointment}>
               <Calendar size={18} />

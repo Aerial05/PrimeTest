@@ -14,12 +14,16 @@ export function LoginForm({ onSwitch }) {
   const [error, setError] = useState("");
   const [showWelcome, setShowWelcome] = useState(false);
   const [welcomeName, setWelcomeName] = useState("");
+  const [welcomeSubtitle, setWelcomeSubtitle] = useState("Preparing your dashboard.");
   const [welcomeHide, setWelcomeHide] = useState(false);
   const [showRolePrompt, setShowRolePrompt] = useState(false);
 
   const setPreferredDashboard = (preference) => {
     if (typeof window !== "undefined") {
       localStorage.setItem("preferredDashboard", preference);
+      try {
+        window.dispatchEvent(new CustomEvent('preferred-dashboard-changed', { detail: preference }));
+      } catch (_) {}
     }
   };
 
@@ -27,6 +31,7 @@ export function LoginForm({ onSwitch }) {
     const user = authService.currentUser;
     const name = authService.getDisplayName(user);
     setWelcomeName(name);
+    setWelcomeSubtitle("Preparing your dashboard.");
     setShowWelcome(true);
     setTimeout(() => setWelcomeHide(true), 2400);
     setTimeout(() => navigate(destination, { replace: true }), 3400);
@@ -38,10 +43,21 @@ export function LoginForm({ onSwitch }) {
       const role = await authService.getUserRole();
       if (role === "admin") {
         setPreferredDashboard("admin");
-        // Force a full reload so the app picks up the admin preference and shows admin UI
-        // small timeout ensures localStorage write completes before reload
-        setTimeout(() => window.location.reload(), 100);
-        return;        
+        // Allow the login route to render while logged in so the welcome overlay shows
+        try { if (typeof window !== 'undefined') localStorage.setItem('allowLoginWelcome', '1'); } catch (_) {}
+        // Show the welcome overlay for admin as well, then go to admin dashboard
+        const user = authService.currentUser;
+        const name = authService.getDisplayName(user);
+        setWelcomeName(name);
+        setWelcomeSubtitle("Preparing your Admin Dashboard.");
+        setShowWelcome(true);
+        setTimeout(() => setWelcomeHide(true), 2400);
+        setTimeout(() => {
+          navigate('/admin-dashboard', { replace: true });
+          // Clear the allow flag shortly after navigation
+          setTimeout(() => { try { if (typeof window !== 'undefined') localStorage.removeItem('allowLoginWelcome'); } catch (_) {} }, 150);
+        }, 3400);
+        return;
       }
     } catch (roleErr) {
       console.warn("Failed to determine user role", roleErr);
@@ -272,7 +288,7 @@ export function LoginForm({ onSwitch }) {
               <button
                 type="button"
                 className={styles.rolePromptAdmin}
-                onClick={() => handleChooseDashboard("/admin")}
+                onClick={() => handleChooseDashboard("/admin-dashboard")}
                 disabled={loading}
               >
                 Admin Dashboard
@@ -292,7 +308,7 @@ export function LoginForm({ onSwitch }) {
               <h2 className={styles.welcomeTitle}>Welcome to PrimeLab Appoint</h2>
               <div className={styles.welcomeName}>{welcomeName}</div>
             </div>
-            <div className={styles.welcomeSub}>Preparing your dashboard.</div>
+            <div className={styles.welcomeSub}>{welcomeSubtitle}</div>
           </div>
         </div>
       )}

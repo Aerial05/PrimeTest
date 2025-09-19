@@ -1,145 +1,95 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './ServicesContent.module.css';
+import servicePackagesService from '/src/services/ServicePackagesService';
+import singleServicesService from '/src/services/SingleServicesService';
 
-// Data compiled from the provided flyers/images (ASCII only to avoid encoding issues)
-const packages = [
-  {
-    title: 'Comprehensive Diagnostic Package',
-    desc:
-      'Covers Hypertension, Diabetes, Kidney, Liver, Heart, Blood Disease and Urinary Tract System disease screening.',
-    philhealthPrice: 'Promo: PHP 899',
-    discountedPrice: 'Prev: PHP 2,599',
-    originalPrice: 'PHP 3,185',
-    badge: 'Free initial medical specialist consult',
-    features: [
-      'CBC',
-      'Urinalysis',
-      'Fasting Blood Sugar (FBS)',
-      'HbA1c',
-      'Creatinine',
-      'Uric Acid',
-      'SGPT',
-      'ECG',
-      'Lipid Profile (TC, TG, HDL, LDL, VLDL)',
-      'Cardiac Risk Assessment',
-      'Diabetes Risk Assessment',
-      'Diabetic Foot Exam',
-    ],
-  },
-  {
-    title: 'Animal Bite Treatment Package',
-    desc:
-      'Evaluation and treatment of animal-bite cases by accredited staff. Includes assessment, wound care, vaccination planning and monitoring. Final management depends on exposure category and physician evaluation.',
-    priceNote:
-      'Prices may vary depending on vaccine/ERIG need, wound severity and PhilHealth coverage. Contact the clinic for an exact quote.',
-    features: [
-      'Rabies Vaccine',
-      'Rabies Immune Globulin (ERIG)',
-      'Local Wound Care',
-      'Tetanus Toxoid and Anti-Tetanus Serum',
-      'Antibiotics (if needed)',
-    ],
-  },
-  { title: 'Pre-Employment Package A', desc: 'CBC, Urinalysis, Chest X-ray. With FREE Physical Exam and Medical Certificate (Fit to Work).', discountedPrice: 'Rate: PHP 599' },
-  { title: 'Pre-Employment Package B', desc: 'CBC, Urinalysis, Chest X-ray, Drug Test. With FREE Physical Exam and Medical Certificate (Fit to Work).', discountedPrice: 'Rate: PHP 899' },
-  { title: 'Pre-Employment Package C', desc: 'CBC, Urinalysis, Chest X-ray, Drug Test, Fecalysis. With FREE Physical Exam and Medical Certificate (Fit to Work).', discountedPrice: 'Rate: PHP 999' },
-  { title: 'Pre-Employment Package D', desc: 'CBC, Urinalysis, Chest X-ray, Drug Test, Fecalysis, HBsAg. With FREE Physical Exam and Medical Certificate.', discountedPrice: 'Rate: PHP 1,199' },
-  { title: 'Pre-Employment Package E', desc: 'CBC, Urinalysis, Chest X-ray, Drug Test, Fecalysis, Anti-HAV (IgM). With FREE Physical Exam and Medical Certificate.', discountedPrice: 'Rate: PHP 1,250' },
-];
-
-const services = [
-  // Pinned: always appears on top
-  {
-    title: 'Free Anti-Rabies Vaccine',
-    desc:
-      'Free anti-rabies vaccination for eligible animal-bite patients during designated clinic days. Slots are limited and strictly first-come, first-served.',
-    pinned: true,
-    features: [
-      'Available only on Monday, Wednesday, Thursday and Saturday',
-      'Clinic hours 8:00 AM - 4:00 PM; last call 3:30 PM',
-      'First-come, first-served; slots available for the first 30 patients',
-      'If bitten on Sunday -> come Monday',
-      'If bitten on Tuesday -> come Wednesday',
-      'If bitten on Friday -> come Saturday',
-      'For eligibility to avail the Libreng Anti-Rabies Package',
-    ],
-    priceNote:
-      'No charge for the vaccine on the stated days for qualified patients; other medicines or procedures may have separate costs depending on the case.',
-  },
-  {
-    title: 'Complete Laboratory',
-    desc:
-      'Full range of chemistry, hematology and urinalysis tests for screening, monitoring and diagnosis. Includes fasting requirement guidance and result interpretation by physicians.',
-    priceNote:
-      "Prices vary by test panel and doctor's request. Bundled rates available for multiple tests.",
-  },
-  {
-    title: 'X-ray / Ultrasound',
-    desc:
-      'General radiography and ultrasound imaging (upper abdomen, pelvic, breast) performed by licensed staff with physician over-read.',
-    priceNote:
-      'Price depends on the specific view/area and whether contrast or additional plates are needed.',
-  },
-  { title: '12-Lead ECG', desc: 'Heart rhythm analysis.', discountedPrice: 'PHP 250' },
-  { title: 'Drug Testing', desc: 'Standard screening.', discountedPrice: 'PHP 280' },
-  {
-    title: 'Animal Bite Center',
-    desc:
-      'Walk-in assessment for animal bites and scratches. Exposure categorization, wound care, and advice on vaccine/ERIG administration following DOH guidelines.',
-    priceNote:
-      'Total cost depends on vaccine doses, ERIG requirement, and follow-up schedule.',
-  },
-  { title: 'Pap Smear', desc: 'Cervical cancer screening performed by trained providers with proper collection and result counseling.', priceNote: 'Pricing varies by lab method and whether additional HPV testing is requested.' },
-  { title: 'Circumcision', desc: 'Surgical circumcision, all-in package.', discountedPrice: 'PHP 2,400' },
-  { title: 'Vaccination', desc: 'Routine and catch-up immunizations for children and adults; includes pre-screening and post-vaccination instructions.', priceNote: 'Cost depends on vaccine brand, age group and dose number.' },
-  { title: 'Neuro Psychological Test', desc: 'Psychometric testing for employment or clearance.', discountedPrice: 'PHP 1,150' },
-  { title: 'Annual Medical Examination', desc: 'Comprehensive employee or individual medical exam with required tests and medical certificate. Packages can be tailored to company policies.', priceNote: 'Rates depend on requested tests and company requirements.' },
-  { title: 'Home Service Laboratory & Checkup', desc: 'Home specimen collection and basic checkups for patients who prefer or require at-home service. Results delivered digitally or via pick-up.', priceNote: 'Home service fees vary by location and test type.' },
-  { title: 'Medical Certificate', desc: 'Issuance of medical certificates for work, school or travel after appropriate evaluation by a physician.', priceNote: 'Cost varies by purpose and whether additional tests are needed.' },
-  { title: 'Rapid Antigen Test', desc: 'SARS-CoV-2 antigen testing for screening and travel requirements with quick turnaround time.', priceNote: 'Price may vary by kit brand and documentation needs.' },
-  { title: 'Multispecialty Clinic', desc: 'Consultations with specialists (Family Medicine, Internal Medicine, Pediatrics, Pulmonology, Cardiology, Gastroenterology, OB-Gyne, Pain and Occupational Health).', priceNote: 'Professional fees vary by specialty and case complexity.' },
-  { title: 'HMO / Healthcards', desc: 'Processing and acceptance of selected HMOs/healthcards for covered tests and consults subject to plan rules.', priceNote: 'Member share depends on HMO coverage and approvals.' },
-  {
-    title: 'Animal Bite PhilHealth Konsulta Assistance',
-    desc:
-      'Assistance of PhilHealth Konsulta for Animal Bite Treatment Package (for Seniors, Members and Beneficiaries of PhilHealth).',
-    philhealthPrice: 'PHP 5,850 Assistance',
-    features: [
-      'Rabies Vaccine',
-      'Rabies Immune Globulin (ERIG)',
-      'Local Wound Care',
-      'Tetanus Toxoid and Anti-Tetanus Serum',
-      'Antibiotics (if needed)',
-    ],
-  },
-  {
-    title: 'PhilHealth Konsulta (Assistance)',
-    desc:
-      'Assistance worth PHP 1,700 each (Member, Dependent, Senior). Dependent on physician request; selected labs and procedures covered.',
-    philhealthPrice: 'Assistance: PHP 1,700',
-    features: [
-      '13 Laboratory tests including blood chemistry',
-      'CBC with Platelet count',
-      'Lipid Profile',
-      'Fasting Blood Sugar (FBS)',
-      'Oral Glucose Tolerance Test (OGTT)',
-      'Glycosylated Hemoglobin (HbA1c)',
-      'Creatinine',
-      'Urinalysis / Fecalysis / Fecal Occult Blood Test',
-      'Chest X-ray',
-      '12-lead ECG',
-      'Ultrasound (Upper Abdomen, Pelvic, Breast)',
-      'Pap Smear',
-      'Selected medicines (21 items)'
-    ],
-  },
-];
+// Load from Firebase instead of static arrays
+// We keep the same UI shape: { title, desc, features[], priceNote, philhealthPrice, discountedPrice, originalPrice, pinned? }
 
 export default function ServicesContent() {
   const [activeTab, setActiveTab] = useState('all');
   const [query, setQuery] = useState('');
+  const [pkgItems, setPkgItems] = useState([]);
+  const [svcItems, setSvcItems] = useState([]);
   const navigate = useNavigate();
+
+  // Map helpers
+  const peso = (n) => {
+    if (n === undefined || n === null || n === '' || Number.isNaN(Number(n))) return '';
+    return `PHP ${Number(n).toLocaleString()}`;
+  };
+  const parseFeatures = (v) => {
+    if (!v) return [];
+    if (Array.isArray(v)) return v;
+    const s = String(v);
+    if (s.includes('\n')) return s.split('\n').map((x) => x.trim()).filter(Boolean);
+    return s.split(',').map((x) => x.trim()).filter(Boolean);
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [bundles, singles] = await Promise.all([
+          servicePackagesService.list(),
+          singleServicesService.list(),
+        ]);
+        if (cancelled) return;
+        // Map packages
+        const mappedPkgs = (bundles || []).map((db) => {
+          const title = db.NAME || '';
+          const desc = db.DESC || '';
+          const priceNote = db.PRICE_NOTE || db['PRICE_NOTE (If no price)'] || '';
+          const original = db.ORIGINAL_PRICE ?? db.ORIGINAL_RPICE;
+          const discounted = db.DISCOUNTED_PRICE;
+          const phil = db.PHIL_HEALTH_PROMO_PRICE;
+          const features = parseFeatures(db.FEATURES);
+          return {
+            title,
+            desc,
+            features,
+            priceNote,
+            philhealthPrice: phil !== undefined ? peso(phil) : undefined,
+            discountedPrice: discounted !== undefined ? peso(discounted) : undefined,
+            originalPrice: original !== undefined ? peso(original) : undefined,
+            // Show a helpful badge when available
+            badge: db.BOOKING_ENABLED_YesNo === 'No' ? 'Booking not available' : undefined,
+          };
+        });
+
+        // Map single services
+        const mappedSvcs = (singles || []).map((db) => {
+          const title = db.NAME || '';
+          const desc = db.DESC || '';
+          const priceNote = db.PRICE_NOTE || db['PRICE NOTE'] || db['PRICE_NOTE (If no price)'] || '';
+          const original = db.ORIGINAL_PRICE ?? db['ORIGINAL PRICE'];
+          const discounted = db.DISCOUNTED_PRICE ?? db['DISCOUNTED PRICE'] ?? db.DICOUNTED_PRICE ?? db['DICOUNTED PRICE'];
+          const phil = db.PHIL_HEALTH_PROMO_PRICE ?? db.PHILHEALTH_PROMO_PRICE ?? db['PHILHEALTH PROMO PRICE'];
+          const features = parseFeatures(db.SPECIAL_INSTRUCTIONS);
+          return {
+            title,
+            desc,
+            features,
+            priceNote,
+            philhealthPrice: phil !== undefined ? peso(phil) : undefined,
+            discountedPrice: discounted !== undefined ? peso(discounted) : undefined,
+            originalPrice: original !== undefined ? peso(original) : undefined,
+          };
+        });
+
+        // Optional: pin particular items by title contains
+        const pin = (arr, predicate) => arr.map((x) => (predicate(x) ? { ...x, pinned: true } : x));
+        const pinnedSvcs = pin(mappedSvcs, (x) => /free anti-rabies|anti-rabies|animal bite/i.test(x.title));
+
+        setPkgItems(mappedPkgs);
+        setSvcItems(pinnedSvcs);
+      } catch (_) {
+        // If DB fails, keep arrays empty; UI shows "no results" or rely on search
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   // Provider and schedule mapping
   const infoFor = (title = '') => {
@@ -182,12 +132,11 @@ export default function ServicesContent() {
 
   const items = useMemo(() => {
     let arr;
-    if (activeTab === 'packages') arr = packages;
-    else if (activeTab === 'services') arr = services;
-    else arr = [...packages, ...services];
-    // Ensure pinned items (e.g., Free Anti-Rabies Vaccine) are always on top
+    if (activeTab === 'packages') arr = pkgItems;
+    else if (activeTab === 'services') arr = svcItems;
+    else arr = [...pkgItems, ...svcItems];
     return [...arr].sort((a, b) => (b && b.pinned ? 1 : 0) - (a && a.pinned ? 1 : 0));
-  }, [activeTab]);
+  }, [activeTab, pkgItems, svcItems]);
 
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();

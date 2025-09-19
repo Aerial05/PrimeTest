@@ -109,4 +109,31 @@
   border-radius: 9999px;
 }
 
+.switchBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
+  color: #0f172a;
+  border: 1px solid rgba(255,255,255,0.45);
+  padding: 0.55rem 0.95rem;
+  border-radius: 9999px;
+  cursor: pointer;
+  font-weight: 700;
+  letter-spacing: .02em;
+  font-size: .9rem;
+  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.25);
+  transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
+  margin-right: 0.5rem; /* a bit of space before the profile icon */
+}
+
+.switchBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.28);
+  background: linear-gradient(135deg, rgba(255,255,255,0.28), rgba(255,255,255,0.10));
+}
+
+.switchBtn:active { transform: translateY(0); opacity: .97; }
+.switchBtn:focus { outline: 2px solid rgba(255,255,255,.85); outline-offset: 2px; }
+
 

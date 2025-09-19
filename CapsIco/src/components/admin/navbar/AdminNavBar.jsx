@@ -44,6 +44,16 @@ export function AdminNavBar() {
     }
   };
 
+  const goToUserSite = () => {
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('preferredDashboard', 'user');
+        window.dispatchEvent(new CustomEvent('preferred-dashboard-changed', { detail: 'user' }));
+      }
+    } catch (_e) {}
+    navigate('/', { replace: true });
+  };
+
   return (
     <header className={styles.header}>
       <Link to="/admin-dashboard" className={styles.logoLink}>
@@ -108,6 +118,9 @@ export function AdminNavBar() {
       </nav>
 
       <div ref={dropdownRef} className={styles.profileWrapper}>
+        <button type="button" onClick={goToUserSite} className={styles.switchBtn}>
+          User Site
+        </button>
         <button
           className={styles.btnIcon}
           aria-label="User"

@@ -34,12 +34,20 @@ import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 import authService from "./services/AuthService";
 import { auth, usersDB } from "./config/firebase-config";
 
-function AnimatedRoutes({ role }) {
+function AnimatedRoutes({ role, preferUserView }) {
   const location = useLocation();
   const nodeRef = useRef(null);
 
   const isAdmin = role === "admin";
   const isLoggedIn = !!role;
+  const allowAdminWelcome = (() => {
+    try {
+      if (typeof window !== 'undefined') {
+        return window.localStorage.getItem('allowLoginWelcome') === '1';
+      }
+    } catch (_e) {}
+    return false;
+  })();
 
   const guardAdminRoute = (element) =>
     isAdmin ? element : <Navigate to={isLoggedIn ? "/" : "/login"} replace />;
@@ -51,11 +59,17 @@ function AnimatedRoutes({ role }) {
           <Routes location={location}>
             <Route
               path="/"
-              element={isAdmin ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
+              element={isAdmin && !preferUserView ? <Navigate to="/admin-dashboard" replace /> : <Dashboard />}
             />
             <Route
               path="/login"
-              element={isLoggedIn ? (isAdmin ? <Navigate to="/admin-dashboard" replace /> : <Login />) : <Login />}
+              element={
+                isLoggedIn
+                  ? isAdmin
+                    ? (allowAdminWelcome ? <Login /> : <Navigate to="/admin-dashboard" replace />)
+                    : <Login />
+                  : <Login />
+              }
             />
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
@@ -84,6 +98,7 @@ export default function App() {
   const [role, setRole] = useState(null);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const heartbeatRef = useRef(null);
+  const [preferredDashboard, setPreferredDashboard] = useState('user');
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -139,11 +154,50 @@ export default function App() {
   }, []);
 
   const isAdmin = role === "admin";
+  const preferUserView = isAdmin && preferredDashboard === 'user';
+
+  useEffect(() => {
+    // Sync preferredDashboard from localStorage when role changes
+    try {
+      if (isAdmin) {
+        const stored = typeof window !== 'undefined' ? localStorage.getItem('preferredDashboard') : null;
+        setPreferredDashboard(stored || 'admin');
+      } else {
+        setPreferredDashboard('user');
+      }
+    } catch (_e) {
+      setPreferredDashboard(isAdmin ? 'admin' : 'user');
+    }
+  }, [isAdmin]);
+
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (e.key === 'preferredDashboard') {
+        setPreferredDashboard(e.newValue || (isAdmin ? 'admin' : 'user'));
+      }
+    };
+    const onPreferredChanged = (e) => {
+      const val = e && e.detail ? String(e.detail) : null;
+      if (val === 'admin' || val === 'user') {
+        setPreferredDashboard(val);
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('storage', onStorage);
+      window.addEventListener('preferred-dashboard-changed', onPreferredChanged);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('storage', onStorage);
+        window.removeEventListener('preferred-dashboard-changed', onPreferredChanged);
+      }
+    };
+  }, [isAdmin]);
 
   return (
     <BrowserRouter>
       <div className="appShell">
-        {checkingAuth ? null : isAdmin ? (
+        {checkingAuth ? null : isAdmin && !preferUserView ? (
           <AdminNavBar />
         ) : (
           <>
@@ -153,10 +207,10 @@ export default function App() {
         )}
 
         <main className="appMain">
-          {!checkingAuth && <AnimatedRoutes role={role} />}
+          {!checkingAuth && <AnimatedRoutes role={role} preferUserView={preferUserView} />}
         </main>
 
-        {checkingAuth ? null : isAdmin ? <AdminFooter /> : <Footer />}
+        {checkingAuth ? null : isAdmin && !preferUserView ? <AdminFooter /> : <Footer />}
       </div>
     </BrowserRouter>
   );
