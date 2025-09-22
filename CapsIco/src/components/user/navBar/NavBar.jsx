@@ -43,9 +43,8 @@ export function NavBar() {
           const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(" ");
           const fallback = user.displayName || (user.email ? user.email.split("@")[0] : "User");
           setProfileName(nameFromDb || fallback);
-          const allowlist = authService.isAdminEmail(user.email || "");
           const roleIsAdmin = (typeof v.role === 'string' && v.role.toLowerCase() === 'admin');
-          setIsAdmin(Boolean(allowlist || roleIsAdmin));
+          setIsAdmin(Boolean(roleIsAdmin));
         });
       } else {
         dbUnsub();

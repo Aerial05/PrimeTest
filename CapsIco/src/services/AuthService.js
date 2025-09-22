@@ -72,7 +72,9 @@ const providerLabel = (method) => {
   }
 };
 
-const ADMIN_EMAILS = ['tamayoangelico@gmail.com'];
+// Admin detection is now driven solely by Realtime DB (users/{uid}/role === 'admin').
+// Leave allowlist empty to avoid hardcoded admins.
+const ADMIN_EMAILS = [];
 
 export class AuthService extends BaseFirebaseService {
   constructor() {
@@ -144,7 +146,8 @@ export class AuthService extends BaseFirebaseService {
       phone: phoneE164,
       email: trimmedEmail,
       emailLower: normalizedEmail,
-      role: this.isAdminEmail(trimmedEmail) ? 'admin' : 'user',
+      // Default all new accounts to 'user'; elevate via DB role management
+      role: 'user',
       joinedAt: createdAt,
       createdAt,
       updatedAt: createdAt,
@@ -240,17 +243,11 @@ export class AuthService extends BaseFirebaseService {
       lastLoginAt: new Date().toISOString(),
     };
 
-    if (this.isAdminEmail(email)) {
-      updates.role = 'admin';
-    }
-
     await update(ref(this.database, `users/${user.uid}`), updates);
   }
 
   async isAdmin(user = this.currentUser) {
     if (!user) return false;
-    const email = (user.email || '').trim();
-    if (this.isAdminEmail(email)) return true;
     const role = await this.getUserRole(user);
     return role === 'admin';
   }
@@ -265,8 +262,8 @@ export class AuthService extends BaseFirebaseService {
     } catch (err) {
       console.warn('Failed to load user role', err);
     }
-    const email = (user.email || '').trim();
-    return this.isAdminEmail(email) ? 'admin' : null;
+    // No email-based fallback; role must be set in DB
+    return null;
   }
 
   async sendPasswordReset(identifier) {
