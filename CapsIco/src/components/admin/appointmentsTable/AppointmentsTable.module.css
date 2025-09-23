@@ -1,29 +1,58 @@
 .card {
   background-color: #ffffff;
   padding: 0;
-  border-radius: 1rem;
+  border-radius: 0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
 }
 
-.tableWrapper { overflow-x: auto; width: 100%; }
-.table { width: 100%; border-collapse: collapse; }
+.tableWrapper { overflow-x: auto; width: 100vw; margin-left: 50%; transform: translateX(-50%); padding: 0 24px; }
+.table { width: 100%; min-width: 1200px; border-collapse: collapse; table-layout: auto; }
 
 thead { background-color: #f3f4f6; color: #374151; text-align: left; }
-th, td { padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
+th, td { padding: 14px 18px; border-bottom: 1px solid #e5e7eb; vertical-align: middle; }
 th { font-size: 13px; font-weight: 700; text-transform: uppercase; }
 td { font-size: 14px; color: #4b5563; }
 
-.status { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+/* Column sizing: make the table a bit longer and readable */
+.colPatient { min-width: 220px; }
+.colEmail { min-width: 260px; }
+.colAge { min-width: 80px; text-align: center; white-space: nowrap; }
+.colGender { min-width: 120px; white-space: nowrap; }
+.colType { min-width: 120px; white-space: nowrap; }
+.colService { min-width: 240px; }
+.colDate { min-width: 160px; white-space: nowrap; }
+.colTime { min-width: 140px; white-space: nowrap; }
+.colStatus { min-width: 140px; white-space: nowrap; }
+.colActions { min-width: 360px; white-space: nowrap; }
+
+.status { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; display: inline-block; }
 .approved { background: #dcfce7; color: #166534; }
 .declined { background: #fee2e2; color: #991b1b; }
 .pending { background: #fef9c3; color: #854d0e; }
 
-.actions { display: flex; gap: 8px; }
+.actions { display: flex; gap: 10px; flex-wrap: nowrap; justify-content: flex-end; }
 .btn { border: none; border-radius: 6px; padding: 6px 10px; cursor: pointer; font-weight: 700; }
+.btnSecondary { background: #eef2ff; color: #3730a3; }
+.btnSecondary:hover { background: #e0e7ff; }
 .btnApprove { background: #8b5cf6; color: #fff; }
 .btnApprove:hover { background: #7c3aed; }
 .btnDecline { background: #f3f4f6; color: #1f2937; }
 .btnDecline:hover { background: #e5e7eb; }
+.btnPending { background: #fef9c3; color: #854d0e; }
+.btnPending:hover { background: #fde68a; }
 .btnDelete { background: #fee2e2; color: #991b1b; }
 .btnDelete:hover { background: #fecaca; }
+
+.cellEllipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+.detailsRow { background: #fafafa; }
+.detailsCell { padding: 0 0 16px 0; border-bottom: 1px solid #e5e7eb; }
+.detailsPanel { padding: 20px; }
+.detailSection { margin-top: 12px; }
+.detailTitle { font-weight: 700; color: #374151; margin-bottom: 8px; }
+.detailGrid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
+.detailGrid > div { background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 12px; display: flex; flex-direction: column; gap: 4px; }
+.detailGrid span { font-size: 12px; color: #6b7280; }
+.detailGrid strong { color: #111827; font-weight: 700; }
+.fullRow { grid-column: 1 / -1; }
 
