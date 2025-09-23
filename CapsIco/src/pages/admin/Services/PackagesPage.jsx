@@ -30,6 +30,7 @@ export function PackagesPage() {
 		singleAvailability: '',
 		singleUseRegular: false,
 		singleDurMinute: '',
+		singleSlot: '',
 		singlePriceNote: '',
 		singleOriginalPrice: '',
 		singleDiscountedPrice: '',
@@ -44,6 +45,7 @@ export function PackagesPage() {
 		specialInstruction: '',
 		availability: '',
 	useRegularSchedule: false,
+		slot: '',
 		durMinute: '',
 		priceNote: '',
 		bookingEnabled: 'Yes',
@@ -67,6 +69,7 @@ export function PackagesPage() {
 			singleAvailability: '',
 			singleUseRegular: false,
 			singleDurMinute: '',
+			singleSlot: '',
 			singlePriceNote: '',
 			singleOriginalPrice: '',
 			singleDiscountedPrice: '',
@@ -80,6 +83,7 @@ export function PackagesPage() {
 			specialInstruction: '',
 			availability: '',
 	useRegularSchedule: false,
+			slot: '',
 			durMinute: '',
 			priceNote: '',
 			bookingEnabled: 'Yes',
@@ -191,6 +195,7 @@ export function PackagesPage() {
 						features: db.FEATURES || '',
 						specialInstruction: db.SPECIAL_INSTRUCTION || '',
 						availability: db.AVAILABILITY || '',
+						slot: db.SLOT ?? '',
 						durMinute: db.DUR_MINUTE ?? 0,
 						priceNote: priceNote || '',
 						bookingEnabled: db.BOOKING_ENABLED_YesNo || 'Yes',
@@ -222,7 +227,7 @@ export function PackagesPage() {
 					const price = discounted ?? original ?? phil ?? 0;
 					const useRegular = (availability === REGULAR_SCHEDULE) || (String(availability).toUpperCase() === 'REGULAR');
 
-					return {
+						return {
 						id: serviceId || item.id,
 						dbId: item.id,
 						type: 'single',
@@ -232,6 +237,7 @@ export function PackagesPage() {
 						specialInstructions: db.SPECIAL_INSTRUCTIONS || '',
 						singleAvailability: availability,
 						singleUseRegular: useRegular,
+							singleSlot: db.SLOT ?? '',
 						singleDurMinute: db.DUR_MINUTE ?? 0,
 						singlePriceNote: priceNote || '',
 						singleOriginalPrice: original,
@@ -312,7 +318,7 @@ export function PackagesPage() {
 			}
 		}
 
-		const payload = {
+			const payload = {
 			id: idValue,
 			type: form.type,
 			name: form.name,
@@ -330,13 +336,14 @@ export function PackagesPage() {
 			category: form.category,
 			durationMinutes: form.durationMinutes,
 			description: form.description,
-			// single only
-			preparation: form.type === 'single' ? form.preparation : undefined,
+				// single only
+				preparation: form.type === 'single' ? form.preparation : undefined,
 			// bundle only — Service Packages fields
 			servicePackageId: isBundle ? (form.servicePackageId || `PKG-${idValue}`) : undefined,
 			features: isBundle ? form.features : undefined,
 			specialInstruction: isBundle ? form.specialInstruction : undefined,
 	  availability: isBundle ? (form.useRegularSchedule ? REGULAR_SCHEDULE : form.availability) : undefined,
+	  slot: isBundle ? (form.slot !== '' ? Number(form.slot) : undefined) : undefined,
 			durMinute: isBundle ? Number(form.durMinute || 0) : undefined,
 			priceNote: isBundle ? form.priceNote : undefined,
 			bookingEnabled: isBundle ? form.bookingEnabled : undefined, // 'Yes' | 'No'
@@ -359,6 +366,7 @@ export function PackagesPage() {
 				features: payload.features,
 				specialInstruction: payload.specialInstruction,
 				availability: payload.availability,
+				slot: payload.slot,
 				durMinute: payload.durMinute,
 				priceNote: payload.priceNote,
 				bookingEnabled: payload.bookingEnabled,
@@ -432,6 +440,7 @@ export function PackagesPage() {
 					singleAvailability: getSingleAvailabilityValue(),
 					singleUseRegular: form.singleUseRegular,
 					singleDurMinute: Number(form.singleDurMinute || 0),
+					singleSlot: form.singleSlot !== '' ? Number(form.singleSlot) : undefined,
 					singlePriceNote: form.singlePriceNote,
 					singleOriginalPrice: form.singleOriginalPrice !== '' ? Number(form.singleOriginalPrice) : undefined,
 					singleDiscountedPrice: form.singleDiscountedPrice !== '' ? Number(form.singleDiscountedPrice) : undefined,
@@ -458,6 +467,7 @@ export function PackagesPage() {
 					specialInstructions: singlePayload.specialInstructions,
 					availability: singlePayload.singleAvailability,
 					durMinute: singlePayload.singleDurMinute,
+					slot: singlePayload.singleSlot,
 					priceNote: singlePayload.singlePriceNote,
 					originalPrice: singlePayload.singleOriginalPrice,
 					discountedPrice: singlePayload.singleDiscountedPrice,
@@ -577,6 +587,7 @@ export function PackagesPage() {
 			features: payload.features,
 			specialInstruction: payload.specialInstruction,
 			availability: payload.availability,
+			slot: payload.slot,
 			durMinute: payload.durMinute,
 			priceNote: payload.priceNote,
 			bookingEnabled: payload.bookingEnabled,
@@ -662,13 +673,14 @@ export function PackagesPage() {
 			return;
 		}
 
-		const uiForDb = {
+				const uiForDb = {
 			serviceId: payload.serviceId,
 			name: payload.name,
 			description: payload.description,
 			specialInstructions: payload.specialInstructions,
 			availability: payload.singleAvailability,
 			durMinute: payload.singleDurMinute,
+					slot: payload.singleSlot,
 			priceNote: payload.singlePriceNote,
 			originalPrice: payload.singleOriginalPrice,
 			discountedPrice: payload.singleDiscountedPrice,
@@ -705,6 +717,7 @@ export function PackagesPage() {
 				specialInstruction: svc.specialInstruction || '',
 				availability: svc.availability || '',
 				useRegularSchedule: svc.availability === REGULAR_SCHEDULE,
+				slot: svc.slot?.toString?.() || '',
 				durMinute: svc.durMinute?.toString?.() || '',
 				priceNote: svc.priceNote || '',
 				bookingEnabled: svc.bookingEnabled || 'Yes',
@@ -740,6 +753,7 @@ export function PackagesPage() {
 				singleAvailability: svc.singleAvailability || '',
 				singleUseRegular: svc.singleUseRegular || false,
 				singleDurMinute: svc.singleDurMinute?.toString?.() || '',
+				singleSlot: svc.singleSlot?.toString?.() || '',
 				singlePriceNote: svc.singlePriceNote || '',
 				singleOriginalPrice: svc.singleOriginalPrice?.toString?.() || '',
 				singleDiscountedPrice: svc.singleDiscountedPrice?.toString?.() || '',
@@ -822,6 +836,7 @@ export function PackagesPage() {
 			includes(s.description) ||
 			includes(s.features) ||
 			includes(s.specialInstruction) ||
+			includes(s.slot) ||
 			includes(s.bookingEnabled) ||
 			includes(s.isActive) ||
 			includes(s.status) ||
@@ -865,6 +880,7 @@ export function PackagesPage() {
 								singleAvailability: '',
 								singleUseRegular: false,
 								singleDurMinute: '',
+								singleSlot: '',
 								singlePriceNote: '',
 								singleOriginalPrice: '',
 								singleDiscountedPrice: '',
@@ -927,6 +943,7 @@ export function PackagesPage() {
 								specialInstruction: '',
 								availability: '',
 								useRegularSchedule: false,
+								slot: '',
 								durMinute: '',
 								priceNote: '',
 								bookingEnabled: 'Yes',

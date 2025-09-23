@@ -4,7 +4,7 @@ import path from 'path';
 import { parse } from 'csv-parse/sync';
 import { fileURLToPath } from 'url';
 import { initializeApp } from 'firebase/app';
-import { getDatabase, ref, push, set } from 'firebase/database';
+import { getDatabase, ref, push, set, get, update } from 'firebase/database';
 
 // Ensure Vite envs are available when running Node (expects .env file)
 import 'dotenv/config';
@@ -87,7 +87,7 @@ function toDbRecord(row) {
   }
 
   // 3) Normalize numeric fields on canonical keys
-  const numericKeys = ['DUR_MINUTE', 'ORIGINAL_PRICE', 'DISCOUNTED_PRICE', 'PHIL_HEALTH_PROMO_PRICE'];
+  const numericKeys = ['SLOT', 'DUR_MINUTE', 'ORIGINAL_PRICE', 'DISCOUNTED_PRICE', 'PHIL_HEALTH_PROMO_PRICE'];
   for (const k of numericKeys) {
     if (rec[k] !== undefined && rec[k] !== null && rec[k] !== '') {
       const val = String(rec[k]).replace(/[^0-9.\-]/g, '');
@@ -145,24 +145,44 @@ async function main() {
   });
 
   const basePath = 'servicePackages';
-  let success = 0;
+  let created = 0;
+  let updated = 0;
   let failed = 0;
+
+  // Prefetch all existing packages once and build a map by SERVICE_PACKGE_ID -> dbKey
+  const existingSnap = await get(ref(db, basePath));
+  const idToKey = new Map();
+  if (existingSnap.exists()) {
+    const obj = existingSnap.val() || {};
+    for (const [key, val] of Object.entries(obj)) {
+      const sid = val && val.SERVICE_PACKGE_ID;
+      if (sid) idToKey.set(String(sid).trim(), key);
+    }
+  }
 
   for (const row of records) {
     try {
       const rec = toDbRecord(row);
-      const newRef = push(ref(db, basePath));
-      // If SERVICE_PACKGE_ID is missing, set a generated one using the db key
-      if (!rec['SERVICE_PACKGE_ID']) rec['SERVICE_PACKGE_ID'] = `PKG-${newRef.key}`;
-      await set(newRef, rec);
-      success += 1;
+      const idVal = rec['SERVICE_PACKGE_ID'] && String(rec['SERVICE_PACKGE_ID']).trim();
+      if (idVal && idToKey.has(idVal)) {
+        const key = idToKey.get(idVal);
+        await update(ref(db, `${basePath}/${key}`), rec);
+        updated += 1;
+      } else {
+        const newRef = push(ref(db, basePath));
+        if (!idVal) rec['SERVICE_PACKGE_ID'] = `PKG-${newRef.key}`;
+        await set(newRef, rec);
+        created += 1;
+        // update map for subsequent duplicates in same file
+        idToKey.set(rec['SERVICE_PACKGE_ID'], newRef.key);
+      }
     } catch (err) {
       failed += 1;
       console.error('Failed to import row:', row, err.message);
     }
   }
 
-  console.log(`Import finished. Success: ${success}, Failed: ${failed}`);
+  console.log(`Import finished. Created: ${created}, Updated: ${updated}, Failed: ${failed}`);
 }
 
 main().catch((e) => {

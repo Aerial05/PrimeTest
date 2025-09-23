@@ -179,6 +179,17 @@ export default function PackagesSection({
                   onChange={onChange}
                 />
               </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="slot">Slots (capacity per schedule)</label>
+                <input
+                  type="number"
+                  min="0"
+                  id="slot"
+                  name="slot"
+                  value={form.slot}
+                  onChange={onChange}
+                />
+              </div>
               <div className={styles.formGroupFull}>
                 <label htmlFor="priceNote">Price Note (if no price)</label>
                 <textarea
@@ -288,6 +299,7 @@ export default function PackagesSection({
                 <tr>
                   <th>Name</th>
                   <th>Booking Enabled</th>
+                  <th>Slots</th>
                   <th>Price</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -296,7 +308,7 @@ export default function PackagesSection({
               <tbody>
                 {filteredServices.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className={styles.empty}>No items found.</td>
+                    <td colSpan={6} className={styles.empty}>No items found.</td>
                   </tr>
                 ) : (
                   filteredServices.map((s) => (
@@ -308,6 +320,7 @@ export default function PackagesSection({
                         ) : null}
                       </td>
                       <td>{s.bookingEnabled || 'Yes'}</td>
+                      <td>{(s.slot !== undefined && s.slot !== '') ? s.slot : '—'}</td>
                       <td>₱{Number(s.price).toLocaleString()}</td>
                       <td>
                         <span

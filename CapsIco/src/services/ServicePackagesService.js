@@ -47,6 +47,7 @@ class ServicePackagesService extends BaseFirebaseService {
       FEATURES: ui.features || '',
       SPECIAL_INSTRUCTION: ui.specialInstruction || '',
       AVAILABILITY: ui.availability || '',
+      SLOT: ui.slot === undefined || ui.slot === '' ? undefined : Number(ui.slot),
       DUR_MINUTE: typeof ui.durMinute === 'number' ? ui.durMinute : Number(ui.durMinute || 0),
       PRICE_NOTE: ui.priceNote || '',
       BOOKING_ENABLED_YesNo: ui.bookingEnabled || 'Yes',

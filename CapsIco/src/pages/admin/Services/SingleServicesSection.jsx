@@ -155,6 +155,17 @@ export default function SingleServicesSection({
                   onChange={onChange}
                 />
               </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="singleSlot">Slots (capacity per schedule)</label>
+                <input
+                  type="number"
+                  min="0"
+                  id="singleSlot"
+                  name="singleSlot"
+                  value={form.singleSlot}
+                  onChange={onChange}
+                />
+              </div>
             </div>
 
             <div className={styles.formRow}>
@@ -266,6 +277,7 @@ export default function SingleServicesSection({
               <thead>
                 <tr>
                   <th>Name</th>
+                  <th>Slots</th>
                   <th>Price</th>
                   <th>Status</th>
                   <th>Actions</th>
@@ -274,7 +286,7 @@ export default function SingleServicesSection({
               <tbody>
                 {filteredServices.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className={styles.empty}>No items found.</td>
+                    <td colSpan={5} className={styles.empty}>No items found.</td>
                   </tr>
                 ) : (
                   filteredServices.map((s) => (
@@ -285,6 +297,7 @@ export default function SingleServicesSection({
                           <div className={styles.helpText}>ID: {s.serviceId}</div>
                         ) : null}
                       </td>
+                      <td>{(s.singleSlot !== undefined && s.singleSlot !== '') ? s.singleSlot : '—'}</td>
                       <td>₱{Number(s.price).toLocaleString()}</td>
                       <td>
                         <span

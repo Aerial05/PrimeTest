@@ -38,6 +38,7 @@ class SingleServicesService extends BaseFirebaseService {
       DESC: ui.description || '',
       SPECIAL_INSTRUCTIONS: ui.specialInstructions || '',
       AVAILABILITY: ui.availability || '',
+      SLOT: ui.slot === undefined || ui.slot === '' ? undefined : Number(ui.slot),
       DUR_MINUTE: ui.durMinute === undefined || ui.durMinute === '' ? undefined : Number(ui.durMinute),
       PRICE_NOTE: ui.priceNote || '',
       ORIGINAL_PRICE: ui.originalPrice === undefined || ui.originalPrice === '' ? undefined : Number(ui.originalPrice),

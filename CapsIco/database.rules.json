@@ -1,7 +1,9 @@
 {
-  
   "rules": {
     ".read": true,
-    ".write": true
+    ".write": true,
+    "servicePackages": {
+      ".indexOn": ["SERVICE_PACKGE_ID"]
+    }
   }
 }
