@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './AccountManagement.module.css';
 import { AdminTable } from '/src/components/admin/adminTable/AdminTable';
 import { AddAdminForm } from '/src/components/admin/adminForm/AddAdminForm';
@@ -12,6 +13,22 @@ export function AccountManagement() {
   const [mode, setMode] = useState('add');
   const [selected, setSelected] = useState(null);
   const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Close modals on ESC
+  useEffect(() => {
+    if (!showAdd && !deleteTarget) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        if (showAdd) setShowAdd(false);
+        if (deleteTarget) setDeleteTarget(null);
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showAdd, deleteTarget]);
 
   // Utility: normalize various date formats (ISO string, ms, seconds) to ISO string
   const normalizeDate = (v) => {
@@ -84,6 +101,31 @@ export function AccountManagement() {
     return () => off();
   }, []);
 
+  // Clamp page when rows length changes
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    if (page > maxPage) setPage(maxPage);
+  }, [rows, page]);
+
+  // Prevent body scroll while any modal is open
+  useEffect(() => {
+    if (showAdd || deleteTarget) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.body.classList.add('modal-open');
+      return () => { document.body.style.overflow = prev; document.body.classList.remove('modal-open'); };
+    }
+  }, [showAdd, deleteTarget]);
+
+  // Derive paginated slice and range text
+  const total = rows.length;
+  const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const currentPage = Math.min(page, maxPage);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const pageRows = rows.slice(startIndex, startIndex + PAGE_SIZE);
+  const from = total === 0 ? 0 : startIndex + 1;
+  const to = Math.min(total, startIndex + PAGE_SIZE);
+
   return (
     <>
       <main className={styles.main}>
@@ -98,39 +140,55 @@ export function AccountManagement() {
             </button>
           </div>
           <AdminTable
-            rows={rows}
+            rows={pageRows}
             onEdit={(row) => { setSelected(row); setMode('edit'); setShowAdd(true); }}
-            onDelete={async (row) => {
-              const confirmed = window.confirm(`Remove user "${row.lastName}, ${row.firstName}" from active list? This will archive the record.`);
-              if (!confirmed) return;
-              try {
-                const nowIso = new Date().toISOString();
-                // Archive under usersArchive/{uid}
-                const archivePayload = {
-                  ...row,
-                  archivedAt: nowIso,
-                };
-                await dbSet(ref(usersDB, `usersArchive/${row.id}`), archivePayload);
-                // Remove from active list (does not delete Auth user)
-                await dbRemove(ref(usersDB, `users/${row.id}`));
-              } catch (e) {
-                console.error('Failed to archive/remove user', e);
-                alert('Failed to archive user. Please try again.');
-              }
-            }}
+            onDelete={(row) => { setDeleteTarget(row); }}
             onSelect={(row) => {
               setSelected(row);
               setMode('edit');
               setShowAdd(true);
             }}
           />
+
+          {/* Pagination footer */}
+          <div className={styles.paginationBar}>
+            <div className={styles.pageInfo}>
+              {`Showing ${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()} accounts`}
+            </div>
+            <div className={styles.pageControls}>
+              <button
+                className={styles.pageBtn}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage <= 1}
+                aria-label="Previous page"
+              >
+                Prev
+              </button>
+              <button
+                className={`${styles.pageBtn} ${styles.pageBtnPrimary}`}
+                onClick={() => setPage((p) => Math.min(maxPage, p + 1))}
+                disabled={currentPage >= maxPage}
+                aria-label="Next page"
+              >
+                Next
+              </button>
+            </div>
+          </div>
         </div>
-        {showAdd && (
-          <AddAdminForm
-            mode={mode}
-            initialData={selected}
-            onClose={() => setShowAdd(false)}
-            onSubmit={async (data) => {
+        {showAdd && createPortal(
+          <div
+            className={styles.modalOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-label={mode === 'edit' ? 'Edit Account' : 'Add Account'}
+            onClick={() => setShowAdd(false)}
+          >
+            <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+              <AddAdminForm
+                mode={mode}
+                initialData={selected}
+                onClose={() => setShowAdd(false)}
+                onSubmit={async (data) => {
               // Persist account fields to Realtime DB; table auto-updates via onValue
               const uid = String(data.id || '').trim();
               if (!uid) {
@@ -169,8 +227,72 @@ export function AccountManagement() {
                 console.error('Failed to save user to DB', e);
                 show({ type: 'error', title: 'Save failed', message: 'Failed to save changes. Please try again.' });
               }
-            }}
-          />
+                }}
+              />
+            </div>
+          </div>,
+          document.body
+        )}
+
+        {/* Delete confirmation modal */}
+        {deleteTarget && createPortal(
+          <div
+            className={styles.modalOverlay}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Confirm delete account"
+            onClick={() => setDeleteTarget(null)}
+          >
+            <div className={`${styles.modal} ${styles.modalConfirm}`} onClick={(e) => e.stopPropagation()}>
+              <div className={styles.confirmHeader}>
+                <div className={styles.confirmTitleWrap}>
+                  <span className={styles.confirmIcon} aria-hidden="true">
+                    <i className="fas fa-exclamation-triangle"></i>
+                  </span>
+                  <h3>Remove account?</h3>
+                </div>
+              </div>
+              <div className={styles.confirmBody}>
+                <div className={styles.warning}>
+                  This action will archive the user record and remove it from the active users list. Authentication accounts are not deleted.
+                </div>
+                <div className={styles.summaryRow}>
+                  <div className={styles.summaryLabel}>User</div>
+                  <div className={styles.summaryValue}>{deleteTarget.lastName}, {deleteTarget.firstName}</div>
+                </div>
+                <div className={styles.summaryRow}>
+                  <div className={styles.summaryLabel}>Email</div>
+                  <div className={styles.summaryValue}>{deleteTarget.email || '—'}</div>
+                </div>
+                <div className={styles.summaryRow}>
+                  <div className={styles.summaryLabel}>Role</div>
+                  <div className={styles.summaryValue}>{deleteTarget.role}</div>
+                </div>
+              </div>
+              <div className={styles.confirmActions}>
+                <button className={`${styles.btnSecondary} ${styles.btnCancel}`} onClick={() => setDeleteTarget(null)}>Cancel</button>
+                <button
+                  className={`${styles.btn} ${styles.btnDangerPrimary} ${styles.btnXL}`}
+                  onClick={async () => {
+                    try {
+                      const nowIso = new Date().toISOString();
+                      const archivePayload = { ...deleteTarget, archivedAt: nowIso };
+                      await dbSet(ref(usersDB, `usersArchive/${deleteTarget.id}`), archivePayload);
+                      await dbRemove(ref(usersDB, `users/${deleteTarget.id}`));
+                      setDeleteTarget(null);
+                      show({ type: 'success', title: 'Removed', message: 'User archived and removed from active list.' });
+                    } catch (e) {
+                      console.error('Failed to archive/remove user', e);
+                      show({ type: 'error', title: 'Delete failed', message: 'Failed to archive user. Please try again.' });
+                    }
+                  }}
+                >
+                  Archive & Remove
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
         )}
       </main>
     </>
