@@ -89,8 +89,11 @@ export function HistorySettingsPage() {
             meta?.priceNote ?? 'Varies';
           const priceLabel = typeof price === 'number' ? `PHP ${price}` : String(price);
 
-          const rawStatus = String(r.BOOKING_STATUS || 'pending');
-          const displayStatus = rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
+          const rawStatus = String(r.BOOKING_STATUS || 'pending').toLowerCase();
+          // Map 'successful' to 'Completed' for user-side consistency
+          const displayStatus = rawStatus === 'successful'
+            ? 'Completed'
+            : rawStatus.charAt(0).toUpperCase() + rawStatus.slice(1).toLowerCase();
 
           const date = r.DATE_OF_APPOINTMENT || '';
           const time = r.TIME_SLOT || '';
@@ -121,6 +124,7 @@ export function HistorySettingsPage() {
             createdAt: r.CREATED_AT || '',
             updatedAt: r.UPDATED_AT || '',
             slotCapacityRef: r.SLOT_CAPACITY_REF || '',
+            proofUrl: r.PROOF || r.proof || '',
           };
         });
 
@@ -289,6 +293,21 @@ export function HistorySettingsPage() {
                             {row.createdAt && <div className={styles.metaItem}>Created: <span className={styles.mono}>{row.createdAt}</span></div>}
                             {row.updatedAt && <div className={styles.metaItem}>Updated: <span className={styles.mono}>{row.updatedAt}</span></div>}
                             {row.slotCapacityRef && <div className={styles.metaItem}>Slot Ref: <span className={styles.mono}>{row.slotCapacityRef}</span></div>}
+                          </div>
+                        )}
+                        {row.status === 'Completed' && row.proofUrl && (
+                          <div className={styles.notesBlock}>
+                            <div className={styles.noteLine}>
+                              <span className={styles.label}>Proof of Completion</span>
+                              <span className={styles.value}>
+                                <a href={row.proofUrl} target="_blank" rel="noreferrer" style={{ marginRight: 12 }}>Open</a>
+                                <img
+                                  src={row.proofUrl}
+                                  alt="Appointment proof"
+                                  style={{ maxHeight: 100, borderRadius: 6, border: '1px solid #ddd' }}
+                                />
+                              </span>
+                            </div>
                           </div>
                         )}
                       </td>

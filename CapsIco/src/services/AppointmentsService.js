@@ -1,6 +1,7 @@
 import { ref, push, set, get, runTransaction, update, remove, query, orderByChild, equalTo } from 'firebase/database';
 import BaseFirebaseService from './BaseFirebaseService';
-import { app, auth, usersDB } from '/src/config/firebase-config';
+import { app, auth, usersDB, storage } from '/src/config/firebase-config';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 // Appointments stored under 'appointments' with UPPER_SNAKE_CASE keys
 class AppointmentsService extends BaseFirebaseService {
@@ -136,6 +137,36 @@ class AppointmentsService extends BaseFirebaseService {
       }
     } catch (_e) {}
     return true;
+  }
+
+  /**
+   * Upload a proof image for an appointment and persist its URL under PROOF.
+   * Expects FormData with field name 'proof' containing a File/Blob.
+   * Returns { url } on success.
+   */
+  async uploadProof(id, formData, onProgress) {
+    if (!id) throw new Error('Missing appointment id');
+    if (!formData || typeof formData.get !== 'function') throw new Error('FormData is required');
+    const file = formData.get('proof');
+    if (!file) throw new Error('No file provided in field "proof"');
+    // Build a deterministic storage path
+    const fileName = (file.name || 'proof').replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `proofs/${id}/${Date.now()}_${fileName}`;
+    const sRef = storageRef(storage, path);
+  const metadata = file.type ? { contentType: file.type } : {};
+  const task = uploadBytesResumable(sRef, file, metadata);
+    await new Promise((resolve, reject) => {
+      task.on('state_changed', (snapshot) => {
+        if (typeof onProgress === 'function' && snapshot.totalBytes > 0) {
+          const pct = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
+          try { onProgress(pct); } catch (_) {}
+        }
+      }, (err) => reject(err), () => resolve());
+    });
+    const url = await getDownloadURL(task.snapshot.ref);
+    const now = new Date().toISOString();
+    await update(ref(this.database, this.path(id)), { PROOF: url, UPDATED_AT: now });
+    return { url };
   }
 
   async archive(id) {

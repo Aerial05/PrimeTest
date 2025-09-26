@@ -29,6 +29,7 @@ function toStatusLabel(s) {
   const v = String(s || '').toLowerCase();
   if (v === 'approved') return 'Approved';
   if (v === 'declined') return 'Declined';
+  if (v === 'successful') return 'Successful';
   return 'Pending';
 }
 
@@ -48,6 +49,11 @@ export function AppointmentsTable({ refreshKey = 0 }) {
   const [filterType, setFilterType] = useState(''); // '', Service, Package
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  // Insert Proof state
+  const [proofFile, setProofFile] = useState(null);
+  const [proofUploading, setProofUploading] = useState(false);
+  const [proofError, setProofError] = useState('');
+  const [proofProgress, setProofProgress] = useState(0);
 
   const openModal = (id) => setModalId(id);
   const closeModal = () => setModalId(null);
@@ -59,6 +65,11 @@ export function AppointmentsTable({ refreshKey = 0 }) {
     } else {
       setModalStatus('');
     }
+    // reset proof UI state on open/close
+    setProofFile(null);
+    setProofError('');
+    setProofUploading(false);
+    setProofProgress(0);
   }, [modalId, selected?.status]);
 
   const load = async () => {
@@ -166,7 +177,7 @@ export function AppointmentsTable({ refreshKey = 0 }) {
   const onSubmitModalStatus = async () => {
     if (!selected) return;
     const desired = modalStatus || 'Pending';
-    const map = { Approved: 'approved', Pending: 'pending', Declined: 'declined' };
+    const map = { Approved: 'approved', Pending: 'pending', Declined: 'declined', Successful: 'successful' };
     const backend = map[desired] || 'pending';
     try {
       setModalSaving(true);
@@ -176,6 +187,63 @@ export function AppointmentsTable({ refreshKey = 0 }) {
       alert('Failed to update status');
     } finally {
       setModalSaving(false);
+    }
+  };
+
+  // Upload proof image and mark as Successful
+  const onUploadProof = async () => {
+    if (!selected) return;
+    if (!proofFile) {
+      setProofError('Please choose an image to upload.');
+      return;
+    }
+    try {
+      setProofError('');
+      setProofUploading(true);
+  setProofProgress(0);
+      const fd = new FormData();
+      // database field name: "proof"
+      fd.append('proof', proofFile);
+
+      let proofUrl = null;
+      if (typeof appointmentsService.uploadProof === 'function') {
+  const res = await appointmentsService.uploadProof(selected.id, fd, (pct) => setProofProgress(pct));
+        proofUrl = res?.url || res?.proof || res?.PROOF || null;
+      } else if (typeof appointmentsService.updateProof === 'function') {
+        const res = await appointmentsService.updateProof(selected.id, fd);
+        proofUrl = res?.url || res?.proof || res?.PROOF || null;
+      } else {
+        throw new Error('appointmentsService.uploadProof is not implemented.');
+      }
+
+      // Set status to successful
+      try {
+        await appointmentsService.updateStatus(selected.id, 'successful');
+      } catch (_) {
+        // best-effort; continue updating UI
+      }
+
+      // Update local state: proof and status
+      setRows(prev => prev.map(r => r.id === selected.id ? {
+        ...r,
+        status: 'Successful',
+        raw: { ...r.raw, PROOF: proofUrl || r.raw?.PROOF }
+      } : r));
+      setModalStatus('Successful');
+      setProofFile(null);
+    } catch (e) {
+      console.error(e);
+      const msg = String(e && e.code ? e.code : e?.message || e);
+      if (msg.includes('storage/unauthorized')) {
+        setProofError('Upload blocked by Storage Rules. Ensure you are signed in and have permission.');
+      } else if (msg.includes('contentType') || msg.includes('image/')) {
+        setProofError('Upload failed: only image files under 10MB are allowed.');
+      } else {
+        setProofError('Failed to upload proof.');
+      }
+    } finally {
+      setProofUploading(false);
+      setProofProgress(0);
     }
   };
 
@@ -238,6 +306,7 @@ export function AppointmentsTable({ refreshKey = 0 }) {
             <option value="Approved">Approved</option>
             <option value="Pending">Pending</option>
             <option value="Declined">Declined</option>
+            <option value="Successful">Successful</option>
           </select>
           <select className={styles.select} value={filterType} onChange={(e)=>setFilterType(e.target.value)}>
             <option value="">All Types</option>
@@ -307,6 +376,8 @@ export function AppointmentsTable({ refreshKey = 0 }) {
                           ? styles.approved
                           : row.status === 'Declined'
                           ? styles.declined
+                          : row.status === 'Successful'
+                          ? styles.approved
                           : styles.pending
                       }`}
                     >
@@ -371,7 +442,7 @@ export function AppointmentsTable({ refreshKey = 0 }) {
                 <div className={styles.headerSub}>{selected.serviceName} • {selected.date} • {to12h(selected.time)}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : styles.pending}`}>{selected.status}</span>
+                <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : selected.status === 'Successful' ? styles.approved : styles.pending}`}>{selected.status}</span>
                 <button className={`${styles.btn} ${styles.btnDecline}`} onClick={closeModal} title="Close">✕</button>
               </div>
             </div>
@@ -406,6 +477,49 @@ export function AppointmentsTable({ refreshKey = 0 }) {
                   <div><span>Updated</span><strong>{selected.raw.UPDATED_AT || '—'}</strong></div>
                 </div>
               </div>
+              <div className={styles.detailSection}>
+                <div className={styles.detailTitle}>Insert Proof</div>
+                <div className={styles.detailGrid}>
+                  <div className={styles.fullRow}>
+                    <span>Current Proof</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      {selected.raw.PROOF || selected.raw.proof ? (
+                        <>
+                          <a href={(selected.raw.PROOF || selected.raw.proof)} target="_blank" rel="noreferrer">Open</a>
+                          <img
+                            src={(selected.raw.PROOF || selected.raw.proof)}
+                            alt="Proof"
+                            style={{ maxHeight: 80, borderRadius: 6, border: '1px solid #ddd' }}
+                          />
+                        </>
+                      ) : (
+                        <strong>—</strong>
+                      )}
+                    </div>
+                  </div>
+                  <div className={styles.fullRow}>
+                    <span>Upload Image</span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                        disabled={proofUploading}
+                        className={styles.input}
+                      />
+                      <button
+                        className={`${styles.btn} ${styles.btnApprove}`}
+                        onClick={onUploadProof}
+                        disabled={proofUploading || !proofFile}
+                        title="Upload proof image"
+                      >
+                        {proofUploading ? `Uploading… ${proofProgress}%` : 'Insert Proof'}
+                      </button>
+                      {proofError ? <span className={styles.error} style={{ marginLeft: 8 }}>{proofError}</span> : null}
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className={styles.modalFooter}>
               <span style={{ alignSelf: 'center', fontWeight: 700 }}>Change status:</span>
@@ -418,6 +532,7 @@ export function AppointmentsTable({ refreshKey = 0 }) {
                 <option>Approved</option>
                 <option>Pending</option>
                 <option>Declined</option>
+                <option>Successful</option>
               </select>
               <button
                 className={`${styles.btn} ${styles.btnApprove}`}

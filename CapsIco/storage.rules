@@ -5,6 +5,17 @@ rules_version = '2';
 //    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Allow authenticated users to read/write proof images under proofs/*
+    match /proofs/{appointmentId}/{fileName} {
+      // Read: allow for authenticated users (adjust to true if public viewing is desired)
+      allow read: if request.auth != null;
+      // Write: only authenticated; only small-ish images; cap size at 10MB
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Deny everything else by default
     match /{allPaths=**} {
       allow read, write: if false;
     }
