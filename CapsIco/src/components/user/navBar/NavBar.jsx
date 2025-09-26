@@ -146,7 +146,7 @@ export function NavBar() {
                 {currentUser ? (
                   <>
                     <Link to="/profile">View Profile</Link>
-                    <Link to="/settings?tab=history">Appointment History</Link>
+                    <Link to="/settings/history">Appointment History</Link>
                     <a href="#" onClick={(e)=>{e.preventDefault(); handleLogout();}}>Log Out</a>
                   </>
                 ) : (
