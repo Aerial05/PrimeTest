@@ -36,7 +36,12 @@ export function AppointmentsTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [expanded, setExpanded] = useState(() => new Set());
+  const [modalId, setModalId] = useState(null);
+  const [modalStatus, setModalStatus] = useState('');
+  const [modalSaving, setModalSaving] = useState(false);
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
   // Filters / search
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState(''); // '', Approved, Pending, Declined
@@ -44,14 +49,17 @@ export function AppointmentsTable({ refreshKey = 0 }) {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  const toggleExpand = (id) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
+  const openModal = (id) => setModalId(id);
+  const closeModal = () => setModalId(null);
+  const selected = useMemo(() => rows.find(r => r.id === modalId), [rows, modalId]);
+
+  useEffect(() => {
+    if (modalId && selected) {
+      setModalStatus(selected.status || 'Pending');
+    } else {
+      setModalStatus('');
+    }
+  }, [modalId, selected?.status]);
 
   const load = async () => {
     setLoading(true);
@@ -149,11 +157,25 @@ export function AppointmentsTable({ refreshKey = 0 }) {
     try {
       await appointmentsService.archive(id);
       setRows((prev) => prev.filter((r) => r.id !== id));
-      setExpanded((prev) => {
-        const next = new Set(prev); next.delete(id); return next;
-      });
+      if (modalId === id) closeModal();
     } catch (e) {
       alert('Failed to archive appointment');
+    }
+  };
+
+  const onSubmitModalStatus = async () => {
+    if (!selected) return;
+    const desired = modalStatus || 'Pending';
+    const map = { Approved: 'approved', Pending: 'pending', Declined: 'declined' };
+    const backend = map[desired] || 'pending';
+    try {
+      setModalSaving(true);
+      await appointmentsService.updateStatus(selected.id, backend);
+      setStatusLocal(selected.id, desired);
+    } catch (e) {
+      alert('Failed to update status');
+    } finally {
+      setModalSaving(false);
     }
   };
 
@@ -182,6 +204,20 @@ export function AppointmentsTable({ refreshKey = 0 }) {
       return true;
     });
   }, [rows, search, filterStatus, filterType, dateFrom, dateTo]);
+
+  // Clamp/reset page when filters change
+  useEffect(() => {
+    setPage(1);
+  }, [search, filterStatus, filterType, dateFrom, dateTo]);
+
+  const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredRows.length / pageSize)), [filteredRows.length]);
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages]);
+
+  const pageStart = (page - 1) * pageSize;
+  const pageEnd = pageStart + pageSize;
+  const pageRows = useMemo(() => filteredRows.slice(pageStart, pageEnd), [filteredRows, pageStart, pageEnd]);
 
   const clearFilters = () => {
     setSearch(''); setFilterStatus(''); setFilterType(''); setDateFrom(''); setDateTo('');
@@ -243,14 +279,13 @@ export function AppointmentsTable({ refreshKey = 0 }) {
               <th className={styles.colGender}>Gender</th>
               <th className={styles.colType}>Type</th>
               <th className={styles.colService}>Service</th>
-              <th className={styles.colDate}>Appointment Date</th>
-              <th className={styles.colTime}>Appointment Time</th>
+              <th className={styles.colDate}>Date & Time</th>
               <th className={styles.colStatus}>Status</th>
               <th className={styles.colActions}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredRows.map((row) => (
+            {pageRows.map((row) => (
               <React.Fragment key={row.id}>
                 <tr>
                   <td className={`${styles.cellEllipsis} ${styles.colPatient}`}>{row.patient}</td>
@@ -258,9 +293,13 @@ export function AppointmentsTable({ refreshKey = 0 }) {
                   <td className={styles.colAge}>{row.age}</td>
                   <td className={styles.colGender}>{row.gender}</td>
                   <td className={styles.colType}>{row.type}</td>
-                  <td className={`${styles.cellEllipsis} ${styles.colService}`}>{row.serviceName}</td>
-                  <td className={styles.colDate}>{row.date}</td>
-                  <td className={styles.colTime}>{to12h(row.time)}</td>
+                  <td className={`${styles.colService}`} title={row.serviceName}>{row.serviceName}</td>
+                  <td className={styles.colDate}>
+                    <div className={styles.dateTimeCell}>
+                      <span>{row.date}</span>
+                      <span className={styles.time}>{to12h(row.time)}</span>
+                    </div>
+                  </td>
                   <td className={styles.colStatus}>
                     <span
                       className={`${styles.status} ${
@@ -277,85 +316,123 @@ export function AppointmentsTable({ refreshKey = 0 }) {
                   <td className={`${styles.actions} ${styles.colActions}`}>
                     <button
                       className={`${styles.btn} ${styles.btnSecondary}`}
-                      onClick={() => toggleExpand(row.id)}
-                      title={expanded.has(row.id) ? 'Hide details' : 'Show details'}
+                      onClick={() => openModal(row.id)}
+                      title={'Edit status / Show details'}
                     >
-                      {expanded.has(row.id) ? 'Hide' : 'Details'}
-                    </button>
-                    <button
-                      className={`${styles.btn} ${styles.btnApprove}`}
-                      onClick={() => onApprove(row.id)}
-                      title="Approve"
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className={`${styles.btn} ${styles.btnDecline}`}
-                      onClick={() => onDecline(row.id)}
-                      title="Decline"
-                    >
-                      Decline
-                    </button>
-                    <button
-                      className={`${styles.btn} ${styles.btnPending}`}
-                      onClick={() => onPending(row.id)}
-                      title="Mark as Pending"
-                    >
-                      Pending
-                    </button>
-                    <button
-                      className={`${styles.btn} ${styles.btnDelete}`}
-                      onClick={() => onDelete(row.id)}
-                      title="Delete"
-                    >
-                      Delete
+                      Edit Status
                     </button>
                   </td>
                 </tr>
-                {expanded.has(row.id) && (
-                  <tr className={styles.detailsRow}>
-                    <td className={styles.detailsCell} colSpan={10}>
-                      <div className={styles.detailsPanel}>
-                        <div className={styles.detailSection}>
-                          <div className={styles.detailTitle}>User Info</div>
-                          <div className={styles.detailGrid}>
-                            <div><span>First Name</span><strong>{row.raw.FIRST_NAME || '—'}</strong></div>
-                            <div><span>Last Name</span><strong>{row.raw.LAST_NAME || '—'}</strong></div>
-                            <div><span>Phone</span><strong>{row.raw.PHONE || '—'}</strong></div>
-                            <div><span>Email</span><strong>{row.raw.EMAIL || '—'}</strong></div>
-                            <div><span>Birthday</span><strong>{row.raw.BIRTHDAY || '—'}</strong></div>
-                            <div><span>Gender</span><strong>{row.raw.GENDER || '—'}</strong></div>
-                          </div>
-                        </div>
-                        <div className={styles.detailSection}>
-                          <div className={styles.detailTitle}>Service Info</div>
-                          <div className={styles.detailGrid}>
-                            <div><span>Type</span><strong>{row.type}</strong></div>
-                            <div><span>Name</span><strong>{row.serviceName}</strong></div>
-                            <div><span>Service ID</span><strong>{row.raw.SERVICE_ID || '—'}</strong></div>
-                          </div>
-                        </div>
-                        <div className={styles.detailSection}>
-                          <div className={styles.detailTitle}>Appointment Info</div>
-                          <div className={styles.detailGrid}>
-                            <div><span>Date</span><strong>{row.date}</strong></div>
-                            <div><span>Time</span><strong>{to12h(row.time)}</strong></div>
-                            <div><span>Status</span><strong>{row.status}</strong></div>
-                            <div><span>Chief Complaint</span><strong>{row.raw.CHIEF_COMPLAINT || '—'}</strong></div>
-                            <div className={styles.fullRow}><span>Special Instructions</span><strong>{row.raw.SPECIAL_INSTRUCTIONS || '—'}</strong></div>
-                            <div><span>Created</span><strong>{row.raw.CREATED_AT || '—'}</strong></div>
-                            <div><span>Updated</span><strong>{row.raw.UPDATED_AT || '—'}</strong></div>
-                          </div>
-                        </div>
-                      </div>
-                    </td>
-                  </tr>
-                )}
               </React.Fragment>
             ))}
           </tbody>
         </table>
       </div>
+      {/* Pagination footer */}
+      <div className={styles.paginationBar}>
+        <div className={styles.range}>
+          {filteredRows.length === 0
+            ? 'Showing 0'
+            : `Showing ${pageStart + 1}–${Math.min(pageEnd, filteredRows.length)} of ${filteredRows.length}`}
+        </div>
+        <div className={styles.pager}>
+          <button
+            className={`${styles.btn} ${styles.pageBtn}`}
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+          >
+            Prev
+          </button>
+          {page < totalPages && (
+            <button
+              className={`${styles.btn} ${styles.btnApprove}`}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              title="Load more appointments"
+            >
+              Show More
+            </button>
+          )}
+          <button
+            className={`${styles.btn} ${styles.pageBtn}`}
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages}
+          >
+            Next
+          </button>
+          <span className={styles.pageIndicator}>Page {page} of {totalPages}</span>
+        </div>
+      </div>
+      {modalId && selected && (
+        <div className={styles.modalOverlay} onClick={(e)=>{ if (e.target === e.currentTarget) closeModal(); }}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="apptModalTitle">
+            <div className={styles.modalHeader}>
+              <div className={styles.headerInfo}>
+                <h3 id="apptModalTitle" className={styles.modalTitle}>{selected.patient || 'Appointment Details'}</h3>
+                <div className={styles.headerSub}>{selected.serviceName} • {selected.date} • {to12h(selected.time)}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : styles.pending}`}>{selected.status}</span>
+                <button className={`${styles.btn} ${styles.btnDecline}`} onClick={closeModal} title="Close">✕</button>
+              </div>
+            </div>
+            <div className={styles.modalBody}>
+              <div className={styles.detailSection}>
+                <div className={styles.detailTitle}>User Info</div>
+                <div className={styles.detailGrid}>
+                  <div><span>First Name</span><strong>{selected.raw.FIRST_NAME || '—'}</strong></div>
+                  <div><span>Last Name</span><strong>{selected.raw.LAST_NAME || '—'}</strong></div>
+                  <div><span>Phone</span><strong>{selected.raw.PHONE || '—'}</strong></div>
+                  <div><span>Email</span><strong>{selected.raw.EMAIL || '—'}</strong></div>
+                  <div><span>Birthday</span><strong>{selected.raw.BIRTHDAY || '—'}</strong></div>
+                  <div><span>Gender</span><strong>{selected.raw.GENDER || '—'}</strong></div>
+                </div>
+              </div>
+              <div className={styles.detailSection}>
+                <div className={styles.detailTitle}>Service Info</div>
+                <div className={styles.detailGrid}>
+                  <div><span>Type</span><strong>{selected.type}</strong></div>
+                  <div><span>Name</span><strong>{selected.serviceName}</strong></div>
+                  <div><span>Service ID</span><strong>{selected.raw.SERVICE_ID || '—'}</strong></div>
+                </div>
+              </div>
+              <div className={styles.detailSection}>
+                <div className={styles.detailTitle}>Appointment Info</div>
+                <div className={styles.detailGrid}>
+                  <div><span>Date & Time</span><strong>{selected.date} • {to12h(selected.time)}</strong></div>
+                  <div><span>Status</span><strong>{selected.status}</strong></div>
+                  <div><span>Chief Complaint</span><strong>{selected.raw.CHIEF_COMPLAINT || '—'}</strong></div>
+                  <div className={styles.fullRow}><span>Special Instructions</span><strong>{selected.raw.SPECIAL_INSTRUCTIONS || '—'}</strong></div>
+                  <div><span>Created</span><strong>{selected.raw.CREATED_AT || '—'}</strong></div>
+                  <div><span>Updated</span><strong>{selected.raw.UPDATED_AT || '—'}</strong></div>
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalFooter}>
+              <span style={{ alignSelf: 'center', fontWeight: 700 }}>Change status:</span>
+              <select
+                className={styles.select}
+                value={modalStatus}
+                onChange={(e) => setModalStatus(e.target.value)}
+                disabled={modalSaving}
+              >
+                <option>Approved</option>
+                <option>Pending</option>
+                <option>Declined</option>
+              </select>
+              <button
+                className={`${styles.btn} ${styles.btnApprove}`}
+                onClick={onSubmitModalStatus}
+                disabled={modalSaving}
+                title="Submit status change"
+              >
+                {modalSaving ? 'Submitting…' : 'Submit'}
+              </button>
+              <div style={{ flex: 1 }}></div>
+              <button className={`${styles.btn} ${styles.btnDelete}`} onClick={() => onDelete(selected.id)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

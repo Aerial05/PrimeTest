@@ -19,6 +19,10 @@ export function PackagesPage() {
 	const [lastBundleForm, setLastBundleForm] = useState(null);
 	// removed: includedInput (features now a textarea)
 
+	// Pagination state — 5 items per page per tab
+	const [pageSingle, setPageSingle] = useState(1);
+	const [pageBundle, setPageBundle] = useState(1);
+
 	const [form, setForm] = useState({
 		type: 'single',
 		// shared/basic
@@ -44,7 +48,7 @@ export function PackagesPage() {
 		features: '',
 		specialInstruction: '',
 		availability: '',
-	useRegularSchedule: false,
+		useRegularSchedule: false,
 		slot: '',
 		durMinute: '',
 		priceNote: '',
@@ -82,7 +86,7 @@ export function PackagesPage() {
 			features: '',
 			specialInstruction: '',
 			availability: '',
-	useRegularSchedule: false,
+			useRegularSchedule: false,
 			slot: '',
 			durMinute: '',
 			priceNote: '',
@@ -155,20 +159,6 @@ export function PackagesPage() {
 			}
 		}
 		return `SP-${maxNum + 1}`;
-	};
-
-	// Helper: check duplicates among existing bundles (case-insensitive, trimmed)
-	const findDuplicateIssues = (name, servicePackageId, excludeDbId = null) => {
-		const norm = (v) => (v || '').toString().trim().toLowerCase();
-		const bundles = services.filter((s) => s.type === 'bundle');
-		const issues = [];
-		if (name && bundles.some((b) => (excludeDbId ? b.dbId !== excludeDbId : true) && norm(b.name) === norm(name))) {
-			issues.push('Name already exists');
-		}
-		if (servicePackageId && bundles.some((b) => (excludeDbId ? b.dbId !== excludeDbId : true) && norm(b.servicePackageId) === norm(servicePackageId))) {
-			issues.push('Service Package ID already exists');
-		}
-		return issues;
 	};
 
 	// Load packages and single services from Firebase on mount and map to UI shape
@@ -268,6 +258,7 @@ export function PackagesPage() {
 			setLastBundleForm(form);
 		}
 		setActiveTab(tab);
+		// no pagination to reset
 		// Restore draft for the target tab if available; otherwise keep current values
 		setForm((prev) => {
 			const draft = tab === 'single' ? (lastSingleForm || prev) : (lastBundleForm || prev);
@@ -299,6 +290,7 @@ export function PackagesPage() {
 		}));
 	};
   
+
 
 	const handleSubmit = (e) => {
 		e.preventDefault();
@@ -335,21 +327,19 @@ export function PackagesPage() {
 			status: form.status,
 			category: form.category,
 			durationMinutes: form.durationMinutes,
-			description: form.description,
-				// single only
-				preparation: form.type === 'single' ? form.preparation : undefined,
+			// single only
 			// bundle only — Service Packages fields
 			servicePackageId: isBundle ? (form.servicePackageId || `PKG-${idValue}`) : undefined,
 			features: isBundle ? form.features : undefined,
 			specialInstruction: isBundle ? form.specialInstruction : undefined,
-	  availability: isBundle ? (form.useRegularSchedule ? REGULAR_SCHEDULE : form.availability) : undefined,
-	  slot: isBundle ? (form.slot !== '' ? Number(form.slot) : undefined) : undefined,
+			availability: isBundle ? (form.useRegularSchedule ? REGULAR_SCHEDULE : form.availability) : undefined,
+			slot: isBundle ? (form.slot !== '' ? Number(form.slot) : undefined) : undefined,
 			durMinute: isBundle ? Number(form.durMinute || 0) : undefined,
 			priceNote: isBundle ? form.priceNote : undefined,
 			bookingEnabled: isBundle ? form.bookingEnabled : undefined, // 'Yes' | 'No'
-	  originalPrice: isBundle ? (form.originalPrice !== '' ? Number(form.originalPrice) : undefined) : undefined,
-	  discountedPrice: isBundle ? (form.discountedPrice !== '' ? Number(form.discountedPrice) : undefined) : undefined,
-	  philHealthPromoPrice: isBundle ? (form.philHealthPromoPrice !== '' ? Number(form.philHealthPromoPrice) : undefined) : undefined,
+			originalPrice: isBundle ? (form.originalPrice !== '' ? Number(form.originalPrice) : undefined) : undefined,
+			discountedPrice: isBundle ? (form.discountedPrice !== '' ? Number(form.discountedPrice) : undefined) : undefined,
+			philHealthPromoPrice: isBundle ? (form.philHealthPromoPrice !== '' ? Number(form.philHealthPromoPrice) : undefined) : undefined,
 			isActive: isBundle ? form.isActive : undefined,
 			createdAt: isBundle ? (form.createdAt || nowIso) : undefined,
 			updatedAt: isBundle ? nowIso : undefined,
@@ -809,6 +799,7 @@ export function PackagesPage() {
 		if (editingId === id) resetForm();
 	};
 
+	// Filtered lists
 	const filteredSingles = useMemo(() => {
 		const q = searchSingle.trim().toLowerCase();
 		const base = services.filter((s) => s.type === 'single');
@@ -844,6 +835,30 @@ export function PackagesPage() {
 		));
 	}, [services, searchBundle]);
 
+	// Pagination: 5 per page, clamp and reset as filters change
+	const PAGE_SIZE = 5;
+	useEffect(() => { setPageSingle(1); }, [searchSingle]);
+	useEffect(() => { setPageBundle(1); }, [searchBundle]);
+	useEffect(() => {
+		const pages = Math.max(1, Math.ceil(filteredSingles.length / PAGE_SIZE));
+		if (pageSingle > pages) setPageSingle(pages);
+	}, [filteredSingles, pageSingle]);
+	useEffect(() => {
+		const pages = Math.max(1, Math.ceil(filteredBundles.length / PAGE_SIZE));
+		if (pageBundle > pages) setPageBundle(pages);
+	}, [filteredBundles, pageBundle]);
+
+	const totalSingles = filteredSingles.length;
+	const totalBundles = filteredBundles.length;
+	const totalSinglePages = Math.max(1, Math.ceil(totalSingles / PAGE_SIZE));
+	const totalBundlePages = Math.max(1, Math.ceil(totalBundles / PAGE_SIZE));
+	const singleStart = totalSingles ? (pageSingle - 1) * PAGE_SIZE + 1 : 0;
+	const singleEnd = Math.min(pageSingle * PAGE_SIZE, totalSingles);
+	const bundleStart = totalBundles ? (pageBundle - 1) * PAGE_SIZE + 1 : 0;
+	const bundleEnd = Math.min(pageBundle * PAGE_SIZE, totalBundles);
+	const pageSingles = useMemo(() => filteredSingles.slice((pageSingle - 1) * PAGE_SIZE, pageSingle * PAGE_SIZE), [filteredSingles, pageSingle]);
+	const pageBundles = useMemo(() => filteredBundles.slice((pageBundle - 1) * PAGE_SIZE, pageBundle * PAGE_SIZE), [filteredBundles, pageBundle]);
+
 	return (
 		<>
 			<div className={styles.banner}>
@@ -856,6 +871,7 @@ export function PackagesPage() {
 
 			<main className={styles.main}>
 				{activeTab === 'single' ? (
+					<>
 					<SingleServicesSection
 						activeTab={activeTab}
 						onTabChange={handleTabChange}
@@ -915,11 +931,29 @@ export function PackagesPage() {
 						REGULAR_SCHEDULE={REGULAR_SCHEDULE}
 						searchValue={searchSingle}
 						onSearchChange={setSearchSingle}
-						filteredServices={filteredSingles}
+						filteredServices={pageSingles}
 						onEdit={onEdit}
 						onDelete={onDelete}
 					/>
+					{/* Pagination footer for singles: Prev/Next only */}
+					{totalSingles > PAGE_SIZE && (
+						<div className={styles.paginationBar}>
+							<div className={styles.pageInfo}>
+								Showing {singleStart}-{singleEnd} of {totalSingles} services
+							</div>
+							<div className={styles.pageControls}>
+								<button type="button" className={`${styles.pageBtn}`} onClick={() => setPageSingle(Math.max(1, pageSingle - 1))} disabled={pageSingle === 1}>
+									Prev
+								</button>
+								<button type="button" className={`${styles.pageBtn} ${styles.pageBtnPrimary}`} onClick={() => setPageSingle(Math.min(totalSinglePages, pageSingle + 1))} disabled={pageSingle >= totalSinglePages}>
+									Next
+								</button>
+							</div>
+						</div>
+					)}
+					</>
 				) : (
+					<>
 					<PackagesSection
 						activeTab={activeTab}
 						onTabChange={handleTabChange}
@@ -965,10 +999,27 @@ export function PackagesPage() {
 						REGULAR_SCHEDULE={REGULAR_SCHEDULE}
 						searchValue={searchBundle}
 						onSearchChange={setSearchBundle}
-						filteredServices={filteredBundles}
+						filteredServices={pageBundles}
 						onEdit={onEdit}
 						onDelete={onDelete}
 					/>
+					{/* Pagination footer for bundles: Prev/Next only */}
+					{totalBundles > PAGE_SIZE && (
+						<div className={styles.paginationBar}>
+							<div className={styles.pageInfo}>
+								Showing {bundleStart}-{bundleEnd} of {totalBundles} packages
+							</div>
+							<div className={styles.pageControls}>
+								<button type="button" className={`${styles.pageBtn}`} onClick={() => setPageBundle(Math.max(1, pageBundle - 1))} disabled={pageBundle === 1}>
+									Prev
+								</button>
+								<button type="button" className={`${styles.pageBtn} ${styles.pageBtnPrimary}`} onClick={() => setPageBundle(Math.min(totalBundlePages, pageBundle + 1))} disabled={pageBundle >= totalBundlePages}>
+									Next
+								</button>
+							</div>
+						</div>
+					)}
+					</>
 				)}
 			</main>
 		</>

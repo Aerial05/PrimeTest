@@ -12,27 +12,30 @@ export function UserSettingsPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
-  const initialTab = query.get('tab') || 'profile';
-  const [active, setActive] = useState(initialTab);
+  const tabParam = query.get('tab');
+  const initial = (tabParam === 'rules' || tabParam === 'history' || tabParam === 'profile') ? tabParam : 'profile';
+  const [active, setActive] = useState(initial);
 
   useEffect(() => {
     createIcons({ icons });
   }, []);
 
-  // Keep state in sync with URL changes
+  // Keep active in sync if the URL changes externally
   useEffect(() => {
-    const tab = query.get('tab') || 'profile';
-    if (tab !== active) setActive(tab);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const qp = new URLSearchParams(location.search);
+    const t = qp.get('tab');
+    const valid = (t === 'rules' || t === 'history' || t === 'profile') ? t : 'profile';
+    if (valid !== active) setActive(valid);
   }, [location.search]);
 
-  // When active changes via sidebar, update URL to persist tab
-  const handleSelect = (tab) => {
-    setActive(tab);
-    const params = new URLSearchParams(location.search);
-    params.set('tab', tab);
-    navigate({ pathname: location.pathname, search: params.toString() }, { replace: true });
-  };
+  // Push tab changes to URL for shareable/refreshable deep links
+  useEffect(() => {
+    const qp = new URLSearchParams(location.search);
+    if (qp.get('tab') !== active) {
+      qp.set('tab', active);
+      navigate({ search: `?${qp.toString()}` }, { replace: true });
+    }
+  }, [active]);
 
   return (
     <>
@@ -46,7 +49,7 @@ export function UserSettingsPage() {
 
       <main className={styles.container}>
         <div className={styles.settingsContainer}>
-          <SettingsSidebar active={active} onSelect={handleSelect} />
+          <SettingsSidebar active={active} onSelect={setActive} />
           {active === 'profile' && <SettingsContent />}
           {active === 'rules' && <RulesSettingsPage />}
           {active === 'history' && <HistorySettingsPage />}
