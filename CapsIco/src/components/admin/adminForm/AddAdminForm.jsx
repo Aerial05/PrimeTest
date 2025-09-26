@@ -76,6 +76,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
     setNewPwdConfirm('');
   };
 
+  const isEdit = mode === 'edit';
   return (
     <div className={styles.card}>
       <div className={styles.cardHeader}>
@@ -96,7 +97,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="firstName">First Name</label>
-              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required />
+              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required={!isEdit} />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="middleName">Middle Name</label>
@@ -104,7 +105,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="lastName">Last Name</label>
-              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required />
+              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required={!isEdit} />
             </div>
           </div>
 
@@ -118,7 +119,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="email">Email</label>
-              <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required />
+              <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required={!isEdit} />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="phone">Phone Number</label>
@@ -134,8 +135,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
                 name="role"
                 value={formData.role}
                 onChange={handleChange}
-                required
-                // If editing an existing account, role comes from DB; keep editable but only Admin/User
+                required={!isEdit}
               >
                 <option value="Admin">Admin</option>
                 <option value="User">User</option>
@@ -148,7 +148,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="status">Status</label>
-              <select id="status" name="status" value={formData.status} onChange={handleChange} required>
+              <select id="status" name="status" value={formData.status} onChange={handleChange} required={!isEdit}>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>

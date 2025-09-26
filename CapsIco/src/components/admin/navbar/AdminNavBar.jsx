@@ -76,10 +76,10 @@ export function AdminNavBar() {
           </li>
           <li>
             <Link
-              to="/staff-management"
-              className={isActive('/staff-management') ? styles.active : undefined}
+              to="/appointment-management"
+              className={isActive('/appointment-management') ? styles.active : undefined}
             >
-              Appointments
+              Appointment Management
             </Link>
           </li>
           <li>

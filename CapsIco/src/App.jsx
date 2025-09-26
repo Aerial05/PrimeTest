@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { onAuthStateChanged } from "firebase/auth";
-import { ref, update as dbUpdate, get as dbGet, onValue } from 'firebase/database';
+import { ref, update as dbUpdate, get as dbGet } from 'firebase/database';
 import "/src/styles/routeTransitions.css";
 
 // User pages
@@ -78,7 +78,9 @@ function AnimatedRoutes({ role, preferUserView }) {
             <Route path="/services" element={<Services />} />
             <Route path="/settings/*" element={<UserSettingsPage />} />
 
-            <Route path="/staff-management" element={guardAdminRoute(<Appointments />)} />
+            <Route path="/appointment-management" element={guardAdminRoute(<Appointments />)} />
+            {/* Back-compat redirect */}
+            <Route path="/staff-management" element={<Navigate to="/appointment-management" replace />} />
             <Route path="/account-management" element={guardAdminRoute(<AccountManagement />)} />
             <Route path="/admin-dashboard" element={guardAdminRoute(<AdminDashboard />)} />
             <Route path="/admin-reports" element={guardAdminRoute(<ReportsPage />)} />
@@ -101,7 +103,6 @@ export default function App() {
   const [preferredDashboard, setPreferredDashboard] = useState('user');
 
   useEffect(() => {
-    let roleUnsub = null;
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
         try {
@@ -136,19 +137,6 @@ export default function App() {
           const fetchedRole = await authService.getUserRole(user);
           setRole(fetchedRole === "admin" ? "admin" : "user");
 
-          // Realtime subscribe to role changes in DB
-          try {
-            if (roleUnsub) roleUnsub();
-            const roleRef = ref(usersDB, `users/${user.uid}/role`);
-            roleUnsub = onValue(roleRef, (snap) => {
-              const v = snap.exists() ? snap.val() : null;
-              const r = (typeof v === 'string' ? v : '').toLowerCase() === 'admin' ? 'admin' : 'user';
-              setRole(r);
-            });
-          } catch (_subErr) {
-            // best-effort
-          }
-
           // Remove lastActive/updatedAt heartbeat. Only lastLoginAt is tracked on sign-in.
         } catch (error) {
           console.warn("Failed to resolve user role", error);
@@ -156,7 +144,6 @@ export default function App() {
         }
       } else {
         setRole(null);
-        if (roleUnsub) { roleUnsub(); roleUnsub = null; }
         if (heartbeatRef.current) {
           clearInterval(heartbeatRef.current);
           heartbeatRef.current = null;
@@ -165,7 +152,7 @@ export default function App() {
       setCheckingAuth(false);
     });
 
-    return () => { if (roleUnsub) roleUnsub(); unsubscribe(); };
+    return () => unsubscribe();
   }, []);
 
   const isAdmin = role === "admin";

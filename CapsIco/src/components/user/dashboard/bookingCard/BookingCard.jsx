@@ -2,9 +2,11 @@ import styles from './BookingCard.module.css';
 import { Link } from 'react-router-dom';
 import { Calendar } from 'lucide-react';
 
-export function BookingCard() {
+// align: 'center' | 'left'
+export function BookingCard({ align = 'center' }) {
+  const containerClass = `${styles.container} ${align === 'left' ? styles.left : ''}`;
   return (
-    <div className={styles.container}>
+    <div className={containerClass}>
       <Link to="/appointment" className={styles.card}>
         <Calendar className={styles.icon} />
         <div className={styles.content}>

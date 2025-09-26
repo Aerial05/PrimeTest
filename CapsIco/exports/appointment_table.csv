@@ -1,0 +1,1 @@
+﻿Appt_ID (PK),User_ID (FK),first_name,last_name,phone,email,birthday,gender,Service_ID (FK),service_type,date_of_appointment,time_slot,slot_capacity_ref (FK),chief_complaint,special_instructions,booking_status,created_at,updated_at

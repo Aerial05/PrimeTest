@@ -3,6 +3,7 @@ import styles from './Hero.module.css';
 import { onValue, ref } from 'firebase/database';
 import { usersDB } from '../../../../config/firebase-config';
 import { Link } from 'react-router-dom';
+import { BookingCard } from '../bookingCard/BookingCard';
 
 const TABS = [
   { name: 'PRIME MEDICAL LABORATORY', src: 'https://momento360.com/e/u/4614a6341be84cb4808f9634ca46f65e?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
@@ -107,6 +108,8 @@ useEffect(() => {
             <Link to="/services">
               <button className={styles.button}>Our Services</button>
             </Link>
+            {/* Booking card placed directly below the Services button, left-aligned */}
+            <BookingCard align="left" />
           </div>
           {/* Right Image Embed */}
           <div className={styles.embed}>
