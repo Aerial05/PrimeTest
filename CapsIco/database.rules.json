@@ -2,6 +2,9 @@
   "rules": {
     ".read": true,
     ".write": true,
+    "appointments": {
+      ".indexOn": ["USER_ID"]
+    },
     "servicePackages": {
       ".indexOn": ["SERVICE_PACKGE_ID"]
     }

@@ -1,4 +1,4 @@
-import { ref, push, set, get, runTransaction, update, remove } from 'firebase/database';
+import { ref, push, set, get, runTransaction, update, remove, query, orderByChild, equalTo } from 'firebase/database';
 import BaseFirebaseService from './BaseFirebaseService';
 import { app, auth, usersDB } from '/src/config/firebase-config';
 
@@ -87,6 +87,35 @@ class AppointmentsService extends BaseFirebaseService {
     // Sort newest first by CREATED_AT, fallback to id
     rows.sort((a, b) => String(b.CREATED_AT || '').localeCompare(String(a.CREATED_AT || '')) || String(b.id).localeCompare(String(a.id)));
     return rows;
+  }
+
+  async listByUser(userId) {
+    if (!userId) return [];
+    try {
+      const q = query(ref(this.database, this.basePath), orderByChild('USER_ID'), equalTo(userId));
+      const snap = await get(q);
+      if (!snap.exists()) return [];
+      const obj = snap.val() || {};
+      const rows = Object.keys(obj).map((id) => ({ id, ...obj[id] }));
+      rows.sort((a, b) =>
+        String(b.CREATED_AT || '').localeCompare(String(a.CREATED_AT || '')) ||
+        String(b.id).localeCompare(String(a.id))
+      );
+      return rows;
+    } catch (_err) {
+      // Fallback: read all appointments and filter client-side
+      const snap = await get(ref(this.database, this.basePath));
+      if (!snap.exists()) return [];
+      const obj = snap.val() || {};
+      const rows = Object.keys(obj)
+        .map((id) => ({ id, ...obj[id] }))
+        .filter((row) => String(row.USER_ID || '') === String(userId));
+      rows.sort((a, b) =>
+        String(b.CREATED_AT || '').localeCompare(String(a.CREATED_AT || '')) ||
+        String(b.id).localeCompare(String(a.id))
+      );
+      return rows;
+    }
   }
 
   async updateStatus(id, status) {

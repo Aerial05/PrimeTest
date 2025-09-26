@@ -145,12 +145,13 @@ export function NavBar() {
                 {/* lagyan pa ng customization */}
                 {currentUser ? (
                   <>
-                    <Link to="/profile" className={styles}>View Profile</Link>
-                    <a href="#" onClick={(e)=>{e.preventDefault(); handleLogout();}} className={styles}>Log Out</a>
+                    <Link to="/profile">View Profile</Link>
+                    <Link to="/settings?tab=history">Appointment History</Link>
+                    <a href="#" onClick={(e)=>{e.preventDefault(); handleLogout();}}>Log Out</a>
                   </>
                 ) : (
                   <>
-                    <Link to="/login" className={styles}>Log In</Link>
+                    <Link to="/login">Log In</Link>
                   </>
                 )}
               </div>
