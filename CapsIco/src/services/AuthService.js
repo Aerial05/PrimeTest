@@ -257,13 +257,18 @@ export class AuthService extends BaseFirebaseService {
     try {
       const snap = await get(ref(this.database, `users/${user.uid}/role`));
       if (snap.exists()) {
-        return snap.val();
+        const raw = snap.val();
+        const s = (raw == null ? '' : String(raw)).trim().toLowerCase();
+        if (s === 'admin' || s === 'super admin' || s === 'super_admin' || s === 'superadmin') {
+          return 'admin';
+        }
+        return 'user';
       }
     } catch (err) {
       console.warn('Failed to load user role', err);
     }
-    // No email-based fallback; role must be set in DB
-    return null;
+    // Default to user if role not found
+    return 'user';
   }
 
   async sendPasswordReset(identifier) {

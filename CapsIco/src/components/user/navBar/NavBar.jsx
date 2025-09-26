@@ -43,7 +43,12 @@ export function NavBar() {
           const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(" ");
           const fallback = user.displayName || (user.email ? user.email.split("@")[0] : "User");
           setProfileName(nameFromDb || fallback);
-          const roleIsAdmin = (typeof v.role === 'string' && v.role.toLowerCase() === 'admin');
+          const roleIsAdmin = (() => {
+            const raw = v.role;
+            if (raw == null) return false;
+            const s = String(raw).trim().toLowerCase();
+            return s === 'admin' || s === 'super admin' || s === 'super_admin' || s === 'superadmin';
+          })();
           setIsAdmin(Boolean(roleIsAdmin));
         });
       } else {
