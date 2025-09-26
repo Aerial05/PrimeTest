@@ -27,7 +27,20 @@
 }
 
 .logo h1 span {
-  color: var(--primary-color);
+  /* Apply themed gradient like the right panel */
+  background: linear-gradient(90deg, #6366f1, #22d3ee, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+}
+
+/* Utility: gradient text brand */
+.brandGradientText {
+  background: linear-gradient(90deg, #6366f1, #22d3ee, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
 }
 
 .tagline {

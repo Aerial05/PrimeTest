@@ -97,3 +97,11 @@ input, textarea, select { font: inherit; color: var(--text-dark); font-size: 0.9
 /* Accessible focus */
 :focus-visible { outline: 3px solid color-mix(in srgb, var(--primary-color), white 40%); outline-offset: 2px; border-radius: var(--radius-md); }
 
+/* Brand gradient text utility for consistent “Appoint” theming */
+.brand-gradient-text {
+  background: linear-gradient(90deg, #6366f1, #22d3ee, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+

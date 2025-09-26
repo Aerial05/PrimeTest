@@ -1,11 +1,16 @@
 import React from 'react';
 import styles from './CreativeSide.module.css';
-import { Activity } from 'lucide-react';
+import { Activity, Calendar, Bell, FileText, UserCheck } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function CreativeSide() {
   return (
     <div className={styles.creativeSide}>
+      <div className={styles.gridOverlay} aria-hidden="true" />
       <div className={styles.brandSection}>
+        <span className={styles.badge}>
+          <span className={styles.badgeDot} /> PrimeLab <span className="brand-gradient-text">Appoint</span>
+        </span>
         <div className={styles.logoLarge}>
           <Activity className={styles.logoIconLarge} />
           <h1>
@@ -13,12 +18,17 @@ export function CreativeSide() {
           </h1>
         </div>
         <p className={styles.taglineLarge}>Your health, our priority</p>
+        <div className={styles.ctaRow}>
+          <Link to="/appointment" className={styles.ctaGhost}>
+            Make an appointment <span className={styles.ctaIcon} aria-hidden>→</span>
+          </Link>
+        </div>
       </div>
 
       <div className={styles.featureHighlights}>
         <div className={styles.featureItem}>
           <div className={styles.featureIcon}>
-            <i className="fas fa-calendar-check" />
+            <Calendar size={22} color="#fff" strokeWidth={2} />
           </div>
           <div className={styles.featureText}>
             <h3>Easy Scheduling</h3>
@@ -28,7 +38,7 @@ export function CreativeSide() {
 
         <div className={styles.featureItem}>
           <div className={styles.featureIcon}>
-            <i className="fas fa-bell" />
+            <Bell size={22} color="#fff" strokeWidth={2} />
           </div>
           <div className={styles.featureText}>
             <h3>Smart Reminders</h3>
@@ -38,7 +48,7 @@ export function CreativeSide() {
 
         <div className={styles.featureItem}>
           <div className={styles.featureIcon}>
-            <i className="fas fa-file-medical" />
+            <FileText size={22} color="#fff" strokeWidth={2} />
           </div>
           <div className={styles.featureText}>
             <h3>Digital Records</h3>
@@ -48,7 +58,7 @@ export function CreativeSide() {
 
         <div className={styles.featureItem}>
           <div className={styles.featureIcon}>
-            <i className="fas fa-user-md" />
+            <UserCheck size={22} color="#fff" strokeWidth={2} />
           </div>
           <div className={styles.featureText}>
             <h3>Expert Doctors</h3>

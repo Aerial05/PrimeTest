@@ -1,6 +1,6 @@
 .creativeSide {
-  flex: 1.5;
-  max-width: 650px;
+  flex: 1.6;
+  max-width: 720px;
   padding: 40px;
   position: relative;
   display: flex;
@@ -8,16 +8,78 @@
   justify-content: center;
   gap: 40px;
   height: 100%;
-  background: rgba(37, 99, 235, 0.12);
-  backdrop-filter: blur(10px);
+  /* Higher contrast, cleaner surface */
+  background: linear-gradient(180deg, #ffffff 0%, #f0f6ff 100%);
   border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+  overflow: hidden;
+}
+
+/* Themed accent blobs */
+.creativeSide::before,
+.creativeSide::after {
+  content: "";
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(36px);
+  opacity: .35;
+  z-index: 0;
+}
+.creativeSide::before {
+  width: 280px; height: 280px;
+  top: -80px; right: -60px;
+  background: radial-gradient(60% 60% at 50% 50%, #93c5fd, transparent 70%),
+              radial-gradient(70% 70% at 60% 40%, #c084fc, transparent 75%);
+}
+.creativeSide::after {
+  width: 240px; height: 240px;
+  bottom: -60px; left: -40px;
+  background: radial-gradient(60% 60% at 50% 50%, #22d3ee, transparent 70%),
+              radial-gradient(70% 70% at 60% 40%, #60a5fa, transparent 75%);
+}
+
+/* Subtle grid overlay for uniqueness */
+.gridOverlay {
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(99, 102, 241, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(59, 130, 246, 0.08) 1px, transparent 1px);
+  background-size: 26px 26px, 26px 26px;
+  mask-image: radial-gradient(80% 80% at 80% 20%, rgba(0,0,0,.35), transparent 70%);
 }
 
 .brandSection {
   text-align: center;
   margin-bottom: 20px;
+  position: relative;
+  z-index: 1;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #e0e7ff, #dbeafe);
+  border: 1px solid #c7d2fe;
+  color: #1e3a8a;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.badgeDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #6366f1, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59,130,246,.15);
 }
 
 .logoLarge {
@@ -27,27 +89,54 @@
   margin-bottom: 15px;
 }
 
-.logoIconLarge { font-size: 40px; color: var(--primary-color); margin-right: 15px; filter: drop-shadow(0 0 8px rgba(37,99,235,0.3)); }
+.logoIconLarge { font-size: 40px; color: var(--primary-color); margin-right: 15px; filter: drop-shadow(0 0 8px rgba(37,99,235,0.3)); animation: floatY 5s ease-in-out infinite; }
 
 .logoLarge h1 { 
   font-size: 36px;
   font-weight: 700;
-  color: var(--primary-dark);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  color: #0f172a;
+  text-shadow: none;
 }
 
 .logoLarge h1 span {
-  color: var(--primary-light);
-  font-weight: 400;
+  /* Gradient themed text */
+  background: linear-gradient(90deg, #6366f1, #22d3ee, #a78bfa);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  font-weight: 700;
 }
 
 .taglineLarge {
-  color: white;
+  color: #0f172a;
   font-size: 18px;
   margin-top: 10px;
-  font-weight: 300;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-weight: 500;
+  text-shadow: none;
 }
+
+.ctaRow { display: flex; justify-content: center; margin-top: 8px; }
+.ctaGhost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px dashed #93c5fd;
+  color: #1d4ed8;
+  background: rgba(219, 234, 254, 0.4);
+  font-weight: 700;
+  text-decoration: none;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+}
+.ctaGhost:hover {
+  transform: translateY(-2px);
+  background: rgba(219, 234, 254, 0.65);
+  border-color: #60a5fa;
+  box-shadow: 0 10px 24px rgba(59,130,246,.15);
+}
+.ctaIcon { transition: transform .15s ease; }
+.ctaGhost:hover .ctaIcon { transform: translateX(2px); }
 
 .featureHighlights {
   display: flex;
@@ -60,38 +149,47 @@
 .featureItem {
   display: flex;
   align-items: flex-start;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(10px);
+  background: linear-gradient(180deg, #ffffff, #f7fbff);
   border-radius: 12px;
   padding: 20px;
-  transition: all 0.3s ease;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  /* Gradient border */
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+  border: 1px solid transparent;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
   width: calc(50% - 10px);
 }
 
 .featureItem:hover {
-  transform: translateY(-5px);
-  background: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.12);
 }
 
 .featureIcon {
   width: 50px;
   height: 50px;
-  background: rgba(37, 99, 235, 0.25);
+  background: linear-gradient(180deg, #3b82f6 0%, #6366f1 100%);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   margin-right: 15px;
   flex-shrink: 0;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 12px rgba(37,99,235,0.25);
+  color: #ffffff; /* for currentColor-based icons */
 }
 
 .featureIcon i {
   font-size: 22px;
-  color: white;
+  color: #ffffff;
+}
+
+/* Ensure lucide-react SVG icons are visible */
+.featureIcon svg {
+  width: 22px;
+  height: 22px;
+  stroke: #ffffff;
 }
 
 .featureText {
@@ -99,16 +197,55 @@
 }
 
 .featureText h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: white;
-  margin-bottom: 5px;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
 }
 
 .featureText p {
-  font-size: 14px;
-  color: rgba(255, 255, 255, 0.9);
-  line-height: 1.5;
-  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.1);
+  font-size: 15px;
+  color: #334155;
+  line-height: 1.55;
+}
+
+/* Themed gradient borders per item */
+.featureHighlights .featureItem {
+  background-image: linear-gradient(180deg, #ffffff, #f7fbff),
+    linear-gradient(135deg, #93c5fd, #c084fc);
+}
+.featureHighlights .featureItem:nth-child(2) {
+  background-image: linear-gradient(180deg, #ffffff, #f7fbff),
+    linear-gradient(135deg, #818cf8, #a78bfa);
+}
+.featureHighlights .featureItem:nth-child(3) {
+  background-image: linear-gradient(180deg, #ffffff, #f7fbff),
+    linear-gradient(135deg, #22d3ee, #60a5fa);
+}
+.featureHighlights .featureItem:nth-child(4) {
+  background-image: linear-gradient(180deg, #ffffff, #f7fbff),
+    linear-gradient(135deg, #a78bfa, #f472b6);
+}
+
+/* Animation enhancements */
+.creativeSide { animation: surfaceIn .5s ease both; }
+.gridOverlay { animation: bgPan 18s linear infinite alternate; }
+.badgeDot { animation: pulse 2.2s ease-in-out infinite; }
+.ctaGhost { animation: ctaIn .6s cubic-bezier(.2,.8,.2,1) .15s both; }
+.featureItem { animation: itemIn .55s cubic-bezier(.2,.8,.2,1) both; }
+.featureHighlights .featureItem:nth-child(1) { animation-delay: .06s; }
+.featureHighlights .featureItem:nth-child(2) { animation-delay: .14s; }
+.featureHighlights .featureItem:nth-child(3) { animation-delay: .22s; }
+.featureHighlights .featureItem:nth-child(4) { animation-delay: .30s; }
+
+@keyframes surfaceIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes itemIn { from { opacity: 0; transform: translateY(10px) scale(.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes floatY { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+@keyframes pulse { 0%, 100% { transform: scale(1); box-shadow: 0 0 0 3px rgba(59,130,246,.15); } 50% { transform: scale(1.15); box-shadow: 0 0 0 6px rgba(59,130,246,.10); } }
+@keyframes bgPan { 0% { background-position: 0 0, 0 0; } 100% { background-position: 26px 26px, 26px 26px; } }
+@keyframes ctaIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .creativeSide, .gridOverlay, .badgeDot, .ctaGhost, .featureItem, .logoIconLarge { animation: none !important; }
+  .featureItem, .ctaGhost { transition: none !important; }
 }

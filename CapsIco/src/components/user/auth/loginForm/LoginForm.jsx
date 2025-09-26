@@ -123,7 +123,7 @@ export function LoginForm({ onSwitch }) {
           <div className={styles.logo}>
             <Activity className={styles.logoIconLarge} />
             <h1>
-              PrimeLab <span>Appoint</span>
+              PrimeLab <span className="brand-gradient-text">Appoint</span>
             </h1>
           </div>
           <p className={styles.tagline}>Your health, Our priority</p>
