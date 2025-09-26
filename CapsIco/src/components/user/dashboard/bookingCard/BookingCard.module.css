@@ -1,5 +1,8 @@
 .container { display: flex; justify-content: center; margin-top: 3rem; }
 
+/* Modifier when we want the card left-aligned inline inside another block */
+.left { justify-content: flex-start; margin-top: 1rem; }
+
 .card {
   display: inline-flex;
   align-items: center;

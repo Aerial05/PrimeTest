@@ -32,11 +32,17 @@ function toStatusLabel(s) {
   return 'Pending';
 }
 
-export function AppointmentsTable() {
+export function AppointmentsTable({ refreshKey = 0 }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [expanded, setExpanded] = useState(() => new Set());
+  // Filters / search
+  const [search, setSearch] = useState('');
+  const [filterStatus, setFilterStatus] = useState(''); // '', Approved, Pending, Declined
+  const [filterType, setFilterType] = useState(''); // '', Service, Package
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
 
   const toggleExpand = (id) => {
     setExpanded((prev) => {
@@ -101,7 +107,8 @@ export function AppointmentsTable() {
 
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
 
   const setStatusLocal = (id, status) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -150,14 +157,81 @@ export function AppointmentsTable() {
     }
   };
 
+  const filteredRows = useMemo(() => {
+    const s = search.trim().toLowerCase();
+    const from = dateFrom ? new Date(dateFrom) : null;
+    const to = dateTo ? new Date(dateTo) : null;
+    return rows.filter(r => {
+      if (filterStatus && r.status !== filterStatus) return false;
+      if (filterType && r.type !== filterType) return false;
+      if (s) {
+        const hay = `${r.patient} ${r.email} ${r.serviceName} ${r.type} ${r.status}`.toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
+      if (from || to) {
+        if (!r.date) return false;
+        const d = new Date(r.date);
+        if (Number.isNaN(d.getTime())) return false;
+        if (from && d < from) return false;
+        if (to) {
+          // include entire end day
+            const end = new Date(to.getFullYear(), to.getMonth(), to.getDate(), 23,59,59,999);
+            if (d > end) return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, search, filterStatus, filterType, dateFrom, dateTo]);
+
+  const clearFilters = () => {
+    setSearch(''); setFilterStatus(''); setFilterType(''); setDateFrom(''); setDateTo('');
+  };
+
   return (
     <div className={styles.card}>
+      <div className={styles.toolbar}>
+        <div className={styles.filterGroup}>
+          <input
+            className={styles.input}
+            placeholder="Search (patient, email, service...)"
+            value={search}
+            onChange={(e)=>setSearch(e.target.value)}
+          />
+          <select className={styles.select} value={filterStatus} onChange={(e)=>setFilterStatus(e.target.value)}>
+            <option value="">All Statuses</option>
+            <option value="Approved">Approved</option>
+            <option value="Pending">Pending</option>
+            <option value="Declined">Declined</option>
+          </select>
+          <select className={styles.select} value={filterType} onChange={(e)=>setFilterType(e.target.value)}>
+            <option value="">All Types</option>
+            <option value="Service">Service</option>
+            <option value="Package">Package</option>
+          </select>
+          <input
+            type="date"
+            className={styles.input}
+            value={dateFrom}
+            onChange={(e)=>setDateFrom(e.target.value)}
+            placeholder="From"
+          />
+          <input
+            type="date"
+            className={styles.input}
+            value={dateTo}
+            onChange={(e)=>setDateTo(e.target.value)}
+            placeholder="To"
+          />
+          <button className={`${styles.btn} ${styles.btnLight}`} onClick={clearFilters}>Reset</button>
+        </div>
+        <div className={styles.meta}>{filteredRows.length} / {rows.length} shown</div>
+      </div>
       <div className={styles.tableWrapper}>
         {loading ? (
           <div className={styles.loading}>Loading appointments…</div>
         ) : error ? (
           <div className={styles.error}>{error}</div>
-        ) : rows.length === 0 ? (
+        ) : filteredRows.length === 0 ? (
           <div className={styles.empty}>No appointments found.</div>
         ) : null}
         <table className={styles.table}>
@@ -176,7 +250,7 @@ export function AppointmentsTable() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
+            {filteredRows.map((row) => (
               <React.Fragment key={row.id}>
                 <tr>
                   <td className={`${styles.cellEllipsis} ${styles.colPatient}`}>{row.patient}</td>

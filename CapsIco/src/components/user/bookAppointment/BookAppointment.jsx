@@ -244,7 +244,8 @@ export function BookAppointment() {
       SLOT_CAPACITY_REF: '',
       CHIEF_COMPLAINT: patient.complaint || '',
       SPECIAL_INSTRUCTIONS: patient.notes || '',
-      BOOKING_STATUS: 'pending',
+  // Auto-approve immediately
+  BOOKING_STATUS: 'approved',
     };
 
     const capacity = Number(activeItem.capacity || 1) || 1;
@@ -262,7 +263,7 @@ export function BookAppointment() {
         try {
           const created = await appointmentsService.create(record);
           await appointmentsService.indexAppointmentBySlot(serviceId, slotDate, slotTime, created.id);
-          alert('Appointment submitted successfully.');
+          alert('Appointment booked and automatically approved. See you then!');
         } catch (err) {
           // Rollback reservation on failure
           await appointmentsService.releaseSlot(serviceId, slotDate, slotTime);

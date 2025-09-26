@@ -1,9 +1,10 @@
 import styles from './Footer.module.css';
-import { Mail, Facebook, Instagram, Linkedin } from 'lucide-react';
+import { Mail, Facebook, Instagram, Linkedin, Calendar } from 'lucide-react';
 
 export function Footer() {
   return (
     <footer className={styles.footer}>
+      
       <div className={styles.footerGrid}>
         <div>
           <h3 className={styles.brand}>PRIMELAB</h3>
