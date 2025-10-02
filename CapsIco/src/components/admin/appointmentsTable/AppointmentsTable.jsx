@@ -33,7 +33,7 @@ function toStatusLabel(s) {
   return 'Pending';
 }
 
-export function AppointmentsTable({ refreshKey = 0 }) {
+export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -128,6 +128,15 @@ export function AppointmentsTable({ refreshKey = 0 }) {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refreshKey]);
+
+  // Sync initial status filter from prop (e.g., via ?status=Pending)
+  useEffect(() => {
+    if (initialFilterStatus && (filterStatus !== initialFilterStatus)) {
+      setFilterStatus(initialFilterStatus);
+    }
+    // do not add filterStatus to deps to avoid loop
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialFilterStatus]);
 
   const setStatusLocal = (id, status) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
