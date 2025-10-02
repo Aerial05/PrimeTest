@@ -9,6 +9,31 @@
   padding-right: 32px;
 }
 
+.actionsBar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 16px 0 20px 0;
+}
+
+.primaryBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  color: #fff;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 20px rgba(99,102,241,.25);
+  cursor: pointer;
+}
+.primaryBtn:hover { filter: brightness(1.05); transform: translateY(-1px); }
+.primaryBtn:active { filter: brightness(.96); transform: translateY(0); }
+.primaryBtn i { width: 16px; height: 16px; }
+
 .banner h1 {
     color: rgb(244, 240, 232);
     font-size: 32px;

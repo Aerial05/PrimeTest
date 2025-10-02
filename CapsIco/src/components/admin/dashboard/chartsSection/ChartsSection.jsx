@@ -5,6 +5,7 @@ import { onValue, ref as dbRef } from 'firebase/database';
 import { usersDB } from '../../../../config/firebase-config';
 import singleServicesService from '../../../../services/SingleServicesService';
 import servicePackagesService from '../../../../services/ServicePackagesService';
+import authService from '../../../../services/AuthService';
 
 const ranges = ["Last 7 Days", "Last 30 Days"]; 
 const serviceFilters = ["All Services", "Single-Service", "Package Service"]; // include All Services option
@@ -170,6 +171,40 @@ export function ChartsSection() {
   const [svcTotalMode, setSvcTotalMode] = useState(false); // All-time aggregation toggle
   const [isPending, startTransition] = useTransition();
   const rowsDeferred = useDeferredValue(rows);
+  const storageKey = `adminDashboard:chartsFilters:${authService.currentUser?.uid || 'anon'}`;
+
+  // Load saved filters for this admin from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved) {
+        if (typeof saved.range === 'string' && ranges.includes(saved.range)) setRange(saved.range);
+        if (typeof saved.selMonth === 'number' && saved.selMonth >= 0 && saved.selMonth <= 11) setSelMonth(saved.selMonth);
+        if (typeof saved.selYear === 'number') setSelYear(saved.selYear);
+        if (typeof saved.monthMode === 'boolean') setMonthMode(saved.monthMode);
+        if (typeof saved.trendStatus === 'string') setTrendStatus(saved.trendStatus);
+        if (typeof saved.trendSvcType === 'string' && serviceFilters.includes(saved.trendSvcType)) setTrendSvcType(saved.trendSvcType);
+        if (typeof saved.svcFilter === 'string' && serviceFilters.includes(saved.svcFilter)) setSvcFilter(saved.svcFilter);
+        if (typeof saved.svcSelMonth === 'number' && saved.svcSelMonth >= 0 && saved.svcSelMonth <= 11) setSvcSelMonth(saved.svcSelMonth);
+        if (typeof saved.svcSelYear === 'number') setSvcSelYear(saved.svcSelYear);
+        if (typeof saved.svcTotalMode === 'boolean') setSvcTotalMode(saved.svcTotalMode);
+      }
+    } catch (_) { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist filters whenever they change
+  useEffect(() => {
+    try {
+      const data = {
+        range, selMonth, selYear, monthMode, trendStatus, trendSvcType,
+        svcFilter, svcSelMonth, svcSelYear, svcTotalMode,
+      };
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (_) { /* ignore */ }
+  }, [storageKey, range, selMonth, selYear, monthMode, trendStatus, trendSvcType, svcFilter, svcSelMonth, svcSelYear, svcTotalMode]);
   
   
 
@@ -402,6 +437,61 @@ export function ChartsSection() {
   const svcTypeDisplay = useMemo(() => (svcFilter || 'All Services'), [svcFilter]);
   const svcHasOthers = useMemo(() => topServices.some(d => d.label === 'Others'), [topServices]);
   
+  // Prepare/merge a report snapshot when requested from the parent page (placed after topServices definition)
+  useEffect(() => {
+    const handler = () => {
+      try {
+        // Reconstruct the currently filtered appointment rows used by trendData bucketing
+        const filteredAppointments = rowsDeferred.filter((r) => {
+          // status filter
+          const v = String(r.BOOKING_STATUS || '').toLowerCase();
+          const isSuccess = v === 'successful' || v === 'success' || v === 'successfull' || v === 'completed';
+          const isScheduled = v === 'pending' || v === 'approved';
+          const statusPass = trendStatus === 'all' || (trendStatus === 'success' && isSuccess) || (trendStatus === 'scheduled' && isScheduled);
+          if (!statusPass) return false;
+          // type filter
+          if (trendSvcType !== 'All Services') {
+            const t = inferType(r);
+            if (!t || t !== trendSvcType) return false;
+          }
+          // date window for trend: month or last N days
+          const dateStr = r.DATE_OF_APPOINTMENT || r.CREATED_AT;
+          const iso = tryParseDateString(dateStr);
+          if (!iso) return false;
+          const dt = new Date(iso);
+          if (monthMode) {
+            const start = new Date(selYear, selMonth, 1);
+            const end = new Date(selYear, selMonth + 1, 0, 23, 59, 59, 999);
+            return dt >= start && dt <= end;
+          } else {
+            const n = range.includes('30') ? 30 : 7;
+            const start = daysBack(n - 1);
+            const end = new Date();
+            const d0 = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+            const d1 = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59, 999);
+            return dt >= d0 && dt <= d1;
+          }
+        });
+
+        let prev = {};
+        try { prev = JSON.parse(sessionStorage.getItem('adminDashboardReportSnapshot') || '{}'); } catch(_) {}
+        const merged = {
+          ...prev,
+          capturedAt: prev.capturedAt || new Date().toISOString(),
+          appointmentFilters: { monthMode, range, selMonth, selYear, trendStatus, trendSvcType },
+          appointments: filteredAppointments,
+          mostUsedFilters: { svcTotalMode, svcFilter, svcSelMonth, svcSelYear },
+          mostUsed: topServices,
+        };
+        sessionStorage.setItem('adminDashboardReportSnapshot', JSON.stringify(merged));
+      } catch(_) {
+        // ignore
+      }
+    };
+    window.addEventListener('admin-dashboard:prepare-report', handler);
+    return () => window.removeEventListener('admin-dashboard:prepare-report', handler);
+  }, [rowsDeferred, monthMode, range, selMonth, selYear, trendStatus, trendSvcType, svcTotalMode, svcFilter, svcSelMonth, svcSelYear, topServices]);
+
   
 
   return (

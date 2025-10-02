@@ -5,6 +5,7 @@ import { StatCard } from '../statCard/StatCard';
 import { FaCalendarCheck, FaFlask } from 'react-icons/fa';
 import { onValue, ref as dbRef } from 'firebase/database';
 import { usersDB } from '../../../../config/firebase-config';
+import authService from '../../../../services/AuthService';
 
 function toISODate(date) {
   try { return new Date(date).toISOString().slice(0,10); } catch (_) { return null; }
@@ -46,10 +47,32 @@ export function StatsOverview() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const storageKey = `adminDashboard:statsFilters:${authService.currentUser?.uid || 'anon'}`;
   // Filter for the "Tests Completed" stat: '7d' or '30d'
   const [completedRange, setCompletedRange] = useState('7d');
   // Filter for Upcoming Appointments: 'today' | '7d' | 'month'
   const [upcomingRange, setUpcomingRange] = useState('today');
+
+  // Load saved filters on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (saved) {
+        if (saved.completedRange === '7d' || saved.completedRange === '30d') setCompletedRange(saved.completedRange);
+        if (saved.upcomingRange === 'today' || saved.upcomingRange === '7d' || saved.upcomingRange === 'month') setUpcomingRange(saved.upcomingRange);
+      }
+    } catch (_) { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist when filters change
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ completedRange, upcomingRange }));
+    } catch (_) { /* ignore */ }
+  }, [storageKey, completedRange, upcomingRange]);
   const [stats, setStats] = useState({
     // Upcoming (scheduled)
     upcomingToday: 0,
@@ -211,6 +234,34 @@ export function StatsOverview() {
   }, []);
 
   const todayStr = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+  // Contribute to the dashboard report snapshot
+  useEffect(() => {
+    const handler = () => {
+      try {
+        let prev = {};
+        try { prev = JSON.parse(sessionStorage.getItem('adminDashboardReportSnapshot') || '{}'); } catch(_) {}
+        const merged = {
+          ...prev,
+          capturedAt: prev.capturedAt || new Date().toISOString(),
+          statsOverview: {
+            upcoming: { today: stats.upcomingToday, sevenDays: stats.upcoming7d, month: stats.upcomingMonth },
+            completed: { d7: stats.completed7d, d30: stats.completed30d },
+            approvedThisMonth: stats.approvedThisMonth,
+            pendingToday: stats.pendingToday,
+            filters: {
+              completedRange,
+              upcomingRange,
+              todayStr,
+            }
+          }
+        };
+        sessionStorage.setItem('adminDashboardReportSnapshot', JSON.stringify(merged));
+      } catch(_) { /* ignore */ }
+    };
+    window.addEventListener('admin-dashboard:prepare-report', handler);
+    return () => window.removeEventListener('admin-dashboard:prepare-report', handler);
+  }, [stats, completedRange, upcomingRange, todayStr]);
   // Upcoming appointments derived values based on filter
   const upcomingValue = upcomingRange === 'month' ? stats.upcomingMonth : upcomingRange === '7d' ? stats.upcoming7d : stats.upcomingToday;
   const upcomingDelta = upcomingRange === 'month' ? stats.deltas.upcomingMonth : upcomingRange === '7d' ? stats.deltas.upcoming7d : stats.deltas.upcomingToday;
