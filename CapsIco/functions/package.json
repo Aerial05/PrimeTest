@@ -1,0 +1,21 @@
+{
+  "name": "capsico-functions",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "lint": "echo 'No lint configured for functions'",
+    "build": "echo 'No build step needed'",
+    "serve": "firebase emulators:start --only functions",
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.4",
+    "capsico": "file:..",
+    "firebase-admin": "^12.6.0",
+    "firebase-functions": "^4.8.0"
+  }
+}

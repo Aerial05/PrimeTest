@@ -238,6 +238,7 @@ export function BookAppointment() {
       BIRTHDAY: patient.birthday || '',
       GENDER: patient.gender || '',
       SERVICE_ID: activeItem.id || '',
+      SERVICE_NAME: activeItem.title || '',
       SERVICE_TYPE: activeItem.kind === 'package' ? 'package' : 'service',
       DATE_OF_APPOINTMENT: date,
       TIME_SLOT: time,
@@ -263,7 +264,7 @@ export function BookAppointment() {
         try {
           const created = await appointmentsService.create(record);
           await appointmentsService.indexAppointmentBySlot(serviceId, slotDate, slotTime, created.id);
-          alert('Appointment booked and automatically approved. See you then!');
+          alert('Appointment booked and approved. A confirmation email will be sent shortly. See you then!');
         } catch (err) {
           // Rollback reservation on failure
           await appointmentsService.releaseSlot(serviceId, slotDate, slotTime);
