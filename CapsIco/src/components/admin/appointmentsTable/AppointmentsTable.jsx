@@ -15,6 +15,71 @@ function to12h(hhmm) {
   return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
 }
 
+function toLongDate(input) {
+  if (input === null || input === undefined) return '—';
+  // Handle Firestore-like Timestamp
+  if (typeof input === 'object' && input && 'seconds' in input) {
+    const ms = (Number(input.seconds) || 0) * 1000 + Math.floor((Number(input.nanoseconds) || 0) / 1e6);
+    return toLongDate(new Date(ms));
+  }
+  // Numeric epoch
+  if (typeof input === 'number' || (typeof input === 'string' && /^\d{10,13}$/.test(input))) {
+    const n = Number(input);
+    const d = new Date(n < 1e12 ? n * 1000 : n);
+    if (!Number.isNaN(d.getTime())) return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  // YYYY-MM-DD safe local date construction
+  if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    const [y, m, day] = input.split('-').map((v) => Number(v));
+    const d = new Date(y, (m || 1) - 1, day || 1);
+    if (!Number.isNaN(d.getTime())) return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  // Date instance or any other parseable string
+  const d = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(d.getTime())) return String(input || '—');
+  try {
+    return d.toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' });
+  } catch(_) {
+    const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+  }
+}
+
+// Parse any supported input into a Date or return null if invalid
+function toDateAny(input) {
+  if (input === null || input === undefined) return null;
+  if (input instanceof Date) return Number.isNaN(input.getTime()) ? null : input;
+  if (typeof input === 'object' && input && 'seconds' in input) {
+    const ms = (Number(input.seconds) || 0) * 1000 + Math.floor((Number(input.nanoseconds) || 0) / 1e6);
+    const d = new Date(ms);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof input === 'number' || (typeof input === 'string' && /^\d{10,13}$/.test(input))) {
+    const n = Number(input);
+    const d = new Date(n < 1e12 ? n * 1000 : n);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof input === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(input)) {
+    const [y, m, day] = input.split('-').map((v) => Number(v));
+    const d = new Date(y, (m || 1) - 1, day || 1);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const d = new Date(input);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function toLongDateTime(input) {
+  const d = toDateAny(input);
+  if (!d) return '—';
+  const datePart = toLongDate(d);
+  const h = d.getHours();
+  const m = d.getMinutes();
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  const timePart = `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  return `${datePart} ${timePart}`;
+}
+
 function calcAge(birthday) {
   if (!birthday) return '—';
   const d = new Date(birthday);
@@ -35,7 +100,13 @@ function toStatusLabel(s) {
 }
 
 export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', initialOverdue = false, initialAttention = false }) {
+  // Toggle whether proof is required to mark an appointment as Successful
+  const requireProofForSuccess = true;
   const [rows, setRows] = useState([]);
+  // Inline popup for alerts (replaces window.alert)
+  const [popup, setPopup] = useState({ open: false, title: '', message: '', type: 'info' });
+  const showPopup = ({ title = 'Notice', message = '', type = 'info' } = {}) => setPopup({ open: true, title, message, type });
+  const closePopup = () => setPopup((p) => ({ ...p, open: false }));
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalId, setModalId] = useState(null);
@@ -108,6 +179,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         const svcName = type === 'package'
           ? (pkgNameById[String(svcId)] || svcId || '—')
           : (singleNameById[String(svcId)] || svcId || '—');
+        const rawDate = r.DATE_OF_APPOINTMENT || '';
         return {
           id,
           patient: [r.FIRST_NAME, r.LAST_NAME].filter(Boolean).join(' ') || '—',
@@ -116,7 +188,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
           gender: r.GENDER || '—',
           type: type ? (type === 'package' ? 'Package' : 'Service') : '—',
           serviceName: svcName,
-          date: r.DATE_OF_APPOINTMENT || '—',
+          date: rawDate || '—',
+          dateDisplay: toLongDate(rawDate || ''),
           time: r.TIME_SLOT || '—',
           status: toStatusLabel(r.BOOKING_STATUS),
           raw: r,
@@ -259,7 +332,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       await appointmentsService.updateStatus(id, newStatus);
       setStatusLocal(id, 'Approved');
     } catch (e) {
-      alert('Failed to approve appointment');
+      showPopup({ title: 'Update failed', message: 'Failed to approve appointment.', type: 'error' });
     }
   };
 
@@ -269,7 +342,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       await appointmentsService.updateStatus(id, newStatus);
       setStatusLocal(id, 'Declined');
     } catch (e) {
-      alert('Failed to decline appointment');
+      showPopup({ title: 'Update failed', message: 'Failed to decline appointment.', type: 'error' });
     }
   };
 
@@ -279,7 +352,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       await appointmentsService.updateStatus(id, newStatus);
       setStatusLocal(id, 'Pending');
     } catch (e) {
-      alert('Failed to set status to pending');
+      showPopup({ title: 'Update failed', message: 'Failed to set status to pending.', type: 'error' });
     }
   };
 
@@ -291,7 +364,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       setRows((prev) => prev.filter((r) => r.id !== id));
       if (modalId === id) closeModal();
     } catch (e) {
-      alert('Failed to archive appointment');
+      showPopup({ title: 'Archive failed', message: 'Failed to archive appointment.', type: 'error' });
     }
   };
 
@@ -300,18 +373,32 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
     const desired = modalStatus || 'Pending';
     const map = { Approved: 'approved', Pending: 'pending', Declined: 'declined', Successful: 'successful' };
     const backend = map[desired] || 'pending';
+
+    // Guard rails: Successful requires Approved first, and optionally requires proof
+    if (desired === 'Successful') {
+      const isApproved = String(selected.status || '').toLowerCase() === 'approved';
+      const hasProof = !!(selected.raw?.PROOF || selected.raw?.proof);
+      if (!isApproved) {
+        alert('To mark as Successful, approve the appointment first.');
+        return;
+      }
+      if (requireProofForSuccess && !hasProof) {
+        alert('Please upload a proof image before marking this appointment as Successful.');
+        return;
+      }
+    }
     try {
       setModalSaving(true);
       await appointmentsService.updateStatus(selected.id, backend);
       setStatusLocal(selected.id, desired);
     } catch (e) {
-      alert('Failed to update status');
+      showPopup({ title: 'Update failed', message: 'Failed to update status.', type: 'error' });
     } finally {
       setModalSaving(false);
     }
   };
 
-  // Upload proof image and mark as Successful
+  // Upload proof image and optionally mark as Successful if already Approved
   const onUploadProof = async () => {
     if (!selected) return;
     if (!proofFile) {
@@ -336,21 +423,28 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       } else {
         throw new Error('appointmentsService.uploadProof is not implemented.');
       }
-
-      // Set status to successful
-      try {
-        await appointmentsService.updateStatus(selected.id, 'successful');
-      } catch (_) {
-        // best-effort; continue updating UI
-      }
-
-      // Update local state: proof and status
-      setRows(prev => prev.map(r => r.id === selected.id ? {
+      // Update local state: add proof
+      setRows(prev => prev.map(r => r.id === selected.id ? ({
         ...r,
-        status: 'Successful',
         raw: { ...r.raw, PROOF: proofUrl || r.raw?.PROOF }
-      } : r));
-      setModalStatus('Successful');
+      }) : r));
+
+      // If already approved and proof requirement is satisfied, auto-mark as Successful
+      const isApproved = String(selected.status || '').toLowerCase() === 'approved';
+      if (isApproved && (!requireProofForSuccess || proofUrl)) {
+        try {
+          await appointmentsService.updateStatus(selected.id, 'successful');
+          setRows(prev => prev.map(r => r.id === selected.id ? ({ ...r, status: 'Successful' }) : r));
+          setModalStatus('Successful');
+        } catch (_) {
+          // best-effort; leave as approved with proof
+        }
+      } else {
+        // Inform the admin next step if not approved yet
+        if (!isApproved) {
+          setProofError('Proof uploaded. Approve the appointment to mark as Successful.');
+        }
+      }
       setProofFile(null);
     } catch (e) {
       console.error(e);
@@ -501,7 +595,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               <th className={styles.colGender}>Gender</th>
               <th className={styles.colType}>Type</th>
               <th className={styles.colService}>Service</th>
-              <th className={styles.colDate}>Date & Time</th>
+              <th className={styles.colDate}>Date</th>
+              <th className={styles.colTime}>Time</th>
               <th className={styles.colStatus}>Status</th>
               <th className={styles.colActions}>Actions</th>
             </tr>
@@ -516,12 +611,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   <td className={styles.colGender}>{row.gender}</td>
                   <td className={styles.colType}>{row.type}</td>
                   <td className={`${styles.colService}`} title={row.serviceName}>{row.serviceName}</td>
-                  <td className={styles.colDate}>
-                    <div className={styles.dateTimeCell}>
-                      <span>{row.date}</span>
-                      <span className={styles.time}>{to12h(row.time)}</span>
-                    </div>
-                  </td>
+                  <td className={styles.colDate}>{row.dateDisplay || toLongDate(row.date)}</td>
+                  <td className={styles.colTime}>{to12h(row.time)}</td>
                   <td className={styles.colStatus}>
                     <span
                       className={`${styles.status} ${
@@ -592,7 +683,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
             <div className={styles.modalHeader}>
               <div className={styles.headerInfo}>
                 <h3 id="apptModalTitle" className={styles.modalTitle}>{selected.patient || 'Appointment Details'}</h3>
-                <div className={styles.headerSub}>{selected.serviceName} • {selected.date} • {to12h(selected.time)}</div>
+                <div className={styles.headerSub}>{selected.serviceName} • {selected.dateDisplay || toLongDate(selected.date) || toLongDate(selected.raw?.DATE_OF_APPOINTMENT)} • {to12h(selected.time)}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : selected.status === 'Successful' ? styles.successful : styles.pending}`}>{selected.status}</span>
@@ -622,12 +713,13 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               <div className={styles.detailSection}>
                 <div className={styles.detailTitle}>Appointment Info</div>
                 <div className={styles.detailGrid}>
-                  <div><span>Date & Time</span><strong>{selected.date} • {to12h(selected.time)}</strong></div>
+                  <div><span>Date</span><strong>{selected.dateDisplay || toLongDate(selected.date) || toLongDate(selected.raw?.DATE_OF_APPOINTMENT)}</strong></div>
+                  <div><span>Time</span><strong>{to12h(selected.time)}</strong></div>
                   <div><span>Status</span><strong>{selected.status}</strong></div>
                   <div><span>Chief Complaint</span><strong>{selected.raw.CHIEF_COMPLAINT || '—'}</strong></div>
                   <div className={styles.fullRow}><span>Special Instructions</span><strong>{selected.raw.SPECIAL_INSTRUCTIONS || '—'}</strong></div>
-                  <div><span>Created</span><strong>{selected.raw.CREATED_AT || '—'}</strong></div>
-                  <div><span>Updated</span><strong>{selected.raw.UPDATED_AT || '—'}</strong></div>
+                  <div><span>Created</span><strong title={String(selected.raw.CREATED_AT || '')}>{toLongDateTime(selected.raw.CREATED_AT)}</strong></div>
+                  <div><span>Updated</span><strong title={String(selected.raw.UPDATED_AT || '')}>{toLongDateTime(selected.raw.UPDATED_AT)}</strong></div>
                 </div>
               </div>
               <div className={styles.detailSection}>
@@ -697,6 +789,23 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               </button>
               <div style={{ flex: 1 }}></div>
               <button className={`${styles.btn} ${styles.btnDelete}`} onClick={() => onDelete(selected.id)}>Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {popup.open && (
+        <div className={styles.toastOverlay} role="dialog" aria-modal="true" aria-labelledby="toastTitle" onClick={(e)=>{ if (e.target === e.currentTarget) closePopup(); }}>
+          <div className={styles.toastCard}>
+            <div className={styles.toastHeader}>
+              <div className={styles.toastIcon} aria-hidden>
+                {popup.type === 'error' ? '!' : 'ℹ'}
+              </div>
+              <div className={styles.toastText}>
+                <div id="toastTitle" className={styles.toastTitle}>{popup.title || 'Notice'}</div>
+                {popup.message && (<div className={styles.toastMsg}>{popup.message}</div>)}
+              </div>
+              <button type="button" className={styles.toastClose} onClick={closePopup} title="Close">✕</button>
             </div>
           </div>
         </div>

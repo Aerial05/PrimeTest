@@ -312,7 +312,11 @@ export function BookAppointment() {
         try {
           const created = await appointmentsService.create(record);
           await appointmentsService.indexAppointmentBySlot(serviceId, slotDate, slotTime, created.id);
-          alert('Appointment booked and automatically approved. See you then!');
+          showModal({
+            type: 'success',
+            title: 'Appointment submitted',
+            message: "Your appointment request was received and is now pending admin approval. You'll get an email when it's approved.",
+          });
         } catch (err) {
           // Rollback reservation on failure
           await appointmentsService.releaseSlot(serviceId, slotDate, slotTime);

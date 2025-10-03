@@ -1,25 +1,24 @@
-<<<<<<< HEAD
 /*
- Cloud Functions to send email notifications on appointment creation.
- Uses SendGrid. Configure API key and sender in environment config:
-   firebase functions:config:set sendgrid.key="SG.xxxxxx" sendgrid.sender="no-reply@yourdomain.com" app.public_url="https://yourapp.web.app"
+ Cloud Functions to support emails:
+ 1) Enqueue a Firestore 'mail' document on appointment creation (Trigger Email extension sends the email).
+ 2) Optionally enqueue generic emails written under /emailQueue to Firestore 'mail' collection (for Trigger Email extension).
+
+ Configure via Firebase Functions config:
+   firebase functions:config:set sendgrid.key="SG.xxxxx" sendgrid.sender="no-reply@yourdomain.com" app.public_url="https://yourapp.web.app"
+ You may also set MAIL_COLLECTION via environment if using Trigger Email (defaults to 'mail').
 */
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
-const sgMail = require('@sendgrid/mail');
+// Using Firestore Trigger Email extension; no direct SMTP/SendGrid here.
 
 try {
   admin.initializeApp();
 } catch (_) {}
 
 const cfg = functions.config() || {};
-const sgKey = cfg.sendgrid && cfg.sendgrid.key ? cfg.sendgrid.key : null;
-const sender = cfg.sendgrid && cfg.sendgrid.sender ? cfg.sendgrid.sender : null;
 const appPublicUrl = (cfg.app && cfg.app.public_url) || '';
 
-if (sgKey) {
-  sgMail.setApiKey(sgKey);
-}
+const MAIL_COLLECTION = process.env.MAIL_COLLECTION || 'mail';
 
 function toTitle(s) {
   const v = String(s || '').trim();
@@ -42,7 +41,7 @@ function buildConfirmationHTML(rec) {
   const serviceType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
   const serviceName = rec.SERVICE_NAME || `Selected ${serviceType}`;
   const apptId = rec.APPT_ID || rec.id || '';
-  const status = toTitle(rec.BOOKING_STATUS || 'Approved');
+  const status = toTitle(rec.BOOKING_STATUS || 'Pending');
   const notes = rec.SPECIAL_INSTRUCTIONS || '';
   const complaint = rec.CHIEF_COMPLAINT || '';
   const ctaUrl = appPublicUrl || '';
@@ -59,15 +58,15 @@ function buildConfirmationHTML(rec) {
   </style></head>
   <body>
   <div class="card">
-    <h2>Appointment Confirmed</h2>
+  <h2>${status === 'Approved' ? 'Appointment Confirmed' : 'Appointment Request Received'}</h2>
     <p>Hello ${name || 'there'},</p>
-    <p>Your appointment has been booked and approved. Below are the details:</p>
+  <p>${status === 'Approved' ? 'Your appointment has been approved.' : 'We received your appointment request and will notify you upon approval.'} Below are the details:</p>
     <div class="row"><div class="label">Appointment ID</div><div class="val">${apptId}</div></div>
     <div class="row"><div class="label">Service</div><div class="val">${serviceName}</div></div>
     <div class="row"><div class="label">Type</div><div class="val">${serviceType}</div></div>
     <div class="row"><div class="label">Date</div><div class="val">${date}</div></div>
     <div class="row"><div class="label">Time</div><div class="val">${time}</div></div>
-    <div class="row"><div class="label">Status</div><div class="val">${status}</div></div>
+  <div class="row"><div class="label">Status</div><div class="val">${status}</div></div>
     ${complaint ? `<div class="row"><div class="label">Chief Complaint</div><div class="val">${complaint}</div></div>` : ''}
     ${notes ? `<div class="row"><div class="label">Special Instructions</div><div class="val">${notes}</div></div>` : ''}
     ${ctaUrl ? `<a class="cta" href="${ctaUrl}" target="_blank" rel="noopener">View your booking</a>` : ''}
@@ -76,12 +75,30 @@ function buildConfirmationHTML(rec) {
   </body></html>`;
 }
 
+// Helper: write a document for the Trigger Email extension
+async function enqueueTriggerEmail({ to, subject, html, text, cc, bcc, replyTo, template, data, source }) {
+  const mailDoc = {
+    to,
+    cc,
+    bcc,
+    replyTo,
+    template,
+    message: template ? undefined : { subject, ...(html ? { html } : { text: text || '' }) },
+    data,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    source,
+  };
+  Object.keys(mailDoc).forEach((k) => mailDoc[k] === undefined && delete mailDoc[k]);
+  const db = admin.firestore();
+  await db.collection(MAIL_COLLECTION).add(mailDoc);
+}
+
+// 1) Appointment create -> enqueue Trigger Email (request received or approved)
 exports.onAppointmentCreate = functions.database
   .ref('/appointments/{apptId}')
   .onCreate(async (snapshot, context) => {
     const apptId = context.params.apptId;
     const rec = snapshot.val() || {};
-    // Enrich record with id for template convenience
     rec.APPT_ID = rec.APPT_ID || apptId;
 
     const to = (rec.EMAIL || '').trim();
@@ -89,44 +106,45 @@ exports.onAppointmentCreate = functions.database
       console.log(`[onAppointmentCreate] No recipient email for ${apptId}`);
       return null;
     }
-    if (!sgKey || !sender) {
-      console.warn('[onAppointmentCreate] Missing SendGrid config; skipping email send');
-      return null;
-    }
-
-    const html = buildConfirmationHTML(rec);
-    const msg = {
-      to,
-      from: sender,
-      subject: `Your Appointment is Confirmed (${rec.DATE_OF_APPOINTMENT || ''} ${rec.TIME_SLOT || ''})`,
-      html,
-    };
+    const html = buildConfirmationHTML({ ...rec, BOOKING_STATUS: (rec.BOOKING_STATUS || 'pending') });
+    const subject = `${(rec.BOOKING_STATUS || 'pending') === 'approved' ? 'Appointment Confirmed' : 'Appointment Request Received'} (${rec.DATE_OF_APPOINTMENT || ''} ${rec.TIME_SLOT || ''})`;
     try {
-      await sgMail.send(msg);
-      console.log(`[onAppointmentCreate] Email sent to ${to} for ${apptId}`);
+      await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentCreate' });
+      console.log(`[onAppointmentCreate] Enqueued mail for ${to} ${apptId}`);
     } catch (err) {
-      console.error('[onAppointmentCreate] Send email failed', err);
+      console.error('[onAppointmentCreate] Enqueue mail failed', err);
     }
-=======
-const functions = require('firebase-functions');
-const admin = require('firebase-admin');
+    return null;
+  });
 
-admin.initializeApp();
+// Send approval email when status transitions to approved (enqueue for Trigger Email)
+exports.onAppointmentStatusUpdate = functions.database
+  .ref('/appointments/{apptId}/BOOKING_STATUS')
+  .onUpdate(async (change, context) => {
+    const before = (change.before.val() || '').toString().toLowerCase();
+    const after = (change.after.val() || '').toString().toLowerCase();
+    if (before === after || after !== 'approved') return null;
+    const apptId = context.params.apptId;
+    const snap = await admin.database().ref(`/appointments/${apptId}`).get();
+    if (!snap.exists()) return null;
+    const rec = snap.val() || {};
+    const to = (rec.EMAIL || '').trim();
+    if (!to) return null;
+    rec.BOOKING_STATUS = 'approved';
+    const html = buildConfirmationHTML(rec);
+    const subject = `Appointment Confirmed (${rec.DATE_OF_APPOINTMENT || ''} ${rec.TIME_SLOT || ''})`;
+    try { await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentStatusUpdate' }); }
+    catch (e) { console.error('Approval email enqueue failed', e); }
+    return null;
+  });
 
-// Configuration: Firestore collection that the Trigger Email extension listens to
-// By default the extension uses collection "mail" with documents containing fields:
-// to, message: { subject, text or html }
-const MAIL_COLLECTION = process.env.MAIL_COLLECTION || 'mail';
-
-// Example: mirror new Realtime Database entries under /emailQueue into Firestore "mail" collection
-// Shape expected in RTDB: { to: string | string[], subject: string, text?: string, html?: string, cc?, bcc?, template?, data? }
+// 2) RTDB -> Firestore mail enqueue for Trigger Email extension
 exports.enqueueEmailOnRtdbWrite = functions.database
   .ref('/emailQueue/{pushId}')
-  .onCreate(async (snapshot, context) => {
+  .onCreate(async (snapshot, _context) => {
     const payload = snapshot.val();
     if (!payload) return null;
 
-    // Basic validation
     const to = payload.to;
     const subject = payload.subject;
     const { text, html, cc, bcc, replyTo, template, data } = payload;
@@ -141,29 +159,24 @@ exports.enqueueEmailOnRtdbWrite = functions.database
       cc,
       bcc,
       replyTo,
-      template, // If using Email Templates extension + Trigger Email
-      // If using Trigger Email without templates, put content under message
+      template,
       message: template
         ? undefined
         : {
             subject,
             ...(html ? { html } : { text: text || '' }),
           },
-      data, // Variables for templates if used
+      data,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       source: 'rtdb-enqueueEmailOnRtdbWrite',
       _rtdbRef: snapshot.ref.toString(),
     };
 
-    // Remove undefined keys
     Object.keys(mailDoc).forEach((k) => mailDoc[k] === undefined && delete mailDoc[k]);
 
     const db = admin.firestore();
     await db.collection(MAIL_COLLECTION).add(mailDoc);
 
-    // Optionally, mark RTDB node as processed or delete it to avoid reprocessing
     await snapshot.ref.update({ processedAt: admin.database.ServerValue.TIMESTAMP });
-
->>>>>>> backup/book-appointment-slots-and-birthday
     return null;
   });

@@ -35,8 +35,8 @@ class AppointmentsService extends BaseFirebaseService {
       SLOT_CAPACITY_REF: ui.SLOT_CAPACITY_REF || '',
       CHIEF_COMPLAINT: ui.CHIEF_COMPLAINT || '',
       SPECIAL_INSTRUCTIONS: ui.SPECIAL_INSTRUCTIONS || '',
-  // Auto-approve new appointments by default (temporary policy)
-  BOOKING_STATUS: ui.BOOKING_STATUS || 'approved',
+  // Default all new appointments to pending; admins will approve manually.
+  BOOKING_STATUS: ui.BOOKING_STATUS || 'pending',
       CREATED_AT: ui.CREATED_AT || now,
       UPDATED_AT: ui.UPDATED_AT || now,
     };
