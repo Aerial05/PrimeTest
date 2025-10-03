@@ -108,10 +108,21 @@ export function AdminHeaderInfoBar({
         let overdue = 0;
         let cancelled = 0;
 
+        const parseTimeSlot = (raw) => {
+          if (!raw) return null;
+          const parts = String(raw).trim().split(':');
+            if (parts.length < 2) return null;
+            const h = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) || 0;
+            if (Number.isNaN(h) || h < 0 || h > 23) return null;
+            if (Number.isNaN(m) || m < 0 || m > 59) return null;
+            return { h, m };
+        };
+
         for (const appt of rows) {
           const status = normalizeStatus(appt.BOOKING_STATUS);
           const appointmentDate = parseAppointmentDate(appt.DATE_OF_APPOINTMENT);
-          const isScheduled = status === 'pending' || status === 'approved';
+          const timeSlot = parseTimeSlot(appt.TIME_SLOT || appt.TIME || appt.TIME_SLOT_24H); // attempt multiple fields
           const isCancelled =
             status === 'cancelled' ||
             status === 'canceled' ||
@@ -119,15 +130,42 @@ export function AdminHeaderInfoBar({
             status === 'rejected' ||
             status === 'no-show' ||
             status === 'noshow';
+          const isSuccessful = status === 'successful' || status === 'success' || status === 'successfull';
+          const isScheduled = (status === 'pending' || status === 'approved' || isSuccessful) && !isCancelled;
 
           if (status === 'pending') pending += 1;
           if (isCancelled) cancelled += 1;
 
           if (!appointmentDate || !isScheduled) continue;
 
+          // Build full DateTime for comparison (default to end of day if missing time)
+          let apptDateTime;
+          if (timeSlot) {
+            apptDateTime = new Date(
+              appointmentDate.getFullYear(),
+              appointmentDate.getMonth(),
+              appointmentDate.getDate(),
+              timeSlot.h,
+              timeSlot.m,
+              0,
+              0
+            );
+          } else {
+            apptDateTime = new Date(
+              appointmentDate.getFullYear(),
+              appointmentDate.getMonth(),
+              appointmentDate.getDate(),
+              23, 59, 59, 999
+            );
+          }
+
           if (appointmentDate >= startOfToday && appointmentDate <= upcomingEnd) upcoming += 1;
           if (appointmentDate >= startOfToday && appointmentDate <= endOfToday) today += 1;
-          if (appointmentDate < startOfToday) overdue += 1;
+
+            // Overdue: past the scheduled date & time and not successful & not cancelled
+          if (apptDateTime < now && !isSuccessful && !isCancelled) {
+            overdue += 1;
+          }
         }
 
         setAuto({ pending, upcoming, today, overdue, cancelled });
@@ -166,7 +204,7 @@ export function AdminHeaderInfoBar({
   const todayVal = pickCount(todayCount, auto.today);
   const overdueVal = pickCount(overdueCount, auto.overdue);
   const cancelledVal = pickCount(cancelledCount, auto.cancelled);
-  const alertsVal = pickCount(notificationsCount, pendingVal + overdueVal + cancelledVal);
+  const alertsVal = pickCount(notificationsCount, pendingVal + overdueVal);
 
   const items = useMemo(() => [
     {
@@ -204,11 +242,11 @@ export function AdminHeaderInfoBar({
     {
       key: 'attention',
       label: 'Needs Attention',
-      title: `Pending ${formatCount(pendingVal)} | Overdue ${formatCount(overdueVal)} | Cancelled ${formatCount(cancelledVal)}`,
+      title: `Pending ${formatCount(pendingVal)} | Overdue ${formatCount(overdueVal)}`,
       value: alertsVal,
       icon: BellRing,
       accent: '#dc2626',
-      inlineMeta: `Pending ${formatCount(pendingVal)} • Overdue ${formatCount(overdueVal)} • Cancelled ${formatCount(cancelledVal)}`,
+      inlineMeta: `Pending ${formatCount(pendingVal)} • Overdue ${formatCount(overdueVal)}`,
     },
   ], [alertsVal, cancelledVal, overdueVal, pendingVal, todayVal, upcomingVal]);
 
@@ -232,13 +270,16 @@ export function AdminHeaderInfoBar({
         navigate(`/appointment-management?from=${today}&to=${today}`);
         break;
       case 'upcoming':
-        navigate(`/appointment-management?from=${today}&to=${in7}`);
+        // Use new preset range for Next 7 days
+        navigate(`/appointment-management?range=next7`);
         break;
       case 'overdue':
-        navigate(`/appointment-management?to=${yesterday}&status=pending`);
+        // Go to appointment management focused on overdue (client-side filter will exclude successful/cancelled)
+        navigate(`/appointment-management?overdue=1`);
         break;
       case 'attention':
-        navigate(`/appointment-management?status=pending&to=${yesterday}`);
+        // Navigate with attention flag so the table shows Pending OR Overdue
+        navigate(`/appointment-management?attention=1`);
         break;
       default:
         navigate('/admin-dashboard');

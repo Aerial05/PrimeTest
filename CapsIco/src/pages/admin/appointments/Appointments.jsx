@@ -29,12 +29,24 @@ export function Appointments() {
       return [from, to];
     } catch(_) { return ['', '']; }
   }, [location.search]);
+  const overdueFlag = useMemo(()=>{
+    try {
+      const params = new URLSearchParams(location.search || '');
+      return params.get('overdue') === '1';
+    } catch(_) { return false; }
+  }, [location.search]);
+  const attentionFlag = useMemo(()=>{
+    try {
+      const params = new URLSearchParams(location.search || '');
+      return params.get('attention') === '1';
+    } catch(_) { return false; }
+  }, [location.search]);
 
   // Broadcast initial date filters to the AppointmentsTable via custom event
   useEffect(() => {
-    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo } });
+    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo, overdue: overdueFlag, attention: attentionFlag } });
     window.dispatchEvent(ev);
-  }, [initialDateFrom, initialDateTo]);
+  }, [initialDateFrom, initialDateTo, overdueFlag, attentionFlag]);
   return (
     <main className={styles.main}>
       <div className={styles.card}>
@@ -46,7 +58,12 @@ export function Appointments() {
             </button>
           </div>
         </div>
-        <AppointmentsTable refreshKey={refreshTick} initialFilterStatus={initialFilterStatus} />
+  <AppointmentsTable
+    refreshKey={refreshTick}
+    initialFilterStatus={initialFilterStatus}
+    initialOverdue={overdueFlag}
+    initialAttention={attentionFlag}
+  />
       </div>
     </main>
   );

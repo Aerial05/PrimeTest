@@ -3,6 +3,7 @@ import styles from './AppointmentsTable.module.css';
 import appointmentsService from '@/services/AppointmentsService';
 import servicePackagesService from '@/services/ServicePackagesService';
 import singleServicesService from '@/services/SingleServicesService';
+import { useLocation } from 'react-router-dom';
 
 function to12h(hhmm) {
   if (!hhmm) return '—';
@@ -33,7 +34,7 @@ function toStatusLabel(s) {
   return 'Pending';
 }
 
-export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) {
+export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', initialOverdue = false, initialAttention = false }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -49,7 +50,12 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
   const [filterType, setFilterType] = useState(''); // '', Service, Package
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [datePreset, setDatePreset] = useState(''); // '', next7, thismonth
+  const [filterOverdue, setFilterOverdue] = useState(initialOverdue);
+  const [filterAttention, setFilterAttention] = useState(initialAttention);
   const [didApplyInitialDates, setDidApplyInitialDates] = useState(false);
+  const [didApplyFromQuery, setDidApplyFromQuery] = useState(false);
+  const location = useLocation();
   // Insert Proof state
   const [proofFile, setProofFile] = useState(null);
   const [proofUploading, setProofUploading] = useState(false);
@@ -142,17 +148,107 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
   // Apply initial date filters passed via a window event
   useEffect(() => {
     const onInitDates = (e) => {
-      if (didApplyInitialDates) return;
+      if (didApplyInitialDates || didApplyFromQuery) return;
       try {
-        const { from, to } = e.detail || {};
+        const { from, to, overdue, attention } = e.detail || {};
         if (from) setDateFrom(from);
         if (to) setDateTo(to);
+        if (overdue === true) setFilterOverdue(true);
+        if (attention === true) setFilterAttention(true);
         setDidApplyInitialDates(true);
       } catch(_){ /* ignore */ }
     };
     window.addEventListener('appointments:set-initial-dates', onInitDates);
     return () => window.removeEventListener('appointments:set-initial-dates', onInitDates);
-  }, [didApplyInitialDates]);
+  }, [didApplyInitialDates, didApplyFromQuery]);
+
+  // Derive overdue status for each row
+  const isRowOverdue = (r) => {
+    const status = String(r.status || '').toLowerCase();
+    if (['successful','success','successfull'].includes(status)) return false;
+    if (['declined','cancelled','canceled','rejected','no-show','noshow'].includes(status)) return false;
+    if (!r.date) return false;
+    const d = new Date(r.date);
+    if (Number.isNaN(d.getTime())) return false;
+    // Build full datetime using time (24h) or fallback end-of-day
+    let dt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23,59,59,999);
+    if (r.time && /\d{1,2}:\d{2}/.test(r.time)) {
+      const [hS, mS] = r.time.split(':');
+      const h = parseInt(hS,10); const m = parseInt(mS,10) || 0;
+      if (!Number.isNaN(h) && h>=0 && h<=23 && !Number.isNaN(m) && m>=0 && m<=59) {
+        dt = new Date(d.getFullYear(), d.getMonth(), d.getDate(), h, m, 0, 0);
+      }
+    }
+    return dt.getTime() < Date.now();
+  };
+
+  const isRowAttention = (r) => {
+    // Attention = Pending OR Overdue
+    const status = String(r.status || '').toLowerCase();
+    if (status === 'pending') return true;
+    return isRowOverdue(r);
+  };
+
+  // Helper to format a Date as yyyy-mm-dd
+  const fmt = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Apply date preset to dateFrom/dateTo
+  useEffect(() => {
+    if (!datePreset) return;
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (datePreset === 'next7') {
+      const to = new Date(startOfToday);
+      to.setDate(to.getDate() + 7); // inclusive of next 7 days window
+      setDateFrom(fmt(startOfToday));
+      setDateTo(fmt(to));
+    } else if (datePreset === 'thismonth') {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1);
+      const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+      const from = startOfToday > first ? startOfToday : first; // upcoming within this month
+      setDateFrom(fmt(from));
+      setDateTo(fmt(last));
+    }
+  }, [datePreset]);
+
+  // Parse URL query parameters to set filters and date presets
+  useEffect(() => {
+    const qs = new URLSearchParams(location.search || '');
+    let applied = false;
+    // status
+    const qStatus = (qs.get('status') || '').toLowerCase();
+    if (qStatus) {
+      const map = { approved: 'Approved', pending: 'Pending', declined: 'Declined', successful: 'Successful' };
+      const statusVal = map[qStatus] || '';
+      if (statusVal) {
+        setFilterStatus(statusVal);
+        applied = true;
+      }
+    }
+    // range preset
+    const qRange = (qs.get('range') || '').toLowerCase();
+    if (qRange === 'next7' || qRange === 'thismonth') {
+      setDatePreset(qRange);
+      applied = true;
+    } else {
+      // explicit dates
+      const from = qs.get('from');
+      const to = qs.get('to');
+      if (from || to) {
+        setDatePreset('');
+        if (from) setDateFrom(from);
+        if (to) setDateTo(to);
+        applied = true;
+      }
+    }
+    if (applied) setDidApplyFromQuery(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.search]);
 
   const setStatusLocal = (id, status) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -279,6 +375,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
     return rows.filter(r => {
       if (filterStatus && r.status !== filterStatus) return false;
       if (filterType && r.type !== filterType) return false;
+      if (filterOverdue && !isRowOverdue(r)) return false;
+      if (filterAttention && !isRowAttention(r)) return false;
       if (s) {
         const hay = `${r.patient} ${r.email} ${r.serviceName} ${r.type} ${r.status}`.toLowerCase();
         if (!hay.includes(s)) return false;
@@ -296,12 +394,12 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
       }
       return true;
     });
-  }, [rows, search, filterStatus, filterType, dateFrom, dateTo]);
+  }, [rows, search, filterStatus, filterType, dateFrom, dateTo, filterOverdue, filterAttention]);
 
   // Clamp/reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [search, filterStatus, filterType, dateFrom, dateTo]);
+  }, [search, filterStatus, filterType, dateFrom, dateTo, filterOverdue, filterAttention]);
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(filteredRows.length / pageSize)), [filteredRows.length]);
   useEffect(() => {
@@ -313,7 +411,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
   const pageRows = useMemo(() => filteredRows.slice(pageStart, pageEnd), [filteredRows, pageStart, pageEnd]);
 
   const clearFilters = () => {
-    setSearch(''); setFilterStatus(''); setFilterType(''); setDateFrom(''); setDateTo('');
+    setSearch(''); setFilterStatus(''); setFilterType(''); setDateFrom(''); setDateTo(''); setDatePreset(''); setFilterOverdue(false); setFilterAttention(false);
   };
 
   return (
@@ -333,23 +431,53 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
             <option value="Declined">Declined</option>
             <option value="Successful">Successful</option>
           </select>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={filterOverdue}
+              onChange={(e)=> setFilterOverdue(e.target.checked)}
+              title="Show only overdue appointments"
+            /> Overdue Only
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600 }}>
+            <input
+              type="checkbox"
+              checked={filterAttention}
+              onChange={(e)=> setFilterAttention(e.target.checked)}
+              title="Show pending or overdue"
+            /> Needs Attention
+          </label>
           <select className={styles.select} value={filterType} onChange={(e)=>setFilterType(e.target.value)}>
             <option value="">All Types</option>
             <option value="Service">Service</option>
             <option value="Package">Package</option>
           </select>
+          <select
+            className={styles.select}
+            value={datePreset}
+            onChange={(e)=>{
+              const v = e.target.value;
+              setDatePreset(v);
+              if (!v) { /* manual control */ return; }
+            }}
+            title="Quick date filters"
+          >
+            <option value="">Custom dates</option>
+            <option value="next7">Next 7 days</option>
+            <option value="thismonth">This month (upcoming)</option>
+          </select>
           <input
             type="date"
             className={styles.input}
             value={dateFrom}
-            onChange={(e)=>setDateFrom(e.target.value)}
+            onChange={(e)=>{ setDateFrom(e.target.value); setDatePreset(''); }}
             placeholder="From"
           />
           <input
             type="date"
             className={styles.input}
             value={dateTo}
-            onChange={(e)=>setDateTo(e.target.value)}
+            onChange={(e)=>{ setDateTo(e.target.value); setDatePreset(''); }}
             placeholder="To"
           />
           <button className={`${styles.btn} ${styles.btnLight}`} onClick={clearFilters}>Reset</button>
@@ -402,7 +530,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
                           : row.status === 'Declined'
                           ? styles.declined
                           : row.status === 'Successful'
-                          ? styles.approved
+                          ? styles.successful
                           : styles.pending
                       }`}
                     >
@@ -467,7 +595,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
                 <div className={styles.headerSub}>{selected.serviceName} • {selected.date} • {to12h(selected.time)}</div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : selected.status === 'Successful' ? styles.approved : styles.pending}`}>{selected.status}</span>
+                <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : selected.status === 'Successful' ? styles.successful : styles.pending}`}>{selected.status}</span>
                 <button className={`${styles.btn} ${styles.btnDecline}`} onClick={closeModal} title="Close">✕</button>
               </div>
             </div>

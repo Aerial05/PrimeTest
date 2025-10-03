@@ -18,6 +18,13 @@ export function AdminDashboard() {
 
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewHTML, setPreviewHTML] = useState('');
+  const [activityOpen, setActivityOpen] = useState(false);
+  // Logs are now shown on a dedicated page
+
+  // Re-scan icons when modals/buttons change
+  useEffect(() => {
+    try { createIcons({ icons }); } catch {}
+  }, [previewOpen, activityOpen]);
 
 
   return (
@@ -58,14 +65,45 @@ export function AdminDashboard() {
             <i data-lucide="file-text" aria-hidden="true"></i>
             <span>Generate Report</span>
           </button>
+          <button
+            type="button"
+            className={styles.primaryBtn}
+            onClick={() => setActivityOpen(true)}
+            title="View recent activity"
+            aria-label="View recent activity"
+          >
+            <i data-lucide="list" aria-hidden="true"></i>
+            <span>Recent Activity</span>
+          </button>
         </div>
         <StatsOverview />
         <ChartsSection />
-        <RecentActivity />
+  {/* RecentActivity moved into a large popup */}
       </main>
       {previewOpen && (
         <ReportPreviewModal html={previewHTML} onClose={() => setPreviewOpen(false)} />
       )}
+      {activityOpen && (
+        <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Recent Activity">
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <div className={styles.modalTitle}>Recent Activity</div>
+              <button
+                className={styles.closeBtn}
+                onClick={() => setActivityOpen(false)}
+                title="Close"
+                aria-label="Close"
+              >
+                <i data-lucide="x" aria-hidden="true"></i>
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              <RecentActivity />
+            </div>
+          </div>
+        </div>
+      )}
+
     </>
   );
 }
