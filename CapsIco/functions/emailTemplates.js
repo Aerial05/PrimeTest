@@ -62,7 +62,7 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
   const date = formatEmailDate(rec.DATE_OF_APPOINTMENT || '');
   const time = formatTimeLabel(rec.TIME_SLOT || '');
   const serviceType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
-  const serviceName = rec.SERVICE_NAME || rec.SERVICE || rec.PACKAGE_NAME || rec.NAME || `Selected ${serviceType}`;
+  const serviceName = rec.SERVICE_NAME || rec.serviceName || rec.SERVICE || rec.PACKAGE_NAME || rec.NAME || `Selected ${serviceType}`;
   const apptId = rec.APPT_ID || rec.id || '';
   const statusTitle = toTitle(rec.BOOKING_STATUS || 'Pending');
   const notes = rec.SPECIAL_INSTRUCTIONS || '';

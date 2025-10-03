@@ -41,7 +41,7 @@ async function resolveServiceName(rec) {
       const byKey = await db.ref(`/servicePackages/${svcId}`).get();
       if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
       // Try query by known id fields
-      const tryFields = ['SERVICE_PACKGE_ID', 'SERVICE_PACKAGE_ID'];
+      const tryFields = ['SERVICE_PACKGE_ID', 'SERVICE_PACKAGE_ID', 'Service_Package_ID', 'ID', 'id', 'SERVICEPACKAGEID'];
       for (const field of tryFields) {
         const snap = await db.ref('/servicePackages').orderByChild(field).equalTo(svcId).get();
         if (snap.exists()) {
@@ -53,15 +53,18 @@ async function resolveServiceName(rec) {
     } else { // service
       const byKey = await db.ref(`/singleServices/${svcId}`).get();
       if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
-      const snap = await db.ref('/singleServices').orderByChild('SERVICE_ID').equalTo(svcId).get();
-      if (snap.exists()) {
-        const obj = snap.val() || {};
-        const first = Object.values(obj)[0];
-        if (first && first.NAME) return first.NAME;
+      const fields = ['SERVICE_ID', 'Service_ID', 'ID', 'id', 'SERVICEID'];
+      for (const f of fields) {
+        const snap = await db.ref('/singleServices').orderByChild(f).equalTo(svcId).get();
+        if (snap.exists()) {
+          const obj = snap.val() || {};
+          const first = Object.values(obj)[0];
+          if (first && first.NAME) return first.NAME;
+        }
       }
     }
   } catch (e) {
-    console.warn('[resolveServiceName] failed', e);
+    console.warn('[resolveServiceName] failed', { err: e && e.message, SERVICE_ID: rec && rec.SERVICE_ID, SERVICE_TYPE: rec && rec.SERVICE_TYPE });
   }
   return null;
 }
@@ -206,7 +209,13 @@ exports.enqueueEmailOnRtdbWrite = r.database
 exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
   try {
     const apptId = data && data.apptId;
-    const overrideStatus = data && data.status;
+  const overrideStatus = data && data.status;
+  const frontRecord = (data && (data.record || data.appointment)) || null;
+    const overrideServiceName = (data && data.serviceName) || '';
+    const overrideServiceType = (data && data.serviceType) || '';
+    const overrideDate = (data && data.date) || '';
+    const overrideTime = (data && data.time) || '';
+    const overrideServiceId = (data && data.serviceId) || '';
     if (!apptId) {
       throw new functions.https.HttpsError('invalid-argument', 'Missing apptId');
     }
@@ -220,6 +229,16 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
       throw new functions.https.HttpsError('failed-precondition', 'Appointment has no recipient email');
     }
     const payload = { ...rec };
+    // Merge full record from frontend if provided (admin UI is treated as trusted)
+    if (frontRecord && typeof frontRecord === 'object') {
+      Object.assign(payload, frontRecord);
+    }
+    // Apply overrides from client (trusted admin UI)
+    if (overrideServiceName) payload.SERVICE_NAME = String(overrideServiceName);
+    if (overrideServiceType) payload.SERVICE_TYPE = String(overrideServiceType).toLowerCase();
+    if (overrideDate) payload.DATE_OF_APPOINTMENT = String(overrideDate);
+    if (overrideTime) payload.TIME_SLOT = String(overrideTime);
+    if (overrideServiceId) payload.SERVICE_ID = String(overrideServiceId);
     if (overrideStatus) payload.BOOKING_STATUS = String(overrideStatus).toLowerCase();
     // Ensure SERVICE_NAME is populated
     if (!payload.SERVICE_NAME) {
@@ -228,6 +247,22 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
         payload.SERVICE_NAME = resolved;
         try { await admin.database().ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
       }
+    }
+    // Best-effort persist overrides back to DB for future sends
+    const toPersist = {};
+    if (overrideServiceName) toPersist.SERVICE_NAME = String(overrideServiceName);
+    if (overrideServiceType) toPersist.SERVICE_TYPE = String(overrideServiceType).toLowerCase();
+    if (overrideDate) toPersist.DATE_OF_APPOINTMENT = String(overrideDate);
+    if (overrideTime) toPersist.TIME_SLOT = String(overrideTime);
+    if (overrideServiceId) toPersist.SERVICE_ID = String(overrideServiceId);
+    // Persist key fields from frontend record as well
+    if (frontRecord && typeof frontRecord === 'object') {
+      ['SERVICE_NAME','SERVICE_TYPE','SERVICE_ID','DATE_OF_APPOINTMENT','TIME_SLOT'].forEach((k)=>{
+        if (frontRecord[k]) toPersist[k] = frontRecord[k];
+      });
+    }
+    if (Object.keys(toPersist).length) {
+      try { await admin.database().ref(`/appointments/${apptId}`).update(toPersist); } catch (_) {}
     }
     // Build and enqueue email
     const html = buildAppointmentEmailHTML(

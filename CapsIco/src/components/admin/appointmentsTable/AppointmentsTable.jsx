@@ -395,7 +395,15 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       // If approved or successful, try to send an email now via callable
       if (backend === 'approved' || backend === 'successful') {
         try {
-          const res = await sendAppointmentEmailCallable({ apptId: selected.id, status: backend });
+          const res = await sendAppointmentEmailCallable({
+            apptId: selected.id,
+            status: backend,
+            serviceName: selected.serviceName,
+            serviceType: selected.type, // 'Service' | 'Package'
+            date: selected.date || selected.raw?.DATE_OF_APPOINTMENT,
+            time: selected.time || selected.raw?.TIME_SLOT,
+            serviceId: selected.raw?.SERVICE_ID,
+          });
           if (res && res.ok) {
             showPopup({ title: 'Email sent', message: 'A confirmation email was sent to the user.', type: 'info' });
           }
