@@ -21,10 +21,50 @@ try {
 
 const cfg = functions.config() || {};
 const appPublicUrl = (cfg.app && cfg.app.public_url) || '';
+const appBrandName = (cfg.app && cfg.app.brand_name) || 'Prime Medical Laboratory';
+const appLogoUrl = (cfg.app && cfg.app.logo_url) || '';
 
 const MAIL_COLLECTION = process.env.MAIL_COLLECTION || 'mail';
 // Deploy functions in asia-east2
 const r = functions.region('asia-east2');
+
+// Helper: resolve service name from RTDB based on SERVICE_TYPE and SERVICE_ID
+async function resolveServiceName(rec) {
+  try {
+    const db = admin.database();
+    const svcId = String(rec.SERVICE_ID || '').trim();
+    const type = String(rec.SERVICE_TYPE || '').toLowerCase();
+    if (!svcId) return null;
+
+    // Try direct doc lookup by key first (fast path)
+    if (type === 'package') {
+      const byKey = await db.ref(`/servicePackages/${svcId}`).get();
+      if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
+      // Try query by known id fields
+      const tryFields = ['SERVICE_PACKGE_ID', 'SERVICE_PACKAGE_ID'];
+      for (const field of tryFields) {
+        const snap = await db.ref('/servicePackages').orderByChild(field).equalTo(svcId).get();
+        if (snap.exists()) {
+          const obj = snap.val() || {};
+          const first = Object.values(obj)[0];
+          if (first && first.NAME) return first.NAME;
+        }
+      }
+    } else { // service
+      const byKey = await db.ref(`/singleServices/${svcId}`).get();
+      if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
+      const snap = await db.ref('/singleServices').orderByChild('SERVICE_ID').equalTo(svcId).get();
+      if (snap.exists()) {
+        const obj = snap.val() || {};
+        const first = Object.values(obj)[0];
+        if (first && first.NAME) return first.NAME;
+      }
+    }
+  } catch (e) {
+    console.warn('[resolveServiceName] failed', e);
+  }
+  return null;
+}
 
 // Email template helpers moved to emailTemplates.js
 
@@ -54,12 +94,25 @@ exports.onAppointmentCreate = r.database
     const rec = snapshot.val() || {};
     rec.APPT_ID = rec.APPT_ID || apptId;
 
+    // Ensure SERVICE_NAME is populated for emails
+    if (!rec.SERVICE_NAME) {
+      const resolved = await resolveServiceName(rec);
+      if (resolved) {
+        rec.SERVICE_NAME = resolved;
+        // best-effort write back so future emails have it ready
+        try { await admin.database().ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
+      }
+    }
+
     const to = (rec.EMAIL || '').trim();
     if (!to) {
       console.log(`[onAppointmentCreate] No recipient email for ${apptId}`);
       return null;
     }
-  const html = buildAppointmentEmailHTML({ ...rec, BOOKING_STATUS: (rec.BOOKING_STATUS || 'pending') }, { appPublicUrl });
+    const html = buildAppointmentEmailHTML(
+      { ...rec, BOOKING_STATUS: (rec.BOOKING_STATUS || 'pending') },
+      { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl }
+    );
   const subject = buildStatusSubject({ ...rec, BOOKING_STATUS: rec.BOOKING_STATUS || 'pending' });
     try {
       await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentCreate' });
@@ -81,12 +134,20 @@ exports.onAppointmentStatusUpdate = r.database
     const snap = await admin.database().ref(`/appointments/${apptId}`).get();
     if (!snap.exists()) return null;
     const rec = snap.val() || {};
+    // Ensure SERVICE_NAME is populated for emails
+    if (!rec.SERVICE_NAME) {
+      const resolved = await resolveServiceName(rec);
+      if (resolved) {
+        rec.SERVICE_NAME = resolved;
+        try { await admin.database().ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
+      }
+    }
     // Skip if we already sent the approved email
     if (rec.EMAIL_SENT_APPROVED === true) return null;
     const to = (rec.EMAIL || '').trim();
     if (!to) return null;
   rec.BOOKING_STATUS = 'approved';
-  const html = buildAppointmentEmailHTML(rec, { appPublicUrl });
+  const html = buildAppointmentEmailHTML(rec, { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl });
   const subject = buildStatusSubject(rec);
     try {
       await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentStatusUpdate' });
@@ -160,8 +221,19 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     }
     const payload = { ...rec };
     if (overrideStatus) payload.BOOKING_STATUS = String(overrideStatus).toLowerCase();
+    // Ensure SERVICE_NAME is populated
+    if (!payload.SERVICE_NAME) {
+      const resolved = await resolveServiceName(payload);
+      if (resolved) {
+        payload.SERVICE_NAME = resolved;
+        try { await admin.database().ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
+      }
+    }
     // Build and enqueue email
-    const html = buildAppointmentEmailHTML({ ...payload, APPT_ID: rec.APPT_ID || apptId }, { appPublicUrl });
+    const html = buildAppointmentEmailHTML(
+      { ...payload, APPT_ID: rec.APPT_ID || apptId },
+      { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl }
+    );
     const subject = buildStatusSubject(payload);
     await enqueueTriggerEmail({ to, subject, html, source: 'callable-sendAppointmentEmail' });
     // Mark flags by status to prevent the RTDB status trigger from double-sending
