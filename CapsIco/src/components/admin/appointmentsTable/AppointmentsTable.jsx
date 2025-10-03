@@ -49,6 +49,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
   const [filterType, setFilterType] = useState(''); // '', Service, Package
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [didApplyInitialDates, setDidApplyInitialDates] = useState(false);
   // Insert Proof state
   const [proofFile, setProofFile] = useState(null);
   const [proofUploading, setProofUploading] = useState(false);
@@ -137,6 +138,21 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '' }) 
     // do not add filterStatus to deps to avoid loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialFilterStatus]);
+
+  // Apply initial date filters passed via a window event
+  useEffect(() => {
+    const onInitDates = (e) => {
+      if (didApplyInitialDates) return;
+      try {
+        const { from, to } = e.detail || {};
+        if (from) setDateFrom(from);
+        if (to) setDateTo(to);
+        setDidApplyInitialDates(true);
+      } catch(_){ /* ignore */ }
+    };
+    window.addEventListener('appointments:set-initial-dates', onInitDates);
+    return () => window.removeEventListener('appointments:set-initial-dates', onInitDates);
+  }, [didApplyInitialDates]);
 
   const setStatusLocal = (id, status) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));

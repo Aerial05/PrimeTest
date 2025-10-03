@@ -30,7 +30,7 @@
 
   --header-container-max-width: 1200px;
   --header-padding-inline: clamp(1rem, 2vw + 0.75rem, 2.5rem);
-  --header-info-height: 52px;
+  --header-info-height: 56px;
   --header-info-padding-block: 0.45rem;
   --nav-height: 72px;
   --nav-padding-block: 0.85rem;
@@ -40,6 +40,8 @@
   --pill-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
   --nav-highlight: linear-gradient(135deg, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
   --nav-active-ring: rgba(255,255,255,0.65);
+  /* small visual buffer between admin info bar and navbar */
+  --header-stack-gap: 6px;
 
 
 
@@ -56,6 +58,10 @@
 
   /* Admin header stacking */
   --admin-info-height: var(--header-info-height);
+}
+
+@media (min-width: 1024px) {
+  :root { --header-stack-gap: 4px; }
 }
 
 body {

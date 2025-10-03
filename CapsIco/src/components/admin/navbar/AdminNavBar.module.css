@@ -1,11 +1,11 @@
 .header {
   position: sticky;
-  top: var(--header-info-height);
+  top: calc(var(--admin-info-height) - var(--header-stack-gap, 6px));
   z-index: 55;
   background: var(--gradient-primary);
   color: #fff;
-  padding: var(--nav-padding-block) 0;
-  min-height: var(--nav-height);
+  padding: calc(var(--nav-padding-block) - 4px) 0;
+  min-height: calc(var(--nav-height) - 6px);
   border-bottom: 2px solid rgba(255,255,255,0.18);
   border-bottom-left-radius: 24px;
   border-bottom-right-radius: 24px;
@@ -45,12 +45,15 @@
 
 .navList li {
   display: flex;
+  align-items: center;
 }
 
 .navLink {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  text-align: center;
+  line-height: 1;
   text-decoration: none;
   padding: 0.5rem 1rem;
   border-radius: 999px;

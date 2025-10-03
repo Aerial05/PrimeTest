@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import styles from './Appointments.module.css';
 import { AppointmentsTable } from '/src/components/admin/appointmentsTable/AppointmentsTable';
@@ -20,6 +20,21 @@ export function Appointments() {
       return '';
     } catch (_) { return ''; }
   }, [location.search]);
+  // Extract date filters from query
+  const [initialDateFrom, initialDateTo] = useMemo(() => {
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const from = params.get('from') || '';
+      const to = params.get('to') || '';
+      return [from, to];
+    } catch(_) { return ['', '']; }
+  }, [location.search]);
+
+  // Broadcast initial date filters to the AppointmentsTable via custom event
+  useEffect(() => {
+    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo } });
+    window.dispatchEvent(ev);
+  }, [initialDateFrom, initialDateTo]);
   return (
     <main className={styles.main}>
       <div className={styles.card}>

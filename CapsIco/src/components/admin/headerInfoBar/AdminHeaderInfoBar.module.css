@@ -6,7 +6,8 @@
   border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(12px);
-  height: var(--header-info-height);
+  /* Allow the header to grow if chips wrap to two lines on smaller screens */
+  min-height: var(--header-info-height);
   display: flex;
   align-items: center;
   width: 100%;
@@ -15,14 +16,15 @@
 .container {
   width: min(100%, var(--header-container-max-width));
   margin: 0 auto;
-  padding: var(--header-info-padding-block) 0;
+  /* keep bottom padding minimal so chips sit close to the navbar */
+  padding: var(--header-info-padding-block) 0 2px 0;
 }
 
 .headerContent {
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: center;
-  column-gap: 1rem;
+  column-gap: 0.75rem;
 }
 
 .logoLink {
@@ -54,14 +56,15 @@
 .textSecondary { color: var(--secondary-light); }
 
 .infoRow {
-  justify-self: center;
+  justify-self: start;
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 0.65rem;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: thin;
-  padding: 0 1rem;
+  padding: 0;
 }
 
 .infoItem {
@@ -75,6 +78,12 @@
   box-shadow: var(--pill-shadow);
   min-height: 40px;
   transition: transform 0.18s ease, box-shadow 0.22s ease;
+  cursor: pointer;
+}
+
+.infoItem[type="button"] {
+  border: 1px solid var(--pill-border);
+  background: var(--pill-bg);
 }
 
 .infoItem:hover {
@@ -90,6 +99,11 @@
   background: rgba(37, 99, 235, 0.12);
   color: inherit;
   flex-shrink: 0;
+}
+
+/* Make the Needs Attention icon background tint match danger subtly */
+.infoItem[data-key="attention"] .infoIcon {
+  background: rgba(220, 38, 38, 0.12);
 }
 
 .infoText {
@@ -112,9 +126,21 @@
   color: var(--text-dark);
 }
 
-.infoMeta {
-  font-size: 0.64rem;
+.infoValueRow {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  white-space: nowrap;
+}
+
+.infoInlineMeta {
+  font-size: 0.72rem;
   color: #6b7280;
+}
+
+/* Ensure all chips remain the same height (prevent third row) */
+.infoItem {
+  align-self: stretch;
 }
 
 @media (max-width: 1024px) {

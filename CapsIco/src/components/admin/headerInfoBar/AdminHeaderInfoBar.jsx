@@ -7,8 +7,8 @@ import {
   AlertTriangle,
   BellRing,
 } from 'lucide-react';
-import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import appointmentsService from '/src/services/AppointmentsService';
 
 const EMPTY_COUNTS = Object.freeze({
@@ -86,6 +86,8 @@ export function AdminHeaderInfoBar({
   cancelledCount,
 }) {
   const [auto, setAuto] = useState(EMPTY_COUNTS);
+  const headerRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     let active = true;
@@ -139,6 +141,26 @@ export function AdminHeaderInfoBar({
     };
   }, []);
 
+  // Keep a live CSS variable of the header's actual height so the sticky nav can offset correctly
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+
+    const setVar = () => {
+      const h = el.getBoundingClientRect().height;
+      document.documentElement.style.setProperty('--admin-info-height', `${Math.ceil(h)}px`);
+    };
+
+    setVar();
+    const ro = new ResizeObserver(setVar);
+    ro.observe(el);
+    window.addEventListener('resize', setVar);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', setVar);
+    };
+  }, []);
+
   const pendingVal = pickCount(pendingCount, auto.pending);
   const upcomingVal = pickCount(upcomingCount, auto.upcoming);
   const todayVal = pickCount(todayCount, auto.today);
@@ -186,12 +208,45 @@ export function AdminHeaderInfoBar({
       value: alertsVal,
       icon: BellRing,
       accent: '#dc2626',
-      meta: `Cancelled ${formatCount(cancelledVal)}`,
+      inlineMeta: `Pending ${formatCount(pendingVal)} • Overdue ${formatCount(overdueVal)} • Cancelled ${formatCount(cancelledVal)}`,
     },
   ], [alertsVal, cancelledVal, overdueVal, pendingVal, todayVal, upcomingVal]);
 
+  const dateStr = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  const goFor = (key) => {
+    const now = new Date();
+    const today = dateStr(now);
+    const yesterday = (() => { const d = new Date(now); d.setDate(d.getDate() - 1); return dateStr(d); })();
+    const in7 = (() => { const d = new Date(now); d.setDate(d.getDate() + 7); return dateStr(d); })();
+    switch (key) {
+      case 'pending':
+        navigate(`/appointment-management?status=pending`);
+        break;
+      case 'today':
+        navigate(`/appointment-management?from=${today}&to=${today}`);
+        break;
+      case 'upcoming':
+        navigate(`/appointment-management?from=${today}&to=${in7}`);
+        break;
+      case 'overdue':
+        navigate(`/appointment-management?to=${yesterday}&status=pending`);
+        break;
+      case 'attention':
+        navigate(`/appointment-management?status=pending&to=${yesterday}`);
+        break;
+      default:
+        navigate('/admin-dashboard');
+    }
+  };
+
   return (
-    <header className={styles.siteHeader}>
+    <header className={styles.siteHeader} ref={headerRef}>
       <div className={styles.container}>
         <div className={styles.headerContent}>
           <Link to="/admin-dashboard" className={styles.logoLink}>
@@ -206,18 +261,27 @@ export function AdminHeaderInfoBar({
             {items.map((item) => {
               const Icon = item.icon;
               return (
-                <div key={item.key} className={styles.infoItem} title={item.title}>
+                <button
+                  key={item.key}
+                  type="button"
+                  className={styles.infoItem}
+                  data-key={item.key}
+                  title={item.title}
+                  onClick={() => goFor(item.key)}
+                >
                   <Icon className={styles.infoIcon} style={{ color: item.accent }} />
                   <div className={styles.infoText}>
                     <span className={styles.infoLabel}>{item.label}</span>
-                    <span className={styles.infoValue} style={{ color: item.accent }}>
-                      {formatCount(item.value)}
+                    <span className={styles.infoValueRow}>
+                      <span className={styles.infoValue} style={{ color: item.accent }}>
+                        {formatCount(item.value)}
+                      </span>
+                      {item.key === 'attention' && item.inlineMeta ? (
+                        <span className={styles.infoInlineMeta}>{item.inlineMeta}</span>
+                      ) : null}
                     </span>
-                    {item.meta ? (
-                      <span className={styles.infoMeta}>{item.meta}</span>
-                    ) : null}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
