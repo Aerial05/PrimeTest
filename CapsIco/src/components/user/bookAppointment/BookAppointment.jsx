@@ -4,7 +4,7 @@ import styles from "./BookAppointment.module.css";
 import appointmentsService from "/src/services/AppointmentsService";
 import authService from "/src/services/AuthService";
 import servicePackagesService from "/src/services/ServicePackagesService";
-import { get, ref } from "firebase/database";
+import { get, ref, onValue } from "firebase/database";
 import { usersDB } from "/src/config/firebase-config";
 import singleServicesService from "/src/services/SingleServicesService";
 
@@ -23,12 +23,17 @@ function toLocalDateStringYYYYMMDD(d) {
 
 export function BookAppointment() {
   const location = useLocation();
+  // Simple local modal for foreground notifications
+  const [modal, setModal] = useState({ open: false, type: 'info', title: '', message: '' });
+  const showModal = ({ type = 'info', title = '', message = '' } = {}) => setModal({ open: true, type, title, message });
+  const closeModal = () => setModal((m) => ({ ...m, open: false }));
   // Selected item from catalog (either package or single)
   const [activeItem, setActiveItem] = useState(null);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [timeOfDay, setTimeOfDay] = useState("Morning");
   const [patient, setPatient] = useState({ firstName: "", lastName: "", phone: "", email: "", birthday: "", gender: "", complaint: "", notes: "" });
+  const slotsWrapRef = useRef(null);
 
   // Auto-resize textareas based on content
   const complaintRef = useRef(null);
@@ -42,6 +47,7 @@ export function BookAppointment() {
   // Data from DB
   const [packagesCatalog, setPackagesCatalog] = useState([]);
   const [servicesCatalog, setServicesCatalog] = useState([]);
+  const [slotCounts, setSlotCounts] = useState({}); // { '07:30': 2, ... }
 
   // Auto-fill patient fields from current user's profile if available
   useEffect(() => {
@@ -65,6 +71,8 @@ export function BookAppointment() {
       }
     })();
   }, []);
+  // No realtime slot counting; we will reserve on submit.
+
 
   // Tomorrow (local) as the earliest allowed booking date
   const tomorrowStr = useMemo(() => {
@@ -73,6 +81,18 @@ export function BookAppointment() {
     return toLocalDateStringYYYYMMDD(t);
   }, []);
 
+  // Minimum patient age: at least 3 days old (adjustable)
+  const minAgeDays = 3; // change to 2 if needed
+  const birthdayMaxStr = useMemo(() => {
+    const t = new Date();
+    t.setDate(t.getDate() - minAgeDays);
+    return toLocalDateStringYYYYMMDD(t);
+  }, []);
+
+  // No realtime listeners
+
+  // No modal or toast; we use simple alerts for errors/success.
+
   // Clamp existing date state if it becomes earlier than tomorrow (e.g., after a reload/timezone change)
   useEffect(() => {
     if (date && date < tomorrowStr) {
@@ -80,6 +100,21 @@ export function BookAppointment() {
       setTime("");
     }
   }, [tomorrowStr]);
+
+  // No legacy counter subscription
+  // Subscribe to per-slot counts for the selected service and date
+  useEffect(() => {
+    const serviceId = activeItem?.id;
+    if (!serviceId || !date) { setSlotCounts({}); return; }
+    const countsRef = ref(usersDB, `appointmentSlotCounts/${serviceId}/${date}`);
+    const unsub = onValue(countsRef, (snap) => {
+      const val = snap.exists() ? (snap.val() || {}) : {};
+      setSlotCounts(val);
+    }, (_err) => {
+      setSlotCounts({});
+    });
+    return () => { try { unsub && unsub(); } catch (_) {} };
+  }, [activeItem?.id, date]);
 
   // Load services/packages from Firebase (similar to Admin Services page)
   useEffect(() => {
@@ -188,6 +223,8 @@ export function BookAppointment() {
     });
   }, [slots, timeOfDay]);
 
+  // No filtering for full slots; we attempt to reserve on submit.
+
   // Initialize from Services page selection (prefill selection by matching title)
   useEffect(() => {
     const item = location.state && location.state.selectedItem;
@@ -223,7 +260,19 @@ export function BookAppointment() {
   const onSubmit = (e) => {
     e.preventDefault();
     if (!activeItem || !date || !time) {
-      alert('Please select a service, date, and time.');
+      showModal({ type: 'error', title: 'Incomplete details', message: 'Please select a service, date, and time.' });
+      return;
+    }
+
+    // Validate birthday age >= minAgeDays
+    if (!patient.birthday) {
+      showModal({ type: 'error', title: 'Missing birthday', message: 'Please enter your birthday.' });
+      return;
+    }
+    const bdayStr = String(patient.birthday);
+    const isOldEnough = bdayStr <= birthdayMaxStr; // YYYY-MM-DD lexicographic works
+    if (!isOldEnough) {
+      showModal({ type: 'error', title: 'Birthday too recent', message: `Birthday must be at least ${minAgeDays} day(s) before today.` });
       return;
     }
 
@@ -244,8 +293,7 @@ export function BookAppointment() {
       SLOT_CAPACITY_REF: '',
       CHIEF_COMPLAINT: patient.complaint || '',
       SPECIAL_INSTRUCTIONS: patient.notes || '',
-  // Auto-approve immediately
-  BOOKING_STATUS: 'approved',
+      BOOKING_STATUS: 'pending',
     };
 
     const capacity = Number(activeItem.capacity || 1) || 1;
@@ -257,23 +305,23 @@ export function BookAppointment() {
     appointmentsService.reserveSlot(serviceId, slotDate, slotTime, capacity)
       .then(async (reserved) => {
         if (!reserved) {
-          alert('Sorry, this service at the selected date and time is already fully booked. Please choose another time.');
+          showModal({ type: 'error', title: 'Fully booked', message: 'Sorry, this service at the selected date and time is already fully booked. Please choose another time.' });
           return;
         }
         try {
           const created = await appointmentsService.create(record);
           await appointmentsService.indexAppointmentBySlot(serviceId, slotDate, slotTime, created.id);
-          alert('Appointment booked and automatically approved. See you then!');
+          showModal({ type: 'success', title: 'Appointment submitted', message: 'Your appointment was submitted successfully.' });
         } catch (err) {
           // Rollback reservation on failure
           await appointmentsService.releaseSlot(serviceId, slotDate, slotTime);
           console.error('Failed to submit appointment', err);
-          alert('Failed to submit appointment. Please try again.');
+          showModal({ type: 'error', title: 'Submission failed', message: 'Failed to submit appointment. Please try again.' });
         }
       })
       .catch((err) => {
         console.error('Reservation error', err);
-        alert('Failed to reserve the selected time. Please try again.');
+        showModal({ type: 'error', title: 'Reservation failed', message: 'Failed to reserve the selected time. Please try again.' });
       });
   };
 
@@ -284,9 +332,7 @@ export function BookAppointment() {
         <div className={styles.infoBody}>
           <div className={styles.label}>Service</div>
           <div className={styles.selectedService}>{activeItem?.title || 'Select a service below'}</div>
-          {activeItem?.availability && (
-            <div className={styles.smallNote}><b>Hours:</b> {activeItem.availability}</div>
-          )}
+          {activeItem?.availability && (<div className={styles.smallNote}><b>Hours:</b> {activeItem.availability}</div>)}
         </div>
 
         <div className={styles.catalog}>
@@ -336,18 +382,33 @@ export function BookAppointment() {
               ))}
             </div>
           </div>
-          <div className={styles.slotsWrap}>
+          <div className={styles.slotsWrap} ref={slotsWrapRef}>
             {!date ? (
               <div className={styles.empty}>Select a date to see available times.</div>
-            ) : filteredByTimeOfDay.length === 0 ? (
-              <div className={styles.empty}>No available slots for the selected date/time of day.</div>
             ) : (
               <div className={styles.slots}>
-                {filteredByTimeOfDay.map(hhmm => (
-                  <button key={hhmm} type="button" className={`${styles.slotBtn} ${time===hhmm?styles.slotSelected:''}`} onClick={()=>setTime(hhmm)}>
-                    {labelFromHHMM(hhmm)}
-                  </button>
-                ))}
+                {filteredByTimeOfDay.length === 0 ? (
+                  <div className={styles.empty}>No available slots for the selected date/time of day.</div>
+                ) : (
+                  filteredByTimeOfDay.map(hhmm => {
+                    const count = Number(slotCounts?.[hhmm] || 0) || 0;
+                    const cap = Number(activeItem?.capacity || 1) || 1;
+                    const full = count >= cap;
+                    return (
+                      <button
+                        key={hhmm}
+                        type="button"
+                        className={`${styles.slotBtn} ${time===hhmm?styles.slotSelected:''} ${full?styles.slotFull:''}`}
+                        onClick={() => { if (!full) setTime(hhmm); }}
+                        aria-disabled={full}
+                      >
+                        {labelFromHHMM(hhmm)}
+                        <span style={{ marginLeft: 8, color: '#6b7280', fontSize: '.85rem' }}>{count}/{cap}</span>
+                        {full && <span className={styles.slotBadge}>Full</span>}
+                      </button>
+                    );
+                  })
+                )}
               </div>
             )}
           </div>
@@ -360,8 +421,19 @@ export function BookAppointment() {
             <div className={styles.formGroup}><label className={styles.label}>Last Name</label><input className={styles.input} value={patient.lastName} onChange={(e)=>setPatient(p=>({...p,lastName:e.target.value}))} required /></div>
             <div className={styles.formGroup}><label className={styles.label}>Phone</label><input className={styles.input} type="tel" value={patient.phone} onChange={(e)=>setPatient(p=>({...p,phone:e.target.value}))} /></div>
             <div className={styles.formGroup}><label className={styles.label}>Email</label><input className={styles.input} type="email" value={patient.email} onChange={(e)=>setPatient(p=>({...p,email:e.target.value}))} /></div>
-            <div className={styles.formGroup}><label className={styles.label}>Birthday</label><input className={styles.input} type="date" value={patient.birthday} onChange={(e)=>setPatient(p=>({...p,birthday:e.target.value}))} /></div>
-            <div className={styles.formGroup}><label className={styles.label}>Gender</label><select className={styles.input} value={patient.gender} onChange={(e)=>setPatient(p=>({...p,gender:e.target.value}))}><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Birthday</label>
+              <input
+                className={styles.input}
+                type="date"
+                value={patient.birthday}
+                onChange={(e)=>setPatient(p=>({...p,birthday:e.target.value}))}
+                max={birthdayMaxStr}
+                required
+              />
+              <div className={styles.smallNote}>Must be at least {minAgeDays} day(s) old.</div>
+            </div>
+            <div className={styles.formGroup}><label className={styles.label}>Gender</label><select className={styles.input} value={patient.gender} onChange={(e)=>setPatient(p=>({...p,gender:e.target.value}))} required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
               <label className={styles.label}>Chief Complaint</label>
               <textarea
@@ -403,14 +475,45 @@ export function BookAppointment() {
         <div className={styles.summaryRow}><span>Date</span><strong>{date || '-'}</strong></div>
         <div className={styles.summaryRow}><span>Time</span><strong>{time ? labelFromHHMM(time) : '-'}</strong></div>
         <div className={styles.summaryRow}><span>Patient</span><strong>{(patient.firstName || patient.lastName) ? `${patient.firstName} ${patient.lastName}`.trim() : '-'}</strong></div>
-  <div className={styles.summaryRow}><span>Phone</span><strong>{patient.phone || '-'}</strong></div>
-  <div className={styles.summaryRow}><span>Email</span><strong>{patient.email || '-'}</strong></div>
-  <div className={styles.summaryRow}><span>Gender</span><strong>{patient.gender || '-'}</strong></div>
-  <div className={styles.summaryRow}><span>Birthday</span><strong>{patient.birthday || '-'}</strong></div>
+        <div className={styles.summaryRow}><span>Phone</span><strong>{patient.phone || '-'}</strong></div>
+        <div className={styles.summaryRow}><span>Email</span><strong>{patient.email || '-'}</strong></div>
+        <div className={styles.summaryRow}><span>Gender</span><strong>{patient.gender || '-'}</strong></div>
+        <div className={styles.summaryRow}><span>Birthday</span><strong>{patient.birthday || '-'}</strong></div>
         <div className={styles.summaryRow}><span>Chief Complaint</span><strong>{patient.complaint || '-'}</strong></div>
         <div className={styles.summaryRow}><span>Special Instructions</span><strong>{patient.notes || '-'}</strong></div>
         <div className={styles.summaryNote}>Arrive 10 minutes early. Follow preparation instructions where applicable.</div>
       </aside>
+
+      {modal.open && (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="bookModalTitle"
+          onClick={(e) => { if (e.target === e.currentTarget) closeModal(); }}
+        >
+          <div className={styles.modalCard}>
+            <div className={styles.modalTop}>
+              <div
+                className={styles.modalIconWrap}
+                style={modal.type === 'success' ? { background: '#ecfdf5', color: '#065f46' } : undefined}
+                aria-hidden
+              >
+                {modal.type === 'success' ? '✓' : '!'}
+              </div>
+              <div>
+                <div id="bookModalTitle" className={styles.modalTitle}>{modal.title || 'Notice'}</div>
+                {modal.message && <div className={styles.modalSubtitle}>{modal.message}</div>}
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.ghostBtn} onClick={closeModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+
+
