@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import styles from './AppointmentsTable.module.css';
 import appointmentsService from '@/services/AppointmentsService';
+import { sendAppointmentEmailCallable } from '/src/config/firebase-config';
 import servicePackagesService from '@/services/ServicePackagesService';
 import singleServicesService from '@/services/SingleServicesService';
 import { useLocation } from 'react-router-dom';
@@ -391,6 +392,18 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       setModalSaving(true);
       await appointmentsService.updateStatus(selected.id, backend);
       setStatusLocal(selected.id, desired);
+      // If approved or successful, try to send an email now via callable
+      if (backend === 'approved' || backend === 'successful') {
+        try {
+          const res = await sendAppointmentEmailCallable({ apptId: selected.id, status: backend });
+          if (res && res.ok) {
+            showPopup({ title: 'Email sent', message: 'A confirmation email was sent to the user.', type: 'info' });
+          }
+        } catch (e) {
+          // Non-fatal: the RTDB trigger may still send; show gentle notice
+          console.warn('sendAppointmentEmail callable failed', e);
+        }
+      }
     } catch (e) {
       showPopup({ title: 'Update failed', message: 'Failed to update status.', type: 'error' });
     } finally {
@@ -783,9 +796,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                 className={`${styles.btn} ${styles.btnApprove}`}
                 onClick={onSubmitModalStatus}
                 disabled={modalSaving}
-                title="Submit status change"
+                title="Submit status change and send email when applicable"
               >
-                {modalSaving ? 'Submitting…' : 'Submit'}
+                {modalSaving ? 'Submitting…' : 'Submit and Send Email'}
               </button>
               <div style={{ flex: 1 }}></div>
               <button className={`${styles.btn} ${styles.btnDelete}`} onClick={() => onDelete(selected.id)}>Delete</button>

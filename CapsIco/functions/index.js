@@ -9,6 +9,10 @@
 */
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
+const {
+  buildAppointmentEmailHTML,
+  buildStatusSubject,
+} = require('./emailTemplates');
 // Using Firestore Trigger Email extension; no direct SMTP/SendGrid here.
 
 try {
@@ -19,61 +23,10 @@ const cfg = functions.config() || {};
 const appPublicUrl = (cfg.app && cfg.app.public_url) || '';
 
 const MAIL_COLLECTION = process.env.MAIL_COLLECTION || 'mail';
+// Deploy functions in asia-east2
+const r = functions.region('asia-east2');
 
-function toTitle(s) {
-  const v = String(s || '').trim();
-  if (!v) return '';
-  return v.replace(/\s+/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
-}
-
-function formatTimeLabel(hhmm) {
-  const [h, m] = String(hhmm || '').split(':').map(Number);
-  if (Number.isNaN(h) || Number.isNaN(m)) return String(hhmm || '');
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
-}
-
-function buildConfirmationHTML(rec) {
-  const name = `${toTitle(rec.FIRST_NAME)} ${toTitle(rec.LAST_NAME)}`.trim();
-  const date = rec.DATE_OF_APPOINTMENT || '';
-  const time = formatTimeLabel(rec.TIME_SLOT || '');
-  const serviceType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
-  const serviceName = rec.SERVICE_NAME || `Selected ${serviceType}`;
-  const apptId = rec.APPT_ID || rec.id || '';
-  const status = toTitle(rec.BOOKING_STATUS || 'Pending');
-  const notes = rec.SPECIAL_INSTRUCTIONS || '';
-  const complaint = rec.CHIEF_COMPLAINT || '';
-  const ctaUrl = appPublicUrl || '';
-  return `<!DOCTYPE html>
-  <html><head><meta charset="utf-8"><title>Appointment Confirmation</title>
-  <style>
-    body{font-family:Segoe UI, Roboto, Arial, sans-serif;color:#0f172a}
-    .card{max-width:640px;margin:0 auto;border:1px solid #e2e8f0;border-radius:10px;padding:16px}
-    .muted{color:#475569;font-size:13px}
-    .row{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9}
-    .label{color:#475569}
-    .val{font-weight:600}
-    .cta{display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;margin-top:12px}
-  </style></head>
-  <body>
-  <div class="card">
-  <h2>${status === 'Approved' ? 'Appointment Confirmed' : 'Appointment Request Received'}</h2>
-    <p>Hello ${name || 'there'},</p>
-  <p>${status === 'Approved' ? 'Your appointment has been approved.' : 'We received your appointment request and will notify you upon approval.'} Below are the details:</p>
-    <div class="row"><div class="label">Appointment ID</div><div class="val">${apptId}</div></div>
-    <div class="row"><div class="label">Service</div><div class="val">${serviceName}</div></div>
-    <div class="row"><div class="label">Type</div><div class="val">${serviceType}</div></div>
-    <div class="row"><div class="label">Date</div><div class="val">${date}</div></div>
-    <div class="row"><div class="label">Time</div><div class="val">${time}</div></div>
-  <div class="row"><div class="label">Status</div><div class="val">${status}</div></div>
-    ${complaint ? `<div class="row"><div class="label">Chief Complaint</div><div class="val">${complaint}</div></div>` : ''}
-    ${notes ? `<div class="row"><div class="label">Special Instructions</div><div class="val">${notes}</div></div>` : ''}
-    ${ctaUrl ? `<a class="cta" href="${ctaUrl}" target="_blank" rel="noopener">View your booking</a>` : ''}
-    <p class="muted">Please arrive 10 minutes early. If you need to reschedule, reply to this email.</p>
-  </div>
-  </body></html>`;
-}
+// Email template helpers moved to emailTemplates.js
 
 // Helper: write a document for the Trigger Email extension
 async function enqueueTriggerEmail({ to, subject, html, text, cc, bcc, replyTo, template, data, source }) {
@@ -94,7 +47,7 @@ async function enqueueTriggerEmail({ to, subject, html, text, cc, bcc, replyTo, 
 }
 
 // 1) Appointment create -> enqueue Trigger Email (request received or approved)
-exports.onAppointmentCreate = functions.database
+exports.onAppointmentCreate = r.database
   .ref('/appointments/{apptId}')
   .onCreate(async (snapshot, context) => {
     const apptId = context.params.apptId;
@@ -106,8 +59,8 @@ exports.onAppointmentCreate = functions.database
       console.log(`[onAppointmentCreate] No recipient email for ${apptId}`);
       return null;
     }
-    const html = buildConfirmationHTML({ ...rec, BOOKING_STATUS: (rec.BOOKING_STATUS || 'pending') });
-    const subject = `${(rec.BOOKING_STATUS || 'pending') === 'approved' ? 'Appointment Confirmed' : 'Appointment Request Received'} (${rec.DATE_OF_APPOINTMENT || ''} ${rec.TIME_SLOT || ''})`;
+  const html = buildAppointmentEmailHTML({ ...rec, BOOKING_STATUS: (rec.BOOKING_STATUS || 'pending') }, { appPublicUrl });
+  const subject = buildStatusSubject({ ...rec, BOOKING_STATUS: rec.BOOKING_STATUS || 'pending' });
     try {
       await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentCreate' });
       console.log(`[onAppointmentCreate] Enqueued mail for ${to} ${apptId}`);
@@ -118,7 +71,7 @@ exports.onAppointmentCreate = functions.database
   });
 
 // Send approval email when status transitions to approved (enqueue for Trigger Email)
-exports.onAppointmentStatusUpdate = functions.database
+exports.onAppointmentStatusUpdate = r.database
   .ref('/appointments/{apptId}/BOOKING_STATUS')
   .onUpdate(async (change, context) => {
     const before = (change.before.val() || '').toString().toLowerCase();
@@ -128,18 +81,24 @@ exports.onAppointmentStatusUpdate = functions.database
     const snap = await admin.database().ref(`/appointments/${apptId}`).get();
     if (!snap.exists()) return null;
     const rec = snap.val() || {};
+    // Skip if we already sent the approved email
+    if (rec.EMAIL_SENT_APPROVED === true) return null;
     const to = (rec.EMAIL || '').trim();
     if (!to) return null;
-    rec.BOOKING_STATUS = 'approved';
-    const html = buildConfirmationHTML(rec);
-    const subject = `Appointment Confirmed (${rec.DATE_OF_APPOINTMENT || ''} ${rec.TIME_SLOT || ''})`;
-    try { await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentStatusUpdate' }); }
+  rec.BOOKING_STATUS = 'approved';
+  const html = buildAppointmentEmailHTML(rec, { appPublicUrl });
+  const subject = buildStatusSubject(rec);
+    try {
+      await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentStatusUpdate' });
+      // Mark as sent to avoid duplicate emails
+      await admin.database().ref(`/appointments/${apptId}`).update({ EMAIL_SENT_APPROVED: true });
+    }
     catch (e) { console.error('Approval email enqueue failed', e); }
     return null;
   });
 
 // 2) RTDB -> Firestore mail enqueue for Trigger Email extension
-exports.enqueueEmailOnRtdbWrite = functions.database
+exports.enqueueEmailOnRtdbWrite = r.database
   .ref('/emailQueue/{pushId}')
   .onCreate(async (snapshot, _context) => {
     const payload = snapshot.val();
@@ -180,3 +139,44 @@ exports.enqueueEmailOnRtdbWrite = functions.database
     await snapshot.ref.update({ processedAt: admin.database.ServerValue.TIMESTAMP });
     return null;
   });
+
+// Callable API to send an appointment email explicitly from the client (e.g., after admin approval)
+// data: { apptId: string, status?: 'pending'|'approved'|'declined'|'successful' }
+exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
+  try {
+    const apptId = data && data.apptId;
+    const overrideStatus = data && data.status;
+    if (!apptId) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing apptId');
+    }
+    const snap = await admin.database().ref(`/appointments/${apptId}`).get();
+    if (!snap.exists()) {
+      throw new functions.https.HttpsError('not-found', 'Appointment not found');
+    }
+    const rec = snap.val() || {};
+    const to = (rec.EMAIL || '').trim();
+    if (!to) {
+      throw new functions.https.HttpsError('failed-precondition', 'Appointment has no recipient email');
+    }
+    const payload = { ...rec };
+    if (overrideStatus) payload.BOOKING_STATUS = String(overrideStatus).toLowerCase();
+    // Build and enqueue email
+    const html = buildAppointmentEmailHTML({ ...payload, APPT_ID: rec.APPT_ID || apptId }, { appPublicUrl });
+    const subject = buildStatusSubject(payload);
+    await enqueueTriggerEmail({ to, subject, html, source: 'callable-sendAppointmentEmail' });
+    // Mark flags by status to prevent the RTDB status trigger from double-sending
+    const status = String(payload.BOOKING_STATUS || '').toLowerCase();
+    const flags = {};
+    if (status === 'approved') flags.EMAIL_SENT_APPROVED = true;
+    if (status === 'successful') flags.EMAIL_SENT_SUCCESSFUL = true;
+    if (status === 'declined') flags.EMAIL_SENT_DECLINED = true;
+    if (Object.keys(flags).length) {
+      try { await admin.database().ref(`/appointments/${apptId}`).update(flags); } catch (_) {}
+    }
+    return { ok: true };
+  } catch (err) {
+    console.error('sendAppointmentEmail failed', err);
+    if (err instanceof functions.https.HttpsError) throw err;
+    throw new functions.https.HttpsError('internal', err?.message || 'Unknown error');
+  }
+});

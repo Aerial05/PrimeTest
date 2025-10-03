@@ -1,6 +1,7 @@
 // Firebase core SDKs
 import { initializeApp } from "firebase/app";
 import { getDatabase } from "firebase/database";
+import { getFunctions, httpsCallable } from "firebase/functions";
 import { getStorage } from "firebase/storage";
 import { getAuth } from "firebase/auth";
 // TODO: Add SDKs for Firebase products that you want to use
@@ -54,4 +55,12 @@ const app = initializeApp(firebaseConfig);
 export const usersDB = getDatabase(app);
 export const auth = getAuth(app);
 export const storage = getStorage(app);
+// Match deployed region for Cloud Functions
+export const functions = getFunctions(app, 'asia-east2');
+
+// Optional helper to call our callable function from anywhere
+export async function sendAppointmentEmailCallable({ apptId, status }) {
+  const fn = httpsCallable(functions, 'sendAppointmentEmail');
+  return await fn({ apptId, status }).then((r) => r.data);
+}
 export { app };
