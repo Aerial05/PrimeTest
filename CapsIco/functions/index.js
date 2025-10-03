@@ -30,42 +30,95 @@ const r = functions.region('asia-east2');
 
 // Helper: resolve service name from RTDB based on SERVICE_TYPE and SERVICE_ID
 async function resolveServiceName(rec) {
-  try {
-    const db = admin.database();
-    const svcId = String(rec.SERVICE_ID || '').trim();
-    const type = String(rec.SERVICE_TYPE || '').toLowerCase();
-    if (!svcId) return null;
+  const db = admin.database();
+  const svcId = String(rec && rec.SERVICE_ID || '').trim();
+  const type = String(rec && rec.SERVICE_TYPE || '').toLowerCase();
+  if (!svcId) return null;
 
-    // Try direct doc lookup by key first (fast path)
+  // Search helpers with query + full-scan fallbacks to avoid index issues
+  const findInSingleServices = async (id) => {
+    // Fast path: treat id as key
+    try {
+      const byKey = await db.ref(`/singleServices/${id}`).get();
+      if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
+    } catch (_) {}
+    // Query by typical fields
+    const idFields = ['SERVICE_ID', 'Service_ID', 'ID', 'id', 'SERVICEID'];
+    for (const f of idFields) {
+      try {
+        const q = await db.ref('/singleServices').orderByChild(f).equalTo(id).get();
+        if (q.exists()) {
+          const first = Object.values(q.val() || {})[0];
+          if (first && first.NAME) return first.NAME;
+        }
+      } catch (_) { /* ignore and try fallback */ }
+    }
+    // Full-scan fallback (small dataset ok)
+    try {
+      const all = await db.ref('/singleServices').get();
+      if (all.exists()) {
+        const obj = all.val() || {};
+        for (const key of Object.keys(obj)) {
+          const row = obj[key];
+          if (!row) continue;
+          const candidates = [row.SERVICE_ID, row.Service_ID, row.ID, row.id, row.SERVICEID];
+          if (candidates.map(x => String(x || '').trim()).includes(id)) return row.NAME || null;
+        }
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  const findInServicePackages = async (id) => {
+    // Fast path: treat id as key
+    try {
+      const byKey = await db.ref(`/servicePackages/${id}`).get();
+      if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
+    } catch (_) {}
+    // Query by known id fields (note: SERVICE_PACKGE_ID is the field present in export)
+    const idFields = ['SERVICE_PACKGE_ID', 'SERVICE_PACKAGE_ID', 'Service_Package_ID', 'ID', 'id', 'SERVICEPACKAGEID'];
+    for (const f of idFields) {
+      try {
+        const q = await db.ref('/servicePackages').orderByChild(f).equalTo(id).get();
+        if (q.exists()) {
+          const first = Object.values(q.val() || {})[0];
+          if (first && first.NAME) return first.NAME;
+        }
+      } catch (_) { /* ignore and try fallback */ }
+    }
+    // Full-scan fallback (small dataset ok)
+    try {
+      const all = await db.ref('/servicePackages').get();
+      if (all.exists()) {
+        const obj = all.val() || {};
+        for (const key of Object.keys(obj)) {
+          const row = obj[key];
+          if (!row) continue;
+          const candidates = [row.SERVICE_PACKGE_ID, row.SERVICE_PACKAGE_ID, row.Service_Package_ID, row.ID, row.id, row.SERVICEPACKAGEID];
+          if (candidates.map(x => String(x || '').trim()).includes(id)) return row.NAME || null;
+        }
+      }
+    } catch (_) {}
+    return null;
+  };
+
+  try {
+    // Prefer the declared type path first, but fall back to the other in case of mismatches
     if (type === 'package') {
-      const byKey = await db.ref(`/servicePackages/${svcId}`).get();
-      if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
-      // Try query by known id fields
-      const tryFields = ['SERVICE_PACKGE_ID', 'SERVICE_PACKAGE_ID', 'Service_Package_ID', 'ID', 'id', 'SERVICEPACKAGEID'];
-      for (const field of tryFields) {
-        const snap = await db.ref('/servicePackages').orderByChild(field).equalTo(svcId).get();
-        if (snap.exists()) {
-          const obj = snap.val() || {};
-          const first = Object.values(obj)[0];
-          if (first && first.NAME) return first.NAME;
-        }
-      }
-    } else { // service
-      const byKey = await db.ref(`/singleServices/${svcId}`).get();
-      if (byKey.exists() && byKey.val() && byKey.val().NAME) return byKey.val().NAME;
-      const fields = ['SERVICE_ID', 'Service_ID', 'ID', 'id', 'SERVICEID'];
-      for (const f of fields) {
-        const snap = await db.ref('/singleServices').orderByChild(f).equalTo(svcId).get();
-        if (snap.exists()) {
-          const obj = snap.val() || {};
-          const first = Object.values(obj)[0];
-          if (first && first.NAME) return first.NAME;
-        }
-      }
+      const pkgName = await findInServicePackages(svcId);
+      if (pkgName) return pkgName;
+      const svcName = await findInSingleServices(svcId);
+      if (svcName) return svcName;
+    } else { // default to single service first
+      const svcName = await findInSingleServices(svcId);
+      if (svcName) return svcName;
+      const pkgName = await findInServicePackages(svcId);
+      if (pkgName) return pkgName;
     }
   } catch (e) {
     console.warn('[resolveServiceName] failed', { err: e && e.message, SERVICE_ID: rec && rec.SERVICE_ID, SERVICE_TYPE: rec && rec.SERVICE_TYPE });
   }
+  console.log('[resolveServiceName] name not found', { SERVICE_ID: svcId, SERVICE_TYPE: type });
   return null;
 }
 

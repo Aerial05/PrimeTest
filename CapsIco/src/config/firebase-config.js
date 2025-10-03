@@ -59,8 +59,10 @@ export const storage = getStorage(app);
 export const functions = getFunctions(app, 'asia-east2');
 
 // Optional helper to call our callable function from anywhere
-export async function sendAppointmentEmailCallable({ apptId, status }) {
+// Accepts: { apptId: string, status?: string, serviceName?: string, serviceType?: 'Service'|'Package'|string, date?: string, time?: string, serviceId?: string, record?: object, appointment?: object }
+export async function sendAppointmentEmailCallable(payload) {
   const fn = httpsCallable(functions, 'sendAppointmentEmail');
-  return await fn({ apptId, status }).then((r) => r.data);
+  // Pass through all provided fields; backend will merge and normalize
+  return await fn(payload).then((r) => r.data);
 }
 export { app };
