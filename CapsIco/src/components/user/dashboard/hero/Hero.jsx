@@ -81,7 +81,7 @@ useEffect(() => {
     <section className={styles.heroSection}>
       <div className={styles.container}>
         <h1>{name}</h1>
-        {/* Tabs on Top Right */}
+        {/* 360° Locations: grid, no scroll */}
         <div className={styles.tabsWrapper}>
           <div className={styles.tabsContainer}>
             {TABS.map((tab, idx) => (

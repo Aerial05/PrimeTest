@@ -27,9 +27,9 @@ import { MessagesPage } from "./pages/admin/messages/MessagesPage";
 // Shared components
 import { NavBar } from "./components/user/navBar/NavBar";
 import { HeaderInfoBar } from "./components/user/headerInfoBar/HeaderInfoBar";
-import { AdminHeaderInfoBar } from "/src/components/admin/headerInfoBar/AdminHeaderInfoBar";
 import { Footer } from "./components/user/footer/Footer";
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
+import { AdminHeaderInfoBar } from "/src/components/admin/headerInfoBar/AdminHeaderInfoBar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 
 import authService from "./services/AuthService";
@@ -136,7 +136,8 @@ export default function App() {
           }
 
           const fetchedRole = await authService.getUserRole(user);
-          setRole(fetchedRole === "admin" ? "admin" : "user");
+          const normalized = (fetchedRole || '').toString().trim().toLowerCase();
+          setRole(normalized === "admin" ? "admin" : "user");
 
           // Remove lastActive/updatedAt heartbeat. Only lastLoginAt is tracked on sign-in.
         } catch (error) {
@@ -292,6 +293,13 @@ Admin must insert image per successful appointment and Users must be able to vie
 9. Contact form must send message to database and can be viewed in admin panel
             
 
+NEW TO DO:
+AUTOMATE Email after 10 mins Send an Approved Appointment
+  if Service has Per Appointment (this must be manualy approved in the admin panel)
+
+Send Email per Update of Status of Appointment (Approved, Declined, Successful)
+  + if successful, include image link if available
+  
 
 
 
