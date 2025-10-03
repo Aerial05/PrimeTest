@@ -1,82 +1,129 @@
 .header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  position: sticky;
+  top: var(--header-info-height);
+  z-index: 55;
   background: var(--gradient-primary);
   color: #fff;
-  padding: 0.85rem 1.5rem;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.18);
+  padding: var(--nav-padding-block) 0;
+  min-height: var(--nav-height);
+  border-bottom: 2px solid rgba(255,255,255,0.18);
+  border-bottom-left-radius: 24px;
+  border-bottom-right-radius: 24px;
+  box-shadow: 0 18px 38px rgba(37, 99, 235, 0.25);
 }
 
-.logoLink {
-  display: flex;
+.header::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.7), rgba(255,255,255,0));
+  pointer-events: none;
+}
+
+.inner {
+  width: min(100%, var(--header-container-max-width));
+  margin: 0 auto;
+  padding: 0 var(--header-padding-inline) 0 0;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  text-decoration: none;
-  color: inherit;
 }
 
-.logoIcon {
-  width: 1.5rem;
-  height: 1.5rem;
-  margin-right: 0.5rem;
-  color: #ffffff;
+.navigation {
+  justify-self: center;
 }
-
-.brandName {
-  font-size: 1.25rem;
-  font-weight: bold;
-  letter-spacing: 0.025em;
-}
-
-.textPrimary { color: #ffffff; }
-.textSecondary { color: #e0ecff; }
 
 .navList {
-  display: flex;
-  gap: 2rem;
-  list-style: none;
-}
-
-.navList a {
-  text-decoration: none;
-  color: #ffffff;
-  font-weight: 600;
-}
-
-.active { color: #ffffff; text-decoration: underline; text-underline-offset: 6px; }
-
-.userInfo {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  font-weight: 500;
+  gap: 1.1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
+.navList li {
+  display: flex;
+}
+
+.navLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: rgba(255,255,255,0.88);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.76rem;
+  font-weight: 700;
+  transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.navLink:hover {
+  color: #fff;
+  box-shadow: 0 12px 20px rgba(12, 74, 200, 0.28);
+  transform: translateY(-1px);
+  background: rgba(255,255,255,0.12);
+}
+
+.active {
+  color: #fff;
+  background: var(--nav-highlight);
+  border: 1px solid var(--nav-active-ring);
+  box-shadow: 0 10px 24px rgba(8, 47, 141, 0.28);
+}
 
 .profileWrapper {
   position: relative;
-  display: inline-block; 
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.userInfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.92);
+}
+
+.btnIcon {
+  background: rgba(255,255,255,0.16);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff;
+  cursor: pointer;
+  padding: 0.45rem 0.55rem;
+  border-radius: 999px;
+  transition: background 0.2s ease, transform 0.18s ease;
+}
+
+.btnIcon:hover {
+  background: rgba(255,255,255,0.25);
+  transform: translateY(-1px);
 }
 
 .dropDownMenu {
   position: absolute;
-  top: 100%;
+  top: 110%;
   right: 0;
-  border-radius: 10px;
-  background-color: white;
-  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.25);
-  padding: 0.5rem;
+  border-radius: 14px;
+  background-color: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  box-shadow: 0 24px 40px rgba(15, 23, 42, 0.16);
+  padding: 0.6rem;
   z-index: 10000;
-  min-width: 160px;
-
-   opacity: 0;
+  min-width: 180px;
+  opacity: 0;
   pointer-events: none;
-  transform: translateY(-10px);
-  transition: opacity 0.2s, transform 0.2s ease-in-out;
+  transform: translateY(-8px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
-
 
 .show {
   opacity: 1;
@@ -87,53 +134,81 @@
 .dropDownItem {
   display: block;
   width: 100%;
-  padding: 0.5rem;
-  color: var(--primary-dark);
+  padding: 0.55rem 0.75rem;
+  color: #0f172a;
   background: none;
   border: none;
   text-align: left;
-  border-radius: 5px;
+  border-radius: 8px;
   font: inherit;
   cursor: pointer;
-  transition: ease-in 0.15s;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 
-.dropDownItem:hover { background-color: var(--primary-light); color: white; }
-
-.btnIcon {
-  background-color: transparent;
-  border: none;
-  color: #ffffff;
-  cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 9999px;
+.dropDownItem:hover {
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary-dark);
 }
 
 .switchBtn {
   display: inline-flex;
   align-items: center;
-  gap: .5rem;
-  background: linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08));
-  color: #0f172a;
-  border: 1px solid rgba(255,255,255,0.45);
-  padding: 0.55rem 0.95rem;
-  border-radius: 9999px;
-  cursor: pointer;
+  gap: 0.5rem;
+  padding: 0.6rem 1.05rem;
+  border-radius: 999px;
+  background: radial-gradient(circle at 20% 20%, rgba(255,255,255,0.85), rgba(255,255,255,0.35));
+  color: var(--primary-dark);
+  border: 1px solid rgba(255,255,255,0.55);
   font-weight: 700;
-  letter-spacing: .02em;
-  font-size: .9rem;
-  box-shadow: 0 6px 16px rgba(2, 6, 23, 0.25);
-  transition: transform .15s ease, box-shadow .2s ease, background .2s ease;
-  margin-right: 0.5rem; /* a bit of space before the profile icon */
+  letter-spacing: 0.05em;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  box-shadow: 0 14px 28px rgba(2, 132, 199, 0.32);
+  cursor: pointer;
+  transition: transform 0.18s ease, box-shadow 0.2s ease;
 }
 
 .switchBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.28);
-  background: linear-gradient(135deg, rgba(255,255,255,0.28), rgba(255,255,255,0.10));
+  box-shadow: 0 18px 34px rgba(2, 132, 199, 0.36);
 }
 
-.switchBtn:active { transform: translateY(0); opacity: .97; }
-.switchBtn:focus { outline: 2px solid rgba(255,255,255,.85); outline-offset: 2px; }
+.switchBtn:active {
+  transform: translateY(0);
+  opacity: 0.95;
+}
 
+.switchBtn:focus {
+  outline: 2px solid rgba(255,255,255,0.8);
+  outline-offset: 2px;
+}
 
+@media (max-width: 1024px) {
+  .inner {
+    grid-template-columns: 1fr;
+    row-gap: 0.75rem;
+    justify-items: center;
+    padding-right: var(--header-padding-inline);
+  }
+
+  .navigation {
+    justify-self: center;
+  }
+
+  .navList {
+    flex-wrap: wrap;
+    gap: 0.8rem;
+  }
+}
+
+@media (max-width: 640px) {
+  .header {
+    position: relative;
+    top: 0;
+    border-radius: 0;
+  }
+
+  .switchBtn {
+    display: none;
+  }
+}

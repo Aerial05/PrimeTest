@@ -53,7 +53,7 @@
 .textPrimary { color: var(--primary-color); }
 .textSecondary { color: var(--secondary-light); }
 
-.contactInfo {
+.infoRow {
   justify-self: center;
   display: inline-flex;
   align-items: center;
@@ -71,7 +71,7 @@
   background: var(--pill-bg);
   border: 1px solid var(--pill-border);
   border-radius: 999px;
-  padding: 0.45rem 0.9rem;
+  padding: 0.45rem 0.85rem;
   box-shadow: var(--pill-shadow);
   min-height: 40px;
   transition: transform 0.18s ease, box-shadow 0.22s ease;
@@ -88,14 +88,14 @@
   padding: 0.25rem;
   border-radius: 50%;
   background: rgba(37, 99, 235, 0.12);
-  color: var(--primary-color);
+  color: inherit;
   flex-shrink: 0;
 }
 
 .infoText {
   display: flex;
   flex-direction: column;
-  line-height: 1.12;
+  line-height: 1.1;
 }
 
 .infoLabel {
@@ -110,7 +110,11 @@
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-dark);
-  text-decoration: none;
+}
+
+.infoMeta {
+  font-size: 0.64rem;
+  color: #6b7280;
 }
 
 @media (max-width: 1024px) {
@@ -124,7 +128,7 @@
     justify-self: center;
   }
 
-  .contactInfo {
+  .infoRow {
     justify-self: center;
     flex-wrap: wrap;
     padding: 0;
@@ -132,7 +136,7 @@
 }
 
 @media (max-width: 640px) {
-  .contactInfo {
+  .infoRow {
     gap: 0.5rem;
   }
 
@@ -143,10 +147,16 @@
 }
 
 @media (any-hover: none) {
-  .contactInfo {
+  .infoRow {
     -webkit-overflow-scrolling: touch;
   }
 }
 
-.contactInfo::-webkit-scrollbar { height: 6px; }
-.contactInfo::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
+.infoRow::-webkit-scrollbar {
+  height: 6px;
+}
+
+.infoRow::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 999px;
+}

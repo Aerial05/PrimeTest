@@ -1,20 +1,16 @@
-import styles from "./NavBar.module.css";
-import { Search, User, Calendar, Activity } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { NavLink } from "react-router-dom";
-import { onAuthStateChanged, signOut } from "firebase/auth";
-import { auth, usersDB } from "/src/config/firebase-config";
-import { onValue, ref, update as dbUpdate } from "firebase/database";
-import authService from "/src/services/AuthService";
-
+import styles from './NavBar.module.css';
+import { User, Calendar, Activity } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { auth, usersDB } from '/src/config/firebase-config';
+import { onValue, ref } from 'firebase/database';
 
 export function NavBar() {
-  //PROFILE DROPDOWN
   const [isDropDownOpen, setIsDropDownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [currentUser, setCurrentUser] = useState(null);
-  const [profileName, setProfileName] = useState("");
+  const [profileName, setProfileName] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
@@ -29,23 +25,23 @@ export function NavBar() {
       }
     };
 
-    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
     let dbUnsub = () => {};
     const unsub = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
-      setProfileName("");
+      setProfileName('');
       setIsAdmin(false);
       if (user) {
-        const r = ref(usersDB, `users/${user.uid}`);
+        const userRef = ref(usersDB, `users/${user.uid}`);
         dbUnsub();
-        dbUnsub = onValue(r, (snap) => {
+        dbUnsub = onValue(userRef, (snap) => {
           const v = snap.exists() ? snap.val() : {};
-          const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(" ");
-          const fallback = user.displayName || (user.email ? user.email.split("@")[0] : "User");
+          const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(' ');
+          const fallback = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
           setProfileName(nameFromDb || fallback);
           const roleIsAdmin = (() => {
             const raw = v.role;
-            if (raw == null) return false;
+            if (!raw) return false;
             const s = String(raw).trim().toLowerCase();
             return s === 'admin' || s === 'super admin' || s === 'super_admin' || s === 'superadmin';
           })();
@@ -55,8 +51,9 @@ export function NavBar() {
         dbUnsub();
       }
     });
+
     return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener('mousedown', handleClickOutside);
       unsub();
       dbUnsub();
     };
@@ -64,12 +61,11 @@ export function NavBar() {
 
   const handleLogout = async () => {
     try {
-      // No heartbeat/update on logout; lastLoginAt is set on login in App.jsx
       await signOut(auth);
       setIsDropDownOpen(false);
-      navigate("/login");
+      navigate('/login');
     } catch (e) {
-      // optionally handle error (toast/log)
+      // optional error handling
     }
   };
 
@@ -79,7 +75,7 @@ export function NavBar() {
         localStorage.setItem('preferredDashboard', 'admin');
         window.dispatchEvent(new CustomEvent('preferred-dashboard-changed', { detail: 'admin' }));
       }
-    } catch(_e) {}
+    } catch (_e) {}
     navigate('/admin-dashboard', { replace: true });
   };
 
@@ -87,34 +83,30 @@ export function NavBar() {
     <nav className={styles.nav}>
       <div className={styles.container}>
         <div className={styles.left}>
-          <NavLink 
-  to="/" 
-  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
->
-  HOME
-</NavLink>
-
-<NavLink 
-  to="/services" 
-  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
->
-  SERVICES
-</NavLink>
-
-<NavLink 
-  to="/about" 
-  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
->
-  ABOUT US
-</NavLink>
-
-<NavLink 
-  to="/contact" 
-  className={({ isActive }) => isActive ? `${styles.navLink} ${styles.active}` : styles.navLink}
->
-  CONTACT
-</NavLink>
-
+          <NavLink
+            to="/"
+            className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+          >
+            HOME
+          </NavLink>
+          <NavLink
+            to="/services"
+            className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+          >
+            SERVICES
+          </NavLink>
+          <NavLink
+            to="/about"
+            className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+          >
+            ABOUT US
+          </NavLink>
+          <NavLink
+            to="/contact"
+            className={({ isActive }) => (isActive ? `${styles.navLink} ${styles.active}` : styles.navLink)}
+          >
+            CONTACT
+          </NavLink>
         </div>
 
         <div className={styles.right}>
@@ -137,34 +129,33 @@ export function NavBar() {
                 {profileName}
               </span>
             )}
-            <button
-              className={styles.btnIcon}
-              aria-label="User"
-              onClick={toggleDropDown}
-            >
+            <button className={styles.btnIcon} aria-label="User" onClick={toggleDropDown}>
               <User />
             </button>
 
             {isDropDownOpen && (
               <div className={`${styles.dropDownMenu} ${isDropDownOpen ? styles.show : ''}`}>
-                {/* lagyan pa ng customization */}
                 {currentUser ? (
                   <>
                     <Link to="/profile">View Profile</Link>
                     <Link to="/settings?tab=history">Appointment History</Link>
-                    <a href="#" onClick={(e)=>{e.preventDefault(); handleLogout();}}>Log Out</a>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        handleLogout();
+                      }}
+                    >
+                      Log Out
+                    </a>
                   </>
                 ) : (
-                  <>
-                    <Link to="/login">Log In</Link>
-                  </>
+                  <Link to="/login">Log In</Link>
                 )}
               </div>
             )}
           </div>
         </div>
-
-        
       </div>
     </nav>
   );

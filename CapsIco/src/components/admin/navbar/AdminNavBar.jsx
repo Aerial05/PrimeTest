@@ -1,10 +1,8 @@
-﻿import React, { useEffect, useRef, useState } from 'react';
-import styles from './AdminNavBar.module.css';
-import { Activity } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import authService from '/src/services/AuthService';
-import { ref, update as dbUpdate } from 'firebase/database';
-import { auth, usersDB } from '@/config/firebase-config';
+import React, { useEffect, useRef, useState } from "react";
+import styles from "./AdminNavBar.module.css";
+import { User } from "lucide-react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import authService from "/src/services/AuthService";
 
 export function AdminNavBar() {
   const location = useLocation();
@@ -26,124 +24,112 @@ export function AdminNavBar() {
       }
     };
 
-    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener("mousedown", handleClickOutside);
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
 
   const handleLogout = async () => {
     try {
-      // No DB writes on logout; lastLoginAt is set on sign-in
       await authService.signOut();
     } catch (err) {
-      console.warn('Failed to sign out', err);
+      console.warn("Failed to sign out", err);
     } finally {
       setIsDropDownOpen(false);
-      navigate('/login', { replace: true });
+      navigate("/login", { replace: true });
     }
   };
 
   const goToUserSite = () => {
     try {
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('preferredDashboard', 'user');
-        window.dispatchEvent(new CustomEvent('preferred-dashboard-changed', { detail: 'user' }));
+      if (typeof window !== "undefined") {
+        localStorage.setItem("preferredDashboard", "user");
+        window.dispatchEvent(new CustomEvent("preferred-dashboard-changed", { detail: "user" }));
       }
     } catch (_e) {}
-    navigate('/', { replace: true });
+    navigate("/", { replace: true });
   };
 
   return (
     <header className={styles.header}>
-      <Link to="/admin-dashboard" className={styles.logoLink}>
-        <Activity className={styles.logoIcon} />
-        <span className={styles.brandName}>
-          <span className={styles.textPrimary}>PRIME</span>
-          <span className={styles.textSecondary}>LAB</span>
-        </span>
-      </Link>
+      <div className={styles.inner}>
+        <nav className={styles.navigation}>
+          <ul className={styles.navList}>
+            <li>
+              <Link
+                to="/account-management"
+                className={`${styles.navLink} ${isActive("/account-management") ? styles.active : ""}`}
+              >
+                Account Management
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/appointment-management"
+                className={`${styles.navLink} ${isActive("/appointment-management") ? styles.active : ""}`}
+              >
+                Appointment Management
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/admin-dashboard"
+                className={`${styles.navLink} ${isActive("/admin-dashboard") ? styles.active : ""}`}
+              >
+                Dashboard
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/admin-reports"
+                className={`${styles.navLink} ${isActive("/admin-reports") ? styles.active : ""}`}
+              >
+                Reports
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/admin-services"
+                className={`${styles.navLink} ${isActive("/admin-services") ? styles.active : ""}`}
+              >
+                Services
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/admin-messages"
+                className={`${styles.navLink} ${isActive("/admin-messages") ? styles.active : ""}`}
+              >
+                Messages
+              </Link>
+            </li>
+          </ul>
+        </nav>
 
-      <nav>
-        <ul className={styles.navList}>
-          <li>
-            <Link
-              to="/account-management"
-              className={isActive('/account-management') ? styles.active : undefined}
-            >
-              Account Management
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/appointment-management"
-              className={isActive('/appointment-management') ? styles.active : undefined}
-            >
-              Appointment Management
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin-dashboard"
-              className={isActive('/admin-dashboard') ? styles.active : undefined}
-            >
-              Dashboard
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin-reports"
-              className={isActive('/admin-reports') ? styles.active : undefined}
-            >
-              Reports
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin-services"
-              className={isActive('/admin-services') ? styles.active : undefined}
-            >
-              Services
-            </Link>
-          </li>
-          <li>
-            <Link
-              to="/admin-messages"
-              className={isActive('/admin-messages') ? styles.active : undefined}
-            >
-              Messages
-            </Link>
-          </li>
-        </ul>
-      </nav>
+        <div ref={dropdownRef} className={styles.profileWrapper}>
+          <button type="button" onClick={goToUserSite} className={styles.switchBtn}>
+            User Site
+          </button>
+          <button className={styles.btnIcon} aria-label="User" onClick={toggleDropDown}>
+            <div className={styles.userInfo}>
+              <span>Super Admin</span>
+              <User size={18} />
+            </div>
+          </button>
 
-      <div ref={dropdownRef} className={styles.profileWrapper}>
-        <button type="button" onClick={goToUserSite} className={styles.switchBtn}>
-          User Site
-        </button>
-        <button
-          className={styles.btnIcon}
-          aria-label="User"
-          onClick={toggleDropDown}
-        >
-          <div className={styles.userInfo}>
-            <span>Super Admin</span>
-            <i className="fas fa-user-circle"></i>
-          </div>
-        </button>
-
-        {isDropDownOpen && (
-          <div className={`${styles.dropDownMenu} ${isDropDownOpen ? styles.show : ''}`}>
-            <Link to="/admin-settings" className={styles.dropDownItem}>
-              View Profile
-            </Link>
-            <button type="button" className={styles.dropDownItem} onClick={handleLogout}>
-              Log Out
-            </button>
-          </div>
-        )}
+          {isDropDownOpen && (
+            <div className={`${styles.dropDownMenu} ${isDropDownOpen ? styles.show : ""}`}>
+              <Link to="/admin-settings" className={styles.dropDownItem}>
+                View Profile
+              </Link>
+              <button type="button" className={styles.dropDownItem} onClick={handleLogout}>
+                Log Out
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
 }
-

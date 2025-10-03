@@ -6,6 +6,7 @@ import { AddAdminForm } from '/src/components/admin/adminForm/AddAdminForm';
 import { usersDB } from '@/config/firebase-config';
 import { ref, onValue, update as dbUpdate, remove as dbRemove, set as dbSet, get as dbGet } from 'firebase/database';
 import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
+import authService from '@/services/AuthService';
 
 export function AccountManagement() {
   const { show } = useToast();
@@ -16,6 +17,16 @@ export function AccountManagement() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 10;
   const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Filters (persist per admin)
+  const uid = authService.currentUser?.uid || 'anon';
+  const storageKey = `accountMgmt:filters:${uid}`;
+  const [roleFilter, setRoleFilter] = useState('All'); // All | Admin | User
+  const [statusFilter, setStatusFilter] = useState('All'); // All | Active | Inactive
+  const [providerFilter, setProviderFilter] = useState('All'); // All | provider
+  const [search, setSearch] = useState(''); // name/email/username
+  const [joinedFrom, setJoinedFrom] = useState('');
+  const [joinedTo, setJoinedTo] = useState('');
 
   // Close modals on ESC
   useEffect(() => {
@@ -101,11 +112,70 @@ export function AccountManagement() {
     return () => off();
   }, []);
 
-  // Clamp page when rows length changes
+  // Load filters on mount
   useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved) return;
+      if (saved.roleFilter) setRoleFilter(saved.roleFilter);
+      if (saved.statusFilter) setStatusFilter(saved.statusFilter);
+      if (saved.providerFilter) setProviderFilter(saved.providerFilter);
+      if (typeof saved.search === 'string') setSearch(saved.search);
+      if (typeof saved.joinedFrom === 'string') setJoinedFrom(saved.joinedFrom);
+      if (typeof saved.joinedTo === 'string') setJoinedTo(saved.joinedTo);
+    } catch (_) { /* ignore */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Persist filters
+  useEffect(() => {
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo }));
+    } catch (_) { /* ignore */ }
+  }, [storageKey, roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo]);
+
+  // Providers list from rows
+  const providerOptions = useMemo(() => {
+    const set = new Set();
+    rows.forEach(r => { const p = (r.authProvider || '').trim(); if (p) set.add(p); });
+    const arr = Array.from(set).sort();
+    return ['All', ...arr];
+  }, [rows]);
+
+  // Apply filters
+  const filteredRows = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    const from = joinedFrom ? new Date(joinedFrom) : null;
+    const to = joinedTo ? new Date(joinedTo) : null;
+    return rows.filter(r => {
+      if (roleFilter !== 'All' && r.role !== roleFilter) return false;
+      if (statusFilter !== 'All' && (r.status || 'Active') !== statusFilter) return false;
+      if (providerFilter !== 'All' && (r.authProvider || '') !== providerFilter) return false;
+      if (term) {
+        const hay = `${r.firstName} ${r.middleName} ${r.lastName} ${r.username} ${r.email} ${r.phone}`.toLowerCase();
+        if (!hay.includes(term)) return false;
+      }
+      if (from || to) {
+        try {
+          const d = r.createdAt ? new Date(r.createdAt) : null;
+          if (from && (!d || d < from)) return false;
+          if (to) {
+            const end = new Date(to); end.setHours(23,59,59,999);
+            if (!d || d > end) return false;
+          }
+        } catch (_) { /* ignore date filter if invalid */ }
+      }
+      return true;
+    });
+  }, [rows, roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo]);
+
+  // Clamp page when filtered length changes
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
     if (page > maxPage) setPage(maxPage);
-  }, [rows, page]);
+  }, [filteredRows, page]);
 
   // Prevent body scroll while any modal is open
   useEffect(() => {
@@ -118,11 +188,11 @@ export function AccountManagement() {
   }, [showAdd, deleteTarget]);
 
   // Derive paginated slice and range text
-  const total = rows.length;
+  const total = filteredRows.length;
   const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const currentPage = Math.min(page, maxPage);
   const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = rows.slice(startIndex, startIndex + PAGE_SIZE);
+  const pageRows = filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
   const from = total === 0 ? 0 : startIndex + 1;
   const to = Math.min(total, startIndex + PAGE_SIZE);
 
@@ -137,6 +207,47 @@ export function AccountManagement() {
               onClick={() => { setSelected(null); setMode('add'); setShowAdd(true); }}
             >
               Add Account
+            </button>
+          </div>
+          {/* Filter Bar */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap', padding: '8px 0' }}>
+            {/* Role Tabs */}
+            <div style={{ display: 'flex', gap: 6 }}>
+              {['All','Admin','User'].map(r => (
+                <button
+                  key={r}
+                  className={styles.btn}
+                  style={{ background: roleFilter===r? '#111827':'#f8fafc', color: roleFilter===r? '#fff':'#0f172a', border: '1px solid #cbd5e1', padding: '6px 10px', borderRadius: 8 }}
+                  onClick={() => { setRoleFilter(r); setPage(1); }}
+                >{r}</button>
+              ))}
+            </div>
+            <div style={{ flex: 1 }} />
+            {/* Status */}
+            <label style={{ fontSize: 12, color: '#475569' }}>Status</label>
+            <select value={statusFilter} onChange={e=>{ setStatusFilter(e.target.value); setPage(1); }} style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px' }}>
+              {['All','Active','Inactive'].map(s => (<option key={s} value={s}>{s}</option>))}
+            </select>
+            {/* Provider */}
+            <label style={{ fontSize: 12, color: '#475569' }}>Provider</label>
+            <select value={providerFilter} onChange={e=>{ setProviderFilter(e.target.value); setPage(1); }} style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px' }}>
+              {providerOptions.map(p => (<option key={p} value={p}>{p}</option>))}
+            </select>
+            {/* Joined Range */}
+            <label style={{ fontSize: 12, color: '#475569' }}>Joined</label>
+            <input type="date" value={joinedFrom} onChange={e=>{ setJoinedFrom(e.target.value); setPage(1); }} style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px' }} />
+            <span style={{ color: '#64748b' }}>–</span>
+            <input type="date" value={joinedTo} onChange={e=>{ setJoinedTo(e.target.value); setPage(1); }} style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px' }} />
+            {/* Search */}
+            <input
+              type="search"
+              value={search}
+              onChange={e=>{ setSearch(e.target.value); setPage(1); }}
+              placeholder="Search name, email, username, phone"
+              style={{ minWidth: 260, border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px' }}
+            />
+            <button className={styles.btn} onClick={()=>{ setRoleFilter('All'); setStatusFilter('All'); setProviderFilter('All'); setJoinedFrom(''); setJoinedTo(''); setSearch(''); setPage(1); }}>
+              Reset Filters
             </button>
           </div>
           <AdminTable

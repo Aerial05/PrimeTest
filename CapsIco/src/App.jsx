@@ -27,6 +27,7 @@ import { MessagesPage } from "./pages/admin/messages/MessagesPage";
 // Shared components
 import { NavBar } from "./components/user/navBar/NavBar";
 import { HeaderInfoBar } from "./components/user/headerInfoBar/HeaderInfoBar";
+import { AdminHeaderInfoBar } from "/src/components/admin/headerInfoBar/AdminHeaderInfoBar";
 import { Footer } from "./components/user/footer/Footer";
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
@@ -200,7 +201,10 @@ export default function App() {
     <BrowserRouter>
       <div className="appShell">
         {checkingAuth ? null : isAdmin && !preferUserView ? (
-          <AdminNavBar />
+          <>
+            <AdminHeaderInfoBar />
+            <AdminNavBar />
+          </>
         ) : (
           <>
             <HeaderInfoBar />
