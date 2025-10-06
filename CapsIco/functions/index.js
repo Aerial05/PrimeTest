@@ -214,6 +214,72 @@ exports.onAppointmentStatusUpdate = r.database
     return null;
   });
 
+// Send completion email when status transitions to successful
+exports.onAppointmentMarkedSuccessful = r.database
+  .ref('/appointments/{apptId}/BOOKING_STATUS')
+  .onUpdate(async (change, context) => {
+    const before = (change.before.val() || '').toString().toLowerCase();
+    const after = (change.after.val() || '').toString().toLowerCase();
+    if (before === after || after !== 'successful') return null;
+    const apptId = context.params.apptId;
+    const snap = await admin.database().ref(`/appointments/${apptId}`).get();
+    if (!snap.exists()) return null;
+    const rec = snap.val() || {};
+    if (!rec.SERVICE_NAME) {
+      const resolved = await resolveServiceName(rec);
+      if (resolved) {
+        rec.SERVICE_NAME = resolved;
+        try { await admin.database().ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
+      }
+    }
+    if (rec.EMAIL_SENT_SUCCESSFUL === true) return null;
+    const to = (rec.EMAIL || '').trim();
+    if (!to) return null;
+    rec.BOOKING_STATUS = 'successful';
+    const html = buildAppointmentEmailHTML(rec, { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl });
+    const subject = buildStatusSubject(rec);
+    try {
+      await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentMarkedSuccessful' });
+      await admin.database().ref(`/appointments/${apptId}`).update({ EMAIL_SENT_SUCCESSFUL: true });
+    } catch (e) {
+      console.error('Successful email enqueue failed', e);
+    }
+    return null;
+  });
+
+// Send declined email when status transitions to declined
+exports.onAppointmentDeclined = r.database
+  .ref('/appointments/{apptId}/BOOKING_STATUS')
+  .onUpdate(async (change, context) => {
+    const before = (change.before.val() || '').toString().toLowerCase();
+    const after = (change.after.val() || '').toString().toLowerCase();
+    if (before === after || after !== 'declined') return null;
+    const apptId = context.params.apptId;
+    const snap = await admin.database().ref(`/appointments/${apptId}`).get();
+    if (!snap.exists()) return null;
+    const rec = snap.val() || {};
+    if (!rec.SERVICE_NAME) {
+      const resolved = await resolveServiceName(rec);
+      if (resolved) {
+        rec.SERVICE_NAME = resolved;
+        try { await admin.database().ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
+      }
+    }
+    if (rec.EMAIL_SENT_DECLINED === true) return null;
+    const to = (rec.EMAIL || '').trim();
+    if (!to) return null;
+    rec.BOOKING_STATUS = 'declined';
+    const html = buildAppointmentEmailHTML(rec, { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl });
+    const subject = buildStatusSubject(rec);
+    try {
+      await enqueueTriggerEmail({ to, subject, html, source: 'rtdb-onAppointmentDeclined' });
+      await admin.database().ref(`/appointments/${apptId}`).update({ EMAIL_SENT_DECLINED: true });
+    } catch (e) {
+      console.error('Declined email enqueue failed', e);
+    }
+    return null;
+  });
+
 // 2) RTDB -> Firestore mail enqueue for Trigger Email extension
 exports.enqueueEmailOnRtdbWrite = r.database
   .ref('/emailQueue/{pushId}')
@@ -264,6 +330,7 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     const apptId = data && data.apptId;
   const overrideStatus = data && data.status;
   const frontRecord = (data && (data.record || data.appointment)) || null;
+    const declineReason = (data && (data.declineReason || data.reason)) || '';
     const overrideServiceName = (data && data.serviceName) || '';
     const overrideServiceType = (data && data.serviceType) || '';
     const overrideDate = (data && data.date) || '';
@@ -293,6 +360,9 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     if (overrideTime) payload.TIME_SLOT = String(overrideTime);
     if (overrideServiceId) payload.SERVICE_ID = String(overrideServiceId);
     if (overrideStatus) payload.BOOKING_STATUS = String(overrideStatus).toLowerCase();
+    if (declineReason && String(payload.BOOKING_STATUS || '').toLowerCase() === 'declined') {
+      payload.DECLINE_REASON = String(declineReason);
+    }
     // Ensure SERVICE_NAME is populated
     if (!payload.SERVICE_NAME) {
       const resolved = await resolveServiceName(payload);
@@ -308,6 +378,9 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     if (overrideDate) toPersist.DATE_OF_APPOINTMENT = String(overrideDate);
     if (overrideTime) toPersist.TIME_SLOT = String(overrideTime);
     if (overrideServiceId) toPersist.SERVICE_ID = String(overrideServiceId);
+    if (declineReason && String(payload.BOOKING_STATUS || '').toLowerCase() === 'declined') {
+      toPersist.DECLINE_REASON = String(declineReason);
+    }
     // Persist key fields from frontend record as well
     if (frontRecord && typeof frontRecord === 'object') {
       ['SERVICE_NAME','SERVICE_TYPE','SERVICE_ID','DATE_OF_APPOINTMENT','TIME_SLOT'].forEach((k)=>{

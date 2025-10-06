@@ -67,6 +67,8 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
   const statusTitle = toTitle(rec.BOOKING_STATUS || 'Pending');
   const notes = rec.SPECIAL_INSTRUCTIONS || '';
   const complaint = rec.CHIEF_COMPLAINT || '';
+  const proofUrl = rec.PROOF || rec.proof || '';
+  const declineReason = rec.DECLINE_REASON || rec.declineReason || '';
 
   const heading = statusTitle === 'Approved'
     ? 'Appointment Confirmed'
@@ -142,6 +144,8 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
               <tr><td class="label">Status:</td><td class="val">${statusTitle}</td></tr>
               ${complaint ? `<tr><td class="label">Chief Complaint:</td><td class="val">${complaint}</td></tr>` : ''}
               ${notes ? `<tr><td class="label">Special Instructions:</td><td class="val">${notes}</td></tr>` : ''}
+              ${statusTitle === 'Declined' && declineReason ? `<tr><td class="label">Reason:</td><td class="val">${declineReason}</td></tr>` : ''}
+              ${proofUrl ? `<tr><td class="label">Proof Image:</td><td class="val"><a href="${proofUrl}" target="_blank" rel="noopener">View Proof</a></td></tr>` : ''}
             </tbody>
           </table>
         </div>

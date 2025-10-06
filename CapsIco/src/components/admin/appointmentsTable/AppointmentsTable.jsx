@@ -113,6 +113,10 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [modalId, setModalId] = useState(null);
   const [modalStatus, setModalStatus] = useState('');
   const [modalSaving, setModalSaving] = useState(false);
+  // Decline reason (optional)
+  const [declineReason, setDeclineReason] = useState('');
+  // Confirm toast for sending email
+  const [confirmSend, setConfirmSend] = useState({ open: false, onConfirm: null, title: '', message: '' });
   // Pagination
   const [page, setPage] = useState(1);
   const pageSize = 10;
@@ -141,8 +145,10 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   useEffect(() => {
     if (modalId && selected) {
       setModalStatus(selected.status || 'Pending');
+      setDeclineReason('');
     } else {
       setModalStatus('');
+      setDeclineReason('');
     }
     // reset proof UI state on open/close
     setProofFile(null);
@@ -392,25 +398,34 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       setModalSaving(true);
       await appointmentsService.updateStatus(selected.id, backend);
       setStatusLocal(selected.id, desired);
-      // If approved or successful, try to send an email now via callable
-      if (backend === 'approved' || backend === 'successful') {
-        try {
-          const res = await sendAppointmentEmailCallable({
-            apptId: selected.id,
-            status: backend,
-            serviceName: selected.serviceName,
-            serviceType: selected.type, // 'Service' | 'Package'
-            date: selected.date || selected.raw?.DATE_OF_APPOINTMENT,
-            time: selected.time || selected.raw?.TIME_SLOT,
-            serviceId: selected.raw?.SERVICE_ID,
-          });
-          if (res && res.ok) {
-            showPopup({ title: 'Email sent', message: 'A confirmation email was sent to the user.', type: 'info' });
+      // Ask before sending an email when status change implies an email
+      if (backend === 'approved' || backend === 'successful' || backend === 'declined') {
+        setConfirmSend({
+          open: true,
+          title: 'Send email?',
+          message: 'Do you want to send an email notification now?',
+          onConfirm: async () => {
+            try {
+              const res = await sendAppointmentEmailCallable({
+                apptId: selected.id,
+                status: backend,
+                serviceName: selected.serviceName,
+                serviceType: selected.type,
+                date: selected.date || selected.raw?.DATE_OF_APPOINTMENT,
+                time: selected.time || selected.raw?.TIME_SLOT,
+                serviceId: selected.raw?.SERVICE_ID,
+                ...(backend === 'declined' && declineReason ? { declineReason } : {}),
+              });
+              if (res && res.ok) {
+                showPopup({ title: 'Email sent', message: 'A notification email was sent to the user.', type: 'info' });
+              }
+            } catch (e) {
+              console.warn('sendAppointmentEmail callable failed', e);
+            } finally {
+              setConfirmSend({ open: false, onConfirm: null, title: '', message: '' });
+            }
           }
-        } catch (e) {
-          // Non-fatal: the RTDB trigger may still send; show gentle notice
-          console.warn('sendAppointmentEmail callable failed', e);
-        }
+        });
       }
     } catch (e) {
       showPopup({ title: 'Update failed', message: 'Failed to update status.', type: 'error' });
@@ -449,22 +464,12 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         ...r,
         raw: { ...r.raw, PROOF: proofUrl || r.raw?.PROOF }
       }) : r));
-
-      // If already approved and proof requirement is satisfied, auto-mark as Successful
+      // Do not auto-change status; keep it as-is and inform the admin
+      showPopup({ title: 'Proof uploaded', message: 'Image uploaded successfully. Status was not changed.', type: 'info' });
+      // If not approved yet, give a hint about the next step
       const isApproved = String(selected.status || '').toLowerCase() === 'approved';
-      if (isApproved && (!requireProofForSuccess || proofUrl)) {
-        try {
-          await appointmentsService.updateStatus(selected.id, 'successful');
-          setRows(prev => prev.map(r => r.id === selected.id ? ({ ...r, status: 'Successful' }) : r));
-          setModalStatus('Successful');
-        } catch (_) {
-          // best-effort; leave as approved with proof
-        }
-      } else {
-        // Inform the admin next step if not approved yet
-        if (!isApproved) {
-          setProofError('Proof uploaded. Approve the appointment to mark as Successful.');
-        }
+      if (!isApproved) {
+        setProofError('Proof uploaded. Approve the appointment to mark as Successful.');
       }
       setProofFile(null);
     } catch (e) {
@@ -737,6 +742,18 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   <div><span>Date</span><strong>{selected.dateDisplay || toLongDate(selected.date) || toLongDate(selected.raw?.DATE_OF_APPOINTMENT)}</strong></div>
                   <div><span>Time</span><strong>{to12h(selected.time)}</strong></div>
                   <div><span>Status</span><strong>{selected.status}</strong></div>
+                  {/* Decline reason (optional) */}
+                  <div className={styles.fullRow}>
+                    <span>Decline Reason (optional)</span>
+                    <input
+                      type="text"
+                      className={styles.input}
+                      placeholder="Short reason to include in the email (optional)"
+                      value={declineReason}
+                      onChange={(e)=>setDeclineReason(e.target.value)}
+                      disabled={modalSaving || (String(modalStatus).toLowerCase() !== 'declined' && String(selected.status).toLowerCase() !== 'declined')}
+                    />
+                  </div>
                   <div><span>Chief Complaint</span><strong>{selected.raw.CHIEF_COMPLAINT || '—'}</strong></div>
                   <div className={styles.fullRow}><span>Special Instructions</span><strong>{selected.raw.SPECIAL_INSTRUCTIONS || '—'}</strong></div>
                   <div><span>Created</span><strong title={String(selected.raw.CREATED_AT || '')}>{toLongDateTime(selected.raw.CREATED_AT)}</strong></div>
@@ -827,6 +844,25 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                 {popup.message && (<div className={styles.toastMsg}>{popup.message}</div>)}
               </div>
               <button type="button" className={styles.toastClose} onClick={closePopup} title="Close">✕</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmSend.open && (
+        <div className={styles.toastOverlay} role="dialog" aria-modal="true" aria-labelledby="confirmTitle" onClick={(e)=>{ if (e.target === e.currentTarget) setConfirmSend({ open:false, onConfirm:null, title:'', message:'' }); }}>
+          <div className={styles.toastCard}>
+            <div className={styles.toastHeader}>
+              <div className={styles.toastIcon} aria-hidden>ℹ</div>
+              <div className={styles.toastText}>
+                <div id="confirmTitle" className={styles.toastTitle}>{confirmSend.title || 'Send email?'}</div>
+                <div className={styles.toastMsg}>{confirmSend.message || 'Do you want to send an email notification now?'}</div>
+              </div>
+              <button type="button" className={styles.toastClose} onClick={() => setConfirmSend({ open:false, onConfirm:null, title:'', message:'' })} title="Close">✕</button>
+            </div>
+            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', padding:'0 16px 14px' }}>
+              <button className={`${styles.btn} ${styles.btnDecline}`} onClick={() => setConfirmSend({ open:false, onConfirm:null, title:'', message:'' })}>Cancel</button>
+              <button className={`${styles.btn} ${styles.btnApprove}`} onClick={() => confirmSend.onConfirm && confirmSend.onConfirm()}>Send</button>
             </div>
           </div>
         </div>
