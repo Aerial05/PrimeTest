@@ -1,10 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './SettingsContentUser.module.css';
 import { auth, usersDB } from '/src/config/firebase-config';
-import { onAuthStateChanged, updateProfile, sendEmailVerification, reload, signOut } from 'firebase/auth';
+import { onAuthStateChanged, updateProfile, sendEmailVerification, reload, signOut, fetchSignInMethodsForEmail, updateEmail } from 'firebase/auth';
 import authService from '/src/services/AuthService';
 import { get, ref, set, update } from 'firebase/database';
 import { useNavigate } from 'react-router-dom';
+import { formatPHDisplay, toE164PH, isValidE164PH } from '/src/utils/phone';
 
 export function SettingsContent() {
   const navigate = useNavigate();
@@ -46,6 +47,54 @@ export function SettingsContent() {
   const [initialEmail, setInitialEmail] = useState('');
   const [createdAt, setCreatedAt] = useState('');
   const [lastLoginAt, setLastLoginAt] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState(['','','','','','']);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const recaptchaPhoneRef = useState(null)[0];
+  const [showVisibleCaptcha, setShowVisibleCaptcha] = useState(false);
+  const otpRefs = useRef(Array.from({ length: 6 }, () => React.createRef()));
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Change phone modal
+  const [changePhoneOpen, setChangePhoneOpen] = useState(false);
+  const [changeStep, setChangeStep] = useState('choose'); // choose | emailVerify | smsVerify | newPhone | confirmNew
+  const [changeBusy, setChangeBusy] = useState(false);
+  const [changeMsg, setChangeMsg] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [reauthOtp, setReauthOtp] = useState(['','','','','','']);
+  const reauthRefs = useRef(Array.from({ length: 6 }, () => React.createRef()));
+  const [newOtp, setNewOtp] = useState(['','','','','','']);
+  const newOtpRefs = useRef(Array.from({ length: 6 }, () => React.createRef()));
+  const [smsCooldown, setSmsCooldown] = useState(0);
+  const [newCooldown, setNewCooldown] = useState(0);
+  const [showReauthCaptcha, setShowReauthCaptcha] = useState(false);
+  const [showNewCaptcha, setShowNewCaptcha] = useState(false);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
+  useEffect(() => {
+    if (smsCooldown <= 0) return;
+    const t = setInterval(() => setSmsCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [smsCooldown]);
+
+  useEffect(() => {
+    if (newCooldown <= 0) return;
+    const t = setInterval(() => setNewCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [newCooldown]);
+
+  useEffect(() => {
+    if (phoneOtpSent) {
+      // Focus the first OTP input when we start the verification step
+      setTimeout(() => otpRefs.current?.[0]?.current?.focus(), 50);
+    }
+  }, [phoneOtpSent]);
 
   // Load current auth user and profile data from DB
   useEffect(() => {
@@ -80,8 +129,9 @@ export function SettingsContent() {
         const uname = dbv.username ?? '';
         setUsername(uname);
         setPrevUsername(uname);
-        const rawPhone = dbv.phone ?? (u.phoneNumber || '');
-        setPhone(formatPhone(rawPhone));
+  const rawPhone = dbv.phone ?? (u.phoneNumber || '');
+  setPhone(formatPHDisplay(rawPhone));
+  setPhoneVerified(!!dbv.phoneVerified);
   if (dbv?.createdAt) try { setCreatedAt(new Date(dbv.createdAt).toISOString()); } catch {}
   if (dbv?.lastLoginAt) try { setLastLoginAt(new Date(dbv.lastLoginAt).toISOString()); } catch {}
       } catch (e) {
@@ -93,34 +143,196 @@ export function SettingsContent() {
     return () => unsub();
   }, []);
 
+  // Admin detection removed (no test-only Unverify in production UI)
+
   const fullName = useMemo(() => `${firstName} ${lastName}`.trim(), [firstName, lastName]);
   const isPasswordProvider = useMemo(() => {
     return !!(user?.providerData || []).some(p => p.providerId === 'password');
   }, [user]);
 
   // PH format: +63 9XX XXX XXXX for display, store E.164 +639XXXXXXXXX
-  const formatPhone = (value) => {
-    const digits = (value || '').replace(/\D/g, '');
-    let rest = digits;
-    if (rest.startsWith('63')) rest = rest.slice(2);
-    else if (rest.startsWith('0')) rest = rest.slice(1);
-    rest = rest.replace(/^(?!9)/, '');
-    rest = rest.slice(0, 10);
-    const p1 = rest.slice(0, 3);
-    const p2 = rest.slice(3, 6);
-    const p3 = rest.slice(6, 10);
-    const tail = [p1, p2, p3].filter(Boolean).join(' ');
-    return '+63 ' + tail;
+  const formatPhone = (value) => formatPHDisplay(value);
+
+  const toE164 = (value) => toE164PH(value);
+
+  // Masking helpers
+  const maskEmail = (val) => {
+    const e = String(val || '').trim();
+    const at = e.indexOf('@');
+    if (at <= 0) return e ? e.replace(/.(?=.{2})/g, '*') : '';
+    const local = e.slice(0, at);
+    const domain = e.slice(at + 1);
+    const start = local.slice(0, 2);
+    const end = local.slice(-1);
+    const maskedLocal = local.length <= 3 ? `${local[0] || ''}***` : `${start}***${end}`;
+    return `${maskedLocal}@${domain}`;
   };
 
-  const toE164 = (value) => {
-    const digits = (value || '').replace(/\D/g, '');
-    let rest = digits;
-    if (rest.startsWith('63')) rest = rest.slice(2);
-    else if (rest.startsWith('0')) rest = rest.slice(1);
-    if (!rest) return '';
-    rest = rest.slice(0, 10);
-    return '+63' + rest;
+  const maskPhoneDisplay = (val) => {
+    const e164 = toE164(val);
+    const m = /^\+63(\d{10})$/.exec(e164 || '');
+    if (!m) return formatPHDisplay(val);
+    const digits = m[1];
+    const first = digits.slice(0, 1); // first after +63
+    const last4 = digits.slice(-4);
+    return `+63 ${first}*** *** ${last4}`;
+  };
+
+  const handleSendPhoneOtp = async () => {
+    setError('');
+    const e164 = toE164(phone);
+    if (!/^\+63\d{10}$/.test(e164)) { setError('Enter a valid PH number (+63)'); return; }
+    setPhoneBusy(true);
+    try {
+  const containerId = showVisibleCaptcha ? 'profile-phone-recaptcha-visible' : 'profile-phone-recaptcha';
+  await authService.startLinkPhone(e164, containerId, showVisibleCaptcha ? { size: 'normal' } : { size: 'invisible' });
+      setPhoneOtpSent(true);
+      setResendCooldown(60);
+    } catch (e) {
+      setError(e?.message || 'Failed to send verification code');
+      if (String(e?.code || e?.message || '').toLowerCase().includes('captcha') || String(e?.code || e?.message || '').toLowerCase().includes('invalid-app-credential')) {
+        setShowVisibleCaptcha(true);
+      }
+    } finally { setPhoneBusy(false); }
+  };
+
+  const handleConfirmPhoneOtp = async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    setError('');
+    const code = phoneOtp.join('');
+    if (code.length !== 6) { setError('Enter the 6-digit code'); return; }
+    setPhoneBusy(true);
+    try {
+  // Confirm linking (keeps current session intact)
+  await authService.confirmLinkPhone(code);
+      // Persist phone and mark verified in DB
+      const uid = authService.currentUser?.uid || user?.uid;
+      const e164 = toE164(phone);
+      if (uid && e164) {
+        await update(ref(usersDB, `users/${uid}`), { phone: e164, phoneVerified: true });
+      }
+      setPhoneVerified(true);
+      setPhoneOtp(['','','','','','']);
+      setPhoneOtpSent(false);
+      setSuccess('Phone verified');
+    } catch (err) {
+      setError(err?.message || 'Invalid code. Try again.');
+    } finally { setPhoneBusy(false); }
+  };
+
+  // Unverify/test-only action removed from production UI
+
+  const handleOtpInputChange = (idx, value) => {
+    const v = (value || '').replace(/\D/g, '').slice(-1);
+    const next = [...phoneOtp];
+    next[idx] = v;
+    setPhoneOtp(next);
+    if (v && idx < otpRefs.current.length - 1) {
+      otpRefs.current[idx + 1]?.current?.focus();
+    }
+  };
+
+  const handleCodeInputChange = (arrSetter, idx, value) => {
+    const v = (value || '').replace(/\D/g, '').slice(-1);
+    arrSetter((prev) => {
+      const next = [...prev];
+      next[idx] = v;
+      return next;
+    });
+  };
+
+  const focusNext = (refs, idx, dir) => {
+    const nextIdx = idx + (dir || 1);
+    if (nextIdx >= 0 && nextIdx < refs.current.length) refs.current[nextIdx]?.current?.focus();
+  };
+
+  const handleCodeKeyDown = (refs, values, idx, e, onEnter) => {
+    if (e.key === 'Backspace') { if (!values[idx] && idx > 0) focusNext(refs, idx, -1); }
+    if (e.key === 'ArrowLeft' && idx > 0) { e.preventDefault(); focusNext(refs, idx, -1); }
+    if (e.key === 'ArrowRight' && idx < refs.current.length - 1) { e.preventDefault(); focusNext(refs, idx, +1); }
+    if (e.key === 'Enter' && typeof onEnter === 'function') onEnter();
+  };
+
+  const handleCodePaste = (arrSetter, refs, e) => {
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const digits = (text || '').replace(/\D/g, '').slice(0, 6).split('');
+    if (!digits.length) return;
+    e.preventDefault();
+    arrSetter(() => {
+      const next = Array.from({ length: 6 }, (_, i) => digits[i] || '');
+      return next;
+    });
+    const lastIdx = Math.min(digits.length - 1, 5);
+    if (lastIdx >= 0) refs.current[lastIdx]?.current?.focus();
+  };
+
+  const handleOtpKeyDown = (idx, e) => {
+    if (e.key === 'Backspace') {
+      if (!phoneOtp[idx] && idx > 0) {
+        otpRefs.current[idx - 1]?.current?.focus();
+      }
+    }
+    if (e.key === 'ArrowLeft' && idx > 0) {
+      e.preventDefault();
+      otpRefs.current[idx - 1]?.current?.focus();
+    }
+    if (e.key === 'ArrowRight' && idx < otpRefs.current.length - 1) {
+      e.preventDefault();
+      otpRefs.current[idx + 1]?.current?.focus();
+    }
+    if (e.key === 'Enter') {
+      const code = phoneOtp.join('');
+      if (code.length === 6) {
+        handleConfirmPhoneOtp(e);
+      }
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    const text = (e.clipboardData || window.clipboardData).getData('text');
+    const digits = (text || '').replace(/\D/g, '').slice(0, 6).split('');
+    if (!digits.length) return;
+    e.preventDefault();
+    const next = [...phoneOtp];
+    for (let i = 0; i < 6; i += 1) {
+      next[i] = digits[i] || '';
+    }
+    setPhoneOtp(next);
+    const lastIdx = Math.min(digits.length - 1, 5);
+    if (lastIdx >= 0) {
+      otpRefs.current[lastIdx]?.current?.focus();
+    }
+  };
+
+  // Finalize new phone number update
+  const confirmNewPhone = async () => {
+    const code = newOtp.join('');
+    if (code.length !== 6) { setChangeMsg('Enter the 6-digit code'); return; }
+    setChangeBusy(true);
+    setChangeMsg('');
+    try {
+      await authService.confirmUpdatePhone(code);
+      const uid = authService.currentUser?.uid || user?.uid;
+      const e164 = toE164(newPhone);
+      if (uid && e164) {
+        await update(ref(usersDB, `users/${uid}`), { phone: e164, phoneVerified: true });
+      }
+      // Reflect in local UI
+      setPhone(formatPhone(newPhone));
+      setPhoneVerified(true);
+      setChangePhoneOpen(false);
+      setSuccess('Phone number updated and verified.');
+      setError('');
+    } catch (err) {
+      if (err?.code === 'auth/requires-recent-login') {
+        setChangeMsg('Your session is too old. Please verify via SMS to your current phone to continue.');
+        setChangeStep('smsVerify');
+      } else {
+        setChangeMsg(err?.message || 'Failed to update phone.');
+      }
+    } finally {
+      setChangeBusy(false);
+    }
   };
 
   const handleCancel = () => {
@@ -310,7 +522,7 @@ export function SettingsContent() {
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="email">Email Address</label>
-              <input type="email" id="email" value={email} disabled />
+              <input type="email" id="email" value={maskEmail(email)} disabled />
               {emailError && <div className={styles.muted} style={{color:'#b91c1c'}}>{emailError}</div>}
               <div className={styles.statusRow}>
                 <span className={`${styles.statusBadge} ${emailVerified ? styles.verified : styles.unverified}`}>
@@ -353,11 +565,64 @@ export function SettingsContent() {
                 id="phone"
                 inputMode="numeric"
                 maxLength={16}
-                value={phone}
+                value={phoneVerified ? maskPhoneDisplay(phone) : phone}
                 onChange={(e)=> setPhone(formatPhone(e.target.value))}
                 placeholder="+63 912 345 6789"
-                disabled={loading}
+                disabled={loading || phoneVerified}
               />
+              {showVisibleCaptcha && (
+                <div style={{ marginTop: 8 }}>
+                  <div id="profile-phone-recaptcha-visible"></div>
+                  <div className={styles.muted} style={{ marginTop: 4 }}>Please solve the reCAPTCHA and try sending the code again.</div>
+                </div>
+              )}
+              <div className={styles.statusRow}>
+                <span className={`${styles.statusBadge} ${phoneVerified ? styles.verified : styles.unverified}`}>
+                  <span className={styles.dot}></span>
+                  {phoneVerified ? 'PH Phone Verified' : 'PH Phone Not Verified'}
+                </span>
+                {!phoneVerified && (
+                  !phoneOtpSent ? (
+                    <button type="button" className={styles.linkBtn} onClick={handleSendPhoneOtp} disabled={phoneBusy || loading || !isValidE164PH(toE164(phone))}>
+                      {phoneBusy ? 'Sending…' : 'Verify phone via SMS'}
+                    </button>
+                  ) : (
+                    <>
+                      <div className={styles.inlineActions}>
+                        <div className={styles.verificationInputs}>
+                          {phoneOtp.map((d, i) => (
+                            <input
+                              key={i}
+                              ref={otpRefs.current[i]}
+                              className={styles.codeInput}
+                              value={d}
+                              onChange={(e)=> handleOtpInputChange(i, e.target.value)}
+                              onKeyDown={(e)=> handleOtpKeyDown(i, e)}
+                              onPaste={handleOtpPaste}
+                              maxLength={1}
+                              inputMode="numeric"
+                              pattern="\d*"
+                              aria-label={`Digit ${i+1}`}
+                            />
+                          ))}
+                        </div>
+                        <button type="button" onClick={handleConfirmPhoneOtp} className={styles.btnPrimary} disabled={phoneBusy}>
+                          {phoneBusy ? 'Verifying…' : 'Confirm'}
+                        </button>
+                        <button type="button" className={styles.linkBtn} onClick={handleSendPhoneOtp} disabled={phoneBusy || resendCooldown > 0}>
+                          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                        </button>
+                      </div>
+                      {/* Test-only hint removed */}
+                    </>
+                  )
+                )}
+                {phoneVerified && (
+                  <button type="button" className={styles.linkBtn} onClick={()=>{ setChangePhoneOpen(true); setChangeStep('choose'); setChangeMsg(''); setNewPhone(''); setReauthOtp(['','','','','','']); setNewOtp(['','','','','','']); }}>
+                    Change phone number
+                  </button>
+                )}
+              </div>
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="createdAt">Created</label>
@@ -634,6 +899,134 @@ export function SettingsContent() {
                   </div>
                 </>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change phone number modal */}
+      {changePhoneOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal}>
+            <div className={styles.modalHeader}>
+              <h4 className={styles.modalTitle}>Change phone number</h4>
+              <button className={styles.closeBtn} onClick={()=> setChangePhoneOpen(false)}>×</button>
+            </div>
+            <div className={styles.modalBody}>
+              {changeStep === 'choose' && (
+                <>
+                  <p className={styles.muted}>To change your phone number, first verify your identity. Choose a verification method.</p>
+                  <div className={styles.modalActions}>
+                    <button className={styles.btnSecondary} onClick={()=> setChangeStep('emailVerify')}>Verify via Email</button>
+                    <button className={styles.btnPrimary} onClick={()=> setChangeStep('smsVerify')}>Verify via SMS</button>
+                  </div>
+                </>
+              )}
+
+              {changeStep === 'emailVerify' && (
+                <>
+                  <p className={styles.muted}>We'll send a verification email to <strong>{email}</strong>. After clicking the link, continue to enter a new phone number.</p>
+                  {changeMsg && <p className={styles.muted} style={{marginTop:8}}>{changeMsg}</p>}
+                  <div className={styles.modalActions}>
+                    <button className={styles.btnSecondary} onClick={async ()=>{ setChangeBusy(true); try { await sendEmailVerification(auth.currentUser); setChangeMsg('Verification email sent. Click the link, then click "I clicked the link".'); } finally { setChangeBusy(false); } }}>Send email</button>
+                    <button className={styles.btnPrimary} onClick={async ()=>{ setChangeBusy(true); try { await reload(auth.currentUser); if (auth.currentUser?.emailVerified) { setChangeMsg('Email verified.'); setChangeStep('newPhone'); } else { setChangeMsg('Still not verified. Please open the link in your email.'); } } finally { setChangeBusy(false); } }}>I clicked the link</button>
+                  </div>
+                </>
+              )}
+
+              {changeStep === 'smsVerify' && (
+                <>
+                  <p className={styles.muted}>We'll text a code to your current phone: <strong>{maskPhoneDisplay(phone)}</strong>.</p>
+                  {showReauthCaptcha && <div style={{ marginTop: 8 }}><div id="change-phone-reauth-recaptcha-visible"></div><div className={styles.muted} style={{ marginTop: 4 }}>Solve the reCAPTCHA then resend.</div></div>}
+                  <div className={styles.inlineActions}>
+                    <div className={styles.verificationInputs}>
+                      {reauthOtp.map((d, i) => (
+                        <input
+                          key={i}
+                          ref={reauthRefs.current[i]}
+                          className={styles.codeInput}
+                          value={d}
+                          onChange={(e)=> handleCodeInputChange(setReauthOtp, i, e.target.value)}
+                          onKeyDown={(e)=> handleCodeKeyDown(reauthRefs, reauthOtp, i, e, async ()=>{ const code = reauthOtp.join(''); if (code.length===6) { setChangeBusy(true); setChangeMsg(''); try { await authService.confirmReauthPhone(code); setChangeStep('newPhone'); setChangeMsg('Verified. Enter a new PH number.'); } catch(err) { setChangeMsg(err?.message || 'Invalid code.'); } finally { setChangeBusy(false); } } })}
+                          onPaste={(e)=> handleCodePaste(setReauthOtp, reauthRefs, e)}
+                          maxLength={1}
+                          inputMode="numeric"
+                          pattern="\d*"
+                          aria-label={`Digit ${i+1}`}
+                        />
+                      ))}
+                    </div>
+                    <button className={styles.btnPrimary} disabled={changeBusy} onClick={async ()=>{ const code = reauthOtp.join(''); if (code.length!==6) { setChangeMsg('Enter the 6-digit code'); return; } setChangeBusy(true); setChangeMsg(''); try { await authService.confirmReauthPhone(code); setChangeStep('newPhone'); setChangeMsg('Verified. Enter a new PH number.'); } catch(err){ setChangeMsg(err?.message || 'Invalid code.'); } finally { setChangeBusy(false); } }}>Confirm</button>
+                    <button className={styles.linkBtn} disabled={changeBusy || smsCooldown>0} onClick={async ()=>{ setChangeBusy(true); setChangeMsg(''); try { const e164 = toE164(phone); await authService.startReauthPhone(e164, showReauthCaptcha ? 'change-phone-reauth-recaptcha-visible' : 'change-phone-reauth-recaptcha', showReauthCaptcha ? { size: 'normal' } : { size: 'invisible' }); setSmsCooldown(60); reauthRefs.current?.[0]?.current?.focus(); } catch(err){ setChangeMsg(err?.message || 'Failed to send code'); if (String(err?.message||'').toLowerCase().includes('captcha') || String(err?.message||'').toLowerCase().includes('invalid-app-credential')) { setShowReauthCaptcha(true); } } finally { setChangeBusy(false); } }}>
+                      {smsCooldown>0 ? `Resend in ${smsCooldown}s` : 'Send code'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {changeStep === 'newPhone' && (
+                <>
+                  <label>New PH phone number</label>
+                  <input className={styles.input} type="tel" inputMode="numeric" placeholder="+63 9XX XXX XXXX" value={newPhone} onChange={(e)=> setNewPhone(formatPhone(e.target.value))} />
+                  {showNewCaptcha && <div style={{ marginTop: 8 }}><div id="change-phone-new-recaptcha-visible"></div><div className={styles.muted} style={{ marginTop: 4 }}>Solve the reCAPTCHA then resend.</div></div>}
+                  <div className={styles.modalActions}>
+                    <button className={styles.btnSecondary} onClick={()=> setChangePhoneOpen(false)}>Cancel</button>
+                    <button className={styles.btnPrimary} disabled={changeBusy || !isValidE164PH(toE164(newPhone))} onClick={async ()=>{
+                      setChangeBusy(true); setChangeMsg('');
+                      try {
+                        const e164 = toE164(newPhone);
+                        if (!/^\+63\d{10}$/.test(e164)) throw new Error('PH numbers only (+63)');
+                        // Ensure not used by other accounts
+                        const matches = await authService.findUsersByPhone(e164);
+                        const uid = authService.currentUser?.uid;
+                        const conflict = matches.find(m=>m.uid !== uid);
+                        if (conflict) throw new Error('This phone is already linked to another account.');
+                        await authService.startUpdatePhone(e164, showNewCaptcha ? 'change-phone-new-recaptcha-visible' : 'change-phone-new-recaptcha', showNewCaptcha ? { size: 'normal' } : { size: 'invisible' });
+                        setChangeStep('confirmNew');
+                        setNewCooldown(60);
+                        setTimeout(()=> newOtpRefs.current?.[0]?.current?.focus(), 50);
+                      } catch(err) {
+                        setChangeMsg(err?.message || 'Failed to send code');
+                        if (String(err?.message||'').toLowerCase().includes('captcha') || String(err?.message||'').toLowerCase().includes('invalid-app-credential')) { setShowNewCaptcha(true); }
+                      } finally { setChangeBusy(false); }
+                    }}>Send code</button>
+                  </div>
+                </>
+              )}
+
+              {changeStep === 'confirmNew' && (
+                <>
+                  <p className={styles.muted}>Enter the 6-digit code sent to <strong>{maskPhoneDisplay(newPhone)}</strong>.</p>
+                  <div className={styles.inlineActions}>
+                    <div className={styles.verificationInputs}>
+                      {newOtp.map((d, i) => (
+                        <input
+                          key={i}
+                          ref={newOtpRefs.current[i]}
+                          className={styles.codeInput}
+                          value={d}
+                          onChange={(e)=> handleCodeInputChange(setNewOtp, i, e.target.value)}
+                          onKeyDown={(e)=> handleCodeKeyDown(newOtpRefs, newOtp, i, e, async ()=>{ const code = newOtp.join(''); if (code.length===6) await confirmNewPhone(); })}
+                          onPaste={(e)=> handleCodePaste(setNewOtp, newOtpRefs, e)}
+                          maxLength={1}
+                          inputMode="numeric"
+                          pattern="\d*"
+                          aria-label={`Digit ${i+1}`}
+                        />
+                      ))}
+                    </div>
+                    <button className={styles.btnPrimary} disabled={changeBusy} onClick={async ()=>{ await confirmNewPhone(); }}>Confirm</button>
+                    <button className={styles.linkBtn} disabled={changeBusy || newCooldown>0} onClick={async ()=>{ setChangeBusy(true); setChangeMsg(''); try { const e164 = toE164(newPhone); await authService.startUpdatePhone(e164, showNewCaptcha ? 'change-phone-new-recaptcha-visible' : 'change-phone-new-recaptcha', showNewCaptcha ? { size: 'normal' } : { size: 'invisible' }); setNewCooldown(60); } catch(err){ setChangeMsg(err?.message || 'Failed to resend'); } finally { setChangeBusy(false); }}}>
+                      {newCooldown>0 ? `Resend in ${newCooldown}s` : 'Resend code'}
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {changeMsg && <p className={styles.muted} style={{marginTop:8}}>{changeMsg}</p>}
+              {/* Invisible reCAPTCHA containers */}
+              <div id="change-phone-reauth-recaptcha" style={{ position:'absolute', left:-9999, bottom:0 }} />
+              <div id="change-phone-new-recaptcha" style={{ position:'absolute', left:-9999, bottom:0 }} />
             </div>
           </div>
         </div>

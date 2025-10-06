@@ -275,3 +275,48 @@ input:checked + .slider:before {
   box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 
+/* OTP inputs (shared styling with Login) */
+.verificationInputs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 12px;
+}
+
+.codeInput {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  color: #0f172a;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.06s ease;
+}
+
+.codeInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.codeInput:hover { border-color: var(--primary-light); }
+
+.codeInput:disabled { background: #f8fafc; color: #94a3b8; }
+
+.codeInput::-webkit-outer-spin-button,
+.codeInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.codeInput[type=number] { appearance: textfield; -moz-appearance: textfield; }
+
+@media (max-width: 420px) {
+  .codeInput { width: 40px; height: 48px; font-size: 20px; }
+}
+
+/* Small utility styles for inline actions */
+.inlineActions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; }
+.dangerText { color: #b91c1c; }
+.successText { color: #059669; }
+

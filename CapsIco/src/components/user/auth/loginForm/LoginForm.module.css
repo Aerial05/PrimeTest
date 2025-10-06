@@ -237,6 +237,47 @@
   font-size: 16px;
 }
 
+/* OTP Verification */
+.verificationInputs {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin: 10px 0 12px;
+}
+
+.codeInput {
+  width: 44px;
+  height: 52px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  border: 1.5px solid var(--border-color);
+  border-radius: 8px;
+  outline: none;
+  background: #fff;
+  color: #0f172a;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.06s ease;
+}
+
+.codeInput:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+.codeInput:hover { border-color: var(--primary-light); }
+
+.codeInput:disabled { background: #f8fafc; color: #94a3b8; }
+
+/* Remove number spinners on some browsers if type gets changed */
+.codeInput::-webkit-outer-spin-button,
+.codeInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.codeInput[type=number] { appearance: textfield; -moz-appearance: textfield; }
+
+@media (max-width: 420px) {
+  .codeInput { width: 40px; height: 48px; font-size: 20px; }
+}
+
 /* Toggle Link */
 .toggleLink {
   text-align: center;
@@ -249,6 +290,8 @@
   text-decoration: none;
   font-weight: 600;
 }
+
+.toggleLink a[aria-disabled="true"] { pointer-events: none; opacity: .6; }
 
 /* Error / Success */
 .errorText { color: #ef4444; font-size: 13px; margin: 8px 0 0; }

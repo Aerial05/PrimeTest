@@ -1,4 +1,5 @@
-﻿import React, { useState } from "react";
+﻿import React, { useState, useRef, useEffect } from "react";
+import { formatPHDisplay, toE164PH } from "/src/utils/phone";
 import styles from "./LoginForm.module.css";
 import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -17,6 +18,28 @@ export function LoginForm({ onSwitch }) {
   const [welcomeSubtitle, setWelcomeSubtitle] = useState("Preparing your dashboard.");
   const [welcomeHide, setWelcomeHide] = useState(false);
   const [showRolePrompt, setShowRolePrompt] = useState(false);
+
+  // Phone login state
+  const [usePhoneLogin, setUsePhoneLogin] = useState(false);
+  const [phoneDisplay, setPhoneDisplay] = useState("");
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpCode, setOtpCode] = useState(["", "", "", "", "", ""]);
+  const recaptchaBtnRef = useRef(null);
+  const [showVisibleCaptcha, setShowVisibleCaptcha] = useState(false);
+  const otpRefs = useRef(Array.from({ length: 6 }, () => React.createRef()));
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (otpSent) {
+      setTimeout(() => otpRefs.current?.[0]?.current?.focus(), 50);
+    }
+  }, [otpSent]);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
 
   const setPreferredDashboard = (preference) => {
     if (typeof window !== "undefined") {
@@ -71,6 +94,11 @@ export function LoginForm({ onSwitch }) {
     setError("");
     setLoading(true);
     try {
+      if (usePhoneLogin) {
+        // For phone login, sending OTP is handled by a separate action
+        await handleSendOtp();
+        return;
+      }
       await authService.signInWithEmail({ email, password, remember });
       await handlePostSignIn();
     } catch (err) {
@@ -106,6 +134,116 @@ export function LoginForm({ onSwitch }) {
     }
   };
 
+  // Phone helpers (PH +63 formatter/E.164)
+  const formatPhone = (value) => formatPHDisplay(value);
+  const toE164 = (value) => toE164PH(value);
+
+  // Initialize invisible reCAPTCHA on a hidden button
+  useEffect(() => {
+    if (!usePhoneLogin) return;
+    const id = "login-phone-recaptcha";
+    // Create verifier once when phone login toggles on
+    try {
+      authService.getOrCreateRecaptchaVerifier(id, {
+        size: "invisible",
+        callback: () => {},
+        "expired-callback": () => {},
+      });
+    } catch (_) {}
+  }, [usePhoneLogin]);
+
+  const handleSendOtp = async () => {
+    setError("");
+    const e164 = toE164(phoneDisplay);
+    if (!e164) {
+      setError("Enter a valid phone number");
+      return;
+    }
+    if (!/^\+63\d{10}$/.test(e164)) {
+      setError('Phone login is available for PH (+63) numbers only.');
+      return;
+    }
+    setLoading(true);
+    try {
+      // Enforce that the phone exists in DB and is verified before allowing OTP
+      await authService.assertVerifiedPhoneForLogin(e164);
+      const id = showVisibleCaptcha ? 'login-phone-recaptcha-visible' : 'login-phone-recaptcha';
+      await authService.startPhoneSignIn(e164, id, showVisibleCaptcha ? { size: 'normal' } : { size: 'invisible' });
+      setOtpSent(true);
+      setResendCooldown(60);
+    } catch (err) {
+      setError(err.message || "Failed to send OTP. Try again.");
+      if (String(err?.code || err?.message || '').toLowerCase().includes('captcha') || String(err?.code || err?.message || '').toLowerCase().includes('invalid-app-credential')) {
+        setShowVisibleCaptcha(true);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleOtpChange = (idx, val) => {
+    const v = (val || "").replace(/\D/g, "").slice(-1);
+    const next = [...otpCode];
+    next[idx] = v;
+    setOtpCode(next);
+    if (v && idx < otpRefs.current.length - 1) {
+      otpRefs.current[idx + 1]?.current?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (idx, e) => {
+    if (e.key === 'Backspace') {
+      if (!otpCode[idx] && idx > 0) {
+        otpRefs.current[idx - 1]?.current?.focus();
+      }
+    }
+    if (e.key === 'ArrowLeft' && idx > 0) {
+      e.preventDefault();
+      otpRefs.current[idx - 1]?.current?.focus();
+    }
+    if (e.key === 'ArrowRight' && idx < otpRefs.current.length - 1) {
+      e.preventDefault();
+      otpRefs.current[idx + 1]?.current?.focus();
+    }
+    if (e.key === 'Enter') {
+      const code = otpCode.join('');
+      if (code.length === 6) {
+        handleConfirmOtp(e);
+      }
+    }
+  };
+
+  const handleOtpPaste = (e) => {
+    const text = (e.clipboardData || window.clipboardData)?.getData('text') || '';
+    const digits = text.replace(/\D/g, '').slice(0, 6).split('');
+    if (!digits.length) return;
+    e.preventDefault();
+    const next = [...otpCode];
+    for (let i = 0; i < 6; i += 1) next[i] = digits[i] || '';
+    setOtpCode(next);
+    const lastIdx = Math.min(digits.length - 1, 5);
+    if (lastIdx >= 0) otpRefs.current[lastIdx]?.current?.focus();
+  };
+
+  const handleConfirmOtp = async (e) => {
+    e.preventDefault();
+    setError("");
+    const code = otpCode.join("");
+    if (code.length !== 6) {
+      setError("Please enter the 6-digit code");
+      return;
+    }
+    setLoading(true);
+    try {
+      await authService.confirmPhoneCode(code);
+      await handlePostSignIn();
+    } catch (err) {
+      setError(err.message || "Invalid code. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleChooseDashboard = (path) => {
     if (path === "/") {
       setPreferredDashboard("user");
@@ -118,7 +256,7 @@ export function LoginForm({ onSwitch }) {
 
   return (
     <>
-      <form onSubmit={handleSubmit} id="login-form" className={`${styles.formBox} ${styles.fadeIn}`}>
+  <form onSubmit={handleSubmit} id="login-form" className={`${styles.formBox} ${styles.fadeIn}`}>
         <div className={styles.formHeader}>
           <div className={styles.logo}>
             <Activity className={styles.logoIconLarge} />
@@ -142,6 +280,7 @@ export function LoginForm({ onSwitch }) {
           </div>
         </div>
 
+        {!usePhoneLogin && (
         <div className={styles.inputGroup}>
           <div className={styles.inputIcon}>
             <i className="fas fa-envelope"></i>
@@ -158,7 +297,9 @@ export function LoginForm({ onSwitch }) {
             <label htmlFor="login-email">Email</label>
           </div>
         </div>
+        )}
 
+        {!usePhoneLogin && (
         <div className={styles.inputGroup}>
           <div className={styles.inputIcon}>
             <i className="fas fa-lock"></i>
@@ -181,7 +322,79 @@ export function LoginForm({ onSwitch }) {
             </span>
           </div>
         </div>
+        )}
 
+        {usePhoneLogin && (
+          <>
+            <div className={styles.inputGroup}>
+              <div className={styles.inputIcon}>
+                <i className="fas fa-phone"></i>
+              </div>
+              <div className={styles.inputField}>
+                <input
+                  type="tel"
+                  inputMode="numeric"
+                  maxLength={16}
+                  value={phoneDisplay}
+                  onChange={(e) => setPhoneDisplay(formatPhone(e.target.value))}
+                  placeholder="+63 912 345 6789"
+                  required
+                />
+                <label>Phone Number</label>
+              </div>
+            </div>
+            {showVisibleCaptcha && (
+              <div style={{ marginTop: 8 }}>
+                <div id="login-phone-recaptcha-visible"></div>
+                <div className={styles.muted} style={{ marginTop: 4 }}>Please solve the reCAPTCHA and try sending the code again.</div>
+              </div>
+            )}
+            {!otpSent ? (
+                <button type="button" disabled={loading || toE164(phoneDisplay).length !== 13} onClick={handleSendOtp} className={`${styles.btn} ${styles.loginBtn}`}>
+                <span className={styles.btnText}>{loading ? "Sending..." : "Send OTP"}</span>
+                <span className={styles.btnIcon}>
+                  <i className="fas fa-sms"></i>
+                </span>
+              </button>
+            ) : (
+              <>
+                <div className={styles.verificationInputs}>
+                  {otpCode.map((d, idx) => (
+                    <input
+                      key={idx}
+                      ref={otpRefs.current[idx]}
+                      type="text"
+                      maxLength={1}
+                      value={d}
+                      onChange={(e) => handleOtpChange(idx, e.target.value)}
+                      onKeyDown={(e) => handleOtpKeyDown(idx, e)}
+                      onPaste={handleOtpPaste}
+                      className={styles.codeInput}
+                      inputMode="numeric"
+                      pattern="\d*"
+                      aria-label={`Digit ${idx+1}`}
+                    />
+                  ))}
+                </div>
+                <button type="button" disabled={loading} onClick={handleConfirmOtp} className={`${styles.btn} ${styles.loginBtn}`}>
+                  <span className={styles.btnText}>{loading ? "Verifying..." : "Verify & Log in"}</span>
+                  <span className={styles.btnIcon}>
+                    <i className="fas fa-check-circle"></i>
+                  </span>
+                </button>
+                <div className={styles.toggleLink}>
+                  <a href="#" onClick={(e)=>{ e.preventDefault(); if (resendCooldown===0) handleSendOtp(); }} aria-disabled={resendCooldown>0}>
+                    {resendCooldown>0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                  </a>
+                </div>
+              </>
+            )}
+            {/* Hidden button id for invisible reCAPTCHA binding */}
+            <button type="button" ref={recaptchaBtnRef} style={{ display: 'none' }}>recaptcha</button>
+          </>
+        )}
+
+        {!usePhoneLogin && (
         <div className={styles.rememberForgot}>
           <div className={styles.rememberMe}>
             <input
@@ -201,15 +414,18 @@ export function LoginForm({ onSwitch }) {
             Forgot Password?
           </button>
         </div>
+        )}
 
         {error && <p className={styles.errorText}>{error}</p>}
 
-        <button type="submit" disabled={loading} className={`${styles.btn} ${styles.loginBtn}`}>
-          <span className={styles.btnText}>{loading ? "Logging in..." : "Log In"}</span>
-          <span className={styles.btnIcon}>
-            <i className="fas fa-arrow-right"></i>
-          </span>
-        </button>
+        {!usePhoneLogin && (
+          <button type="submit" disabled={loading} className={`${styles.btn} ${styles.loginBtn}`}>
+            <span className={styles.btnText}>{loading ? "Logging in..." : "Log In"}</span>
+            <span className={styles.btnIcon}>
+              <i className="fas fa-arrow-right"></i>
+            </span>
+          </button>
+        )}
 
         <div className={styles.divider}>
           <span className={styles.dividerLine}></span>
@@ -253,6 +469,16 @@ export function LoginForm({ onSwitch }) {
             </span>
             <span className={styles.btnText}>Facebook</span>
           </button>
+        </div>
+
+        <div className={styles.toggleLink}>
+          <p>
+            {usePhoneLogin ? (
+              <a href="#" onClick={(e) => { e.preventDefault(); setUsePhoneLogin(false); }}>Use email & password instead</a>
+            ) : (
+              <a href="#" onClick={(e) => { e.preventDefault(); setUsePhoneLogin(true); }}>Use phone (OTP) instead</a>
+            )}
+          </p>
         </div>
 
         <div className={styles.toggleLink}>

@@ -1,9 +1,9 @@
 // Firebase core SDKs
 import { initializeApp } from "firebase/app";
-import { getDatabase } from "firebase/database";
-import { getFunctions, httpsCallable } from "firebase/functions";
-import { getStorage } from "firebase/storage";
-import { getAuth } from "firebase/auth";
+import { getDatabase, connectDatabaseEmulator } from "firebase/database";
+import { getFunctions, httpsCallable, connectFunctionsEmulator } from "firebase/functions";
+import { getStorage, connectStorageEmulator } from "firebase/storage";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -54,9 +54,46 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const usersDB = getDatabase(app);
 export const auth = getAuth(app);
+// Localize reCAPTCHA and SMS to the user's device/browser language
+try {
+  // Prefer device language so we don't hardcode a locale
+  auth.useDeviceLanguage();
+} catch (_) {
+  // no-op if not supported in certain environments
+}
+
+// Optional: In development, you can disable app verification for testing WITH TEST PHONE NUMBERS ONLY.
+// Set VITE_FIREBASE_PHONE_TEST_MODE=true in your .env to enable. Do NOT use in production.
+try {
+  if (import.meta.env.MODE !== 'production' && String(import.meta.env.VITE_FIREBASE_PHONE_TEST_MODE).toLowerCase() === 'true') {
+    // eslint-disable-next-line no-unused-expressions
+    auth.settings && (auth.settings.appVerificationDisabledForTesting = true);
+    // This will still require numbers configured in Firebase console > Phone numbers for testing.
+  }
+} catch (_) {}
 export const storage = getStorage(app);
 // Match deployed region for Cloud Functions
 export const functions = getFunctions(app, 'asia-east2');
+
+// Optional: Connect to local emulators for unlimited testing (no SMS, no rate limits)
+// Set VITE_FIREBASE_USE_EMULATORS=true and run Firebase emulators locally.
+try {
+  const USE_EMULATORS = String(import.meta.env.VITE_FIREBASE_USE_EMULATORS || '').toLowerCase() === 'true';
+  if (USE_EMULATORS) {
+    const host = '127.0.0.1';
+    const AUTH_PORT = Number(import.meta.env.VITE_EMULATOR_AUTH_PORT || 9099);
+    const DB_PORT = Number(import.meta.env.VITE_EMULATOR_DB_PORT || 9000);
+    const STORAGE_PORT = Number(import.meta.env.VITE_EMULATOR_STORAGE_PORT || 9199);
+    const FUNCTIONS_PORT = Number(import.meta.env.VITE_EMULATOR_FUNCTIONS_PORT || 5001);
+
+    // Connect before use; for Auth, specify http and disable warnings about secure context in dev
+    connectAuthEmulator(auth, `http://${host}:${AUTH_PORT}`, { disableWarnings: true });
+    connectDatabaseEmulator(usersDB, host, DB_PORT);
+    connectStorageEmulator(storage, host, STORAGE_PORT);
+    connectFunctionsEmulator(functions, host, FUNCTIONS_PORT);
+    // When using the Auth emulator, you can use the default verification code 123456 for phone sign-in/linking.
+  }
+} catch (_) {}
 
 // Optional helper to call our callable function from anywhere
 // Accepts: { apptId: string, status?: string, serviceName?: string, serviceType?: 'Service'|'Package'|string, date?: string, time?: string, serviceId?: string, record?: object, appointment?: object }

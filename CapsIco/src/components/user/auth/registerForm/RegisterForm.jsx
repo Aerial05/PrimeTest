@@ -3,6 +3,7 @@ import styles from "./RegisterForm.module.css";
 import { Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import authService from "../../../../services/AuthService";
+import { formatPHDisplay, toE164PH, isValidE164PH } from "/src/utils/phone";
 
 export function RegisterForm({ onSwitch }) {
   const navigate = useNavigate();
@@ -29,7 +30,11 @@ export function RegisterForm({ onSwitch }) {
     }
     try {
       setLoading(true);
-      const phoneE164 = toE164(phone);
+      const phoneE164 = toE164PH(phone);
+      if (!isValidE164PH(phoneE164)) {
+        setError("Enter a valid PH number (+63 9xx xxx xxxx)");
+        return;
+      }
       await authService.registerUser({
         firstName,
         middleName,
@@ -48,30 +53,7 @@ export function RegisterForm({ onSwitch }) {
   };
 
   // Philippines format: +63 9XX XXX XXXX (store as E.164 +639XXXXXXXXX)
-  const formatPhone = (value) => {
-    const digits = (value || "").replace(/\D/g, "");
-    let rest = digits;
-    if (rest.startsWith("63")) rest = rest.slice(2);
-    else if (rest.startsWith("0")) rest = rest.slice(1);
-    // ensure starts with 9 and at most 10 digits
-    rest = rest.replace(/^(?!9)/, "");
-    rest = rest.slice(0, 10);
-    const p1 = rest.slice(0, 3);
-    const p2 = rest.slice(3, 6);
-    const p3 = rest.slice(6, 10);
-    const tail = [p1, p2, p3].filter(Boolean).join(" ");
-    return "+63 " + tail;
-  };
-
-  const toE164 = (value) => {
-    const digits = (value || "").replace(/\D/g, "");
-    let rest = digits;
-    if (rest.startsWith("63")) rest = rest.slice(2);
-    else if (rest.startsWith("0")) rest = rest.slice(1);
-    if (!rest) return "";
-    rest = rest.slice(0, 10);
-    return "+63" + rest;
-  };
+  const formatPhone = (value) => formatPHDisplay(value);
 
   return (
     <div className={styles.formBox}>

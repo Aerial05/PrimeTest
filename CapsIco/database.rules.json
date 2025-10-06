@@ -2,11 +2,14 @@
   "rules": {
     ".read": true,
     ".write": true,
+    "users": {
+      ".indexOn": ["phone"]
+    },
     "appointments": {
       ".indexOn": ["USER_ID"]
     },
     "servicePackages": {
-      ".indexOn": ["SERVICE_PACKGE_ID"]
+      ".indexOn": ["SERVICE_PACKAGE_ID"]
     }
   }
 }
