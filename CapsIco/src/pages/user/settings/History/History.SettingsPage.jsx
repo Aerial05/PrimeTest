@@ -2,11 +2,13 @@ import React, { useEffect, useMemo, useState } from 'react';
 import styles from './History.SettingsPage.module.css';
 import { onAuthStateChanged } from 'firebase/auth';
 import authService from '/src/services/AuthService';
+import { useToast } from '/src/components/shared/toast/ToastProvider.jsx';
 import appointmentsService from '/src/services/AppointmentsService';
 import singleServicesService from '/src/services/SingleServicesService';
 import servicePackagesService from '/src/services/ServicePackagesService';
 
 export function HistorySettingsPage() {
+  const { show } = useToast?.() || { show: () => {} };
   const [query, setQuery] = useState('');
   const [status, setStatus] = useState('All'); // All | Completed | Cancelled | Approved | Pending
   const [items, setItems] = useState([]);
@@ -206,6 +208,7 @@ export function HistorySettingsPage() {
       const saved = await appointmentsService.addFeedback(row.id, payload, user?.uid || '');
       setItems((prev) => prev.map((it) => (it.id === row.id ? { ...it, feedback: saved } : it)));
       setFeedbackOpen((m) => ({ ...m, [row.id]: false }));
+      try { show({ type: 'success', title: 'Thank you!', message: 'Your feedback has been submitted successfully.' }); } catch (_) {}
     } catch (e) {
       console.error(e);
       alert(e?.message || 'Unable to submit feedback.');
@@ -365,7 +368,7 @@ export function HistorySettingsPage() {
                                     <div className={styles.feedbackMessage}>“{row.feedback.message}”</div>
                                   )}
                                 </div>
-                              ) : (row.status === 'Completed' && row.proofUrl ? (
+                              ) : (row.status === 'Completed' ? (
                                 feedbackOpen[row.id] ? (
                                   <div className={styles.feedbackForm}>
                                     <div className={styles.ratingLine}><span>Easy Booking</span><StarBar value={feedbackDraft[row.id]?.ratings?.bookingEase || 0} onChange={(n) => setDraftRating(row.id, 'bookingEase', n)} /></div>

@@ -82,14 +82,6 @@ export function AdminNavBar() {
             </li>
             <li>
               <Link
-                to="/admin-reports"
-                className={`${styles.navLink} ${isActive("/admin-reports") ? styles.active : ""}`}
-              >
-                Reports
-              </Link>
-            </li>
-            <li>
-              <Link
                 to="/admin-services"
                 className={`${styles.navLink} ${isActive("/admin-services") ? styles.active : ""}`}
               >
@@ -98,10 +90,10 @@ export function AdminNavBar() {
             </li>
             <li>
               <Link
-                to="/admin-messages"
-                className={`${styles.navLink} ${isActive("/admin-messages") ? styles.active : ""}`}
+                to="/admin-feedback"
+                className={`${styles.navLink} ${isActive("/admin-feedback") ? styles.active : ""}`}
               >
-                Messages
+                Feedback
               </Link>
             </li>
           </ul>

@@ -1,9 +1,18 @@
 .container { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column; gap: .75rem; z-index: 9999; align-items: center; pointer-events: none; }
 .toast { min-width: 280px; max-width: 360px; background: #ffffff; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.12); border: 1px solid #eef2f7; overflow: hidden; animation: slideIn .25s ease; pointer-events: auto; }
-.toastHeader { display: flex; align-items: center; justify-content: space-between; padding: .6rem .8rem; font-weight: 700; }
+.toastHeader { display: flex; align-items: center; justify-content: space-between; padding: .6rem .8rem; font-weight: 700; gap: .5rem; }
+.icon { display: inline-flex; align-items: center; justify-content: center; opacity: .9; }
 .toastBody { padding: 0 .8rem .8rem; color: #374151; }
 .toastTitle { font-size: .95rem; }
 .success .toastHeader { background: #ecfdf5; color: #065f46; }
 .error .toastHeader { background: #fef2f2; color: #991b1b; }
 .closeBtn { border: none; background: transparent; font-size: 1.1rem; cursor: pointer; line-height: 1; color: inherit; }
+.headerRight { display: inline-flex; align-items: center; gap: .5rem; }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(0,0,0,.15); border-top-color: currentColor; border-radius: 50%; display: inline-block; animation: spin 1s linear infinite; }
+.toastActions { display: flex; gap: .5rem; justify-content: flex-end; padding: 0 .8rem .8rem; }
+.toastBtn { border-radius: 8px; border: 1px solid #e5e7eb; background: #ffffff; color: #111827; padding: .4rem .7rem; cursor: pointer; }
+.toastBtnPrimary { background: #0ea5e9; border-color: #0ea5e9; color: #fff; }
+.toastBtnConfirm { background: #16a34a; border-color: #16a34a; color: #fff; }
+.toastBtnGhost { background: #ffffff; border-color: #e5e7eb; color: #374151; }
 @keyframes slideIn { from { opacity: 0; transform: translateY(-6px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes spin { to { transform: rotate(360deg); } }

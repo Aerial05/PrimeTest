@@ -861,14 +861,6 @@ export function PackagesPage() {
 
 	return (
 		<>
-			<div className={styles.banner}>
-				<div className={styles.container}>
-					<p>Admin</p>
-					<h1>Service Management Page</h1>
-					<p className={styles.subtitle}>Create, edit, and manage your services and packages</p>
-				</div>
-			</div>
-
 			<main className={styles.main}>
 				{activeTab === 'single' ? (
 					<>

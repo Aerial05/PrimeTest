@@ -22,7 +22,7 @@ import { AccountManagement } from "./pages/admin/accountManagement/AccountManage
 import { ReportsPage } from "./pages/admin/reports/ReportsPage";
 import { SettingsPage } from "./pages/admin/settings/SettingsPage";
 import { PackagesPage } from "./pages/admin/Services/PackagesPage";
-import { MessagesPage } from "./pages/admin/messages/MessagesPage";
+import { FeedbackPage } from "./pages/admin/feedback/FeedbackPage";
 
 // Shared components
 import { NavBar } from "./components/user/navBar/NavBar";
@@ -87,7 +87,8 @@ function AnimatedRoutes({ role, preferUserView }) {
             <Route path="/admin-reports" element={guardAdminRoute(<ReportsPage />)} />
             <Route path="/admin-settings" element={guardAdminRoute(<SettingsPage />)} />
             <Route path="/admin-services" element={guardAdminRoute(<PackagesPage />)} />
-            <Route path="/admin-messages" element={guardAdminRoute(<MessagesPage />)} />
+            <Route path="/admin-feedback" element={guardAdminRoute(<FeedbackPage />)} />
+            <Route path="/admin-messages" element={<Navigate to="/admin-feedback" replace />} />
 
             <Route path="*" element={<Navigate to={isAdmin ? "/admin-dashboard" : "/"} replace />} />
           </Routes>

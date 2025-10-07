@@ -390,6 +390,18 @@ export class AuthService extends BaseFirebaseService {
     email,
     password,
   }) {
+    // Validate phone (PH only) and enforce uniqueness before creating auth user
+    const normalizedPhone = (phoneE164 || '').trim();
+    if (normalizedPhone) {
+      if (!/^\+63\d{10}$/.test(normalizedPhone)) {
+        throw new Error('Enter a valid PH number in +63 format');
+      }
+      const existing = await this.findUsersByPhone(normalizedPhone);
+      if (existing && existing.length > 0) {
+        throw new Error('This phone number is already associated with another account.');
+      }
+    }
+
     const trimmedEmail = (email || '').trim();
     const normalizedEmail = trimmedEmail.toLowerCase();
     const cred = await createUserWithEmailAndPassword(this.auth, trimmedEmail, password);
@@ -406,6 +418,7 @@ export class AuthService extends BaseFirebaseService {
       lastName,
       username,
       phone: phoneE164,
+      phoneVerified: false,
       email: trimmedEmail,
       emailLower: normalizedEmail,
       // Default all new accounts to 'user'; elevate via DB role management

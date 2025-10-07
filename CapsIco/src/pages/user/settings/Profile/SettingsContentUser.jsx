@@ -184,6 +184,14 @@ export function SettingsContent() {
     if (!/^\+63\d{10}$/.test(e164)) { setError('Enter a valid PH number (+63)'); return; }
     setPhoneBusy(true);
     try {
+  // Early duplicate check to show friendly message before sending SMS
+  try {
+    const matches = await authService.findUsersByPhone(e164);
+    const other = matches.find((m)=> m.uid !== (authService.currentUser?.uid || user?.uid));
+    if (other) { throw new Error('This phone number is already associated with another account.'); }
+  } catch (dupErr) {
+    if (dupErr?.message) throw dupErr;
+  }
   const containerId = showVisibleCaptcha ? 'profile-phone-recaptcha-visible' : 'profile-phone-recaptcha';
   await authService.startLinkPhone(e164, containerId, showVisibleCaptcha ? { size: 'normal' } : { size: 'invisible' });
       setPhoneOtpSent(true);
@@ -1025,7 +1033,7 @@ export function SettingsContent() {
                         const matches = await authService.findUsersByPhone(e164);
                         const uid = authService.currentUser?.uid;
                         const conflict = matches.find(m=>m.uid !== uid);
-                        if (conflict) throw new Error('This phone is already linked to another account.');
+                        if (conflict) throw new Error('This phone number is already associated with another account.');
                         await authService.startUpdatePhone(e164, showNewCaptcha ? 'change-phone-new-recaptcha-visible' : 'change-phone-new-recaptcha', showNewCaptcha ? { size: 'normal' } : { size: 'invisible' });
                         setChangeStep('confirmNew');
                         setNewCooldown(60);
