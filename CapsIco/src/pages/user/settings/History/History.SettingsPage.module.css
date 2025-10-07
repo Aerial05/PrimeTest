@@ -68,3 +68,18 @@
 /* Skeleton loading */
 .skeletonRow { height: 52px; background: linear-gradient(90deg, #f8fafc, #f1f5f9, #f8fafc); background-size: 200% 100%; animation: shimmer 1.3s ease infinite; }
 @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+/* Feedback UI */
+.feedbackForm { display: flex; flex-direction: column; gap: 10px; max-width: 720px; }
+.feedbackView { display: flex; flex-direction: column; gap: 10px; }
+.feedbackRatings { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 8px 16px; align-items: center; }
+.ratingLine { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.starsRow { display: inline-flex; gap: 2px; }
+.star { background: transparent; border: none; cursor: pointer; font-size: 18px; line-height: 1; color: #d1d5db; transition: color .15s ease; padding: 2px; }
+.starFilled { color: #f59e0b; }
+.feedbackTextarea { width: 100%; min-height: 80px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 14px; resize: vertical; }
+.feedbackActions { display: flex; gap: 8px; margin-top: 4px; }
+.btnPrimary { background: #2563eb; color: #fff; border: none; padding: 8px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+.btnPrimary:disabled { opacity: .6; cursor: default; }
+.btnGhost { background: transparent; color: #374151; border: 1px solid #e5e7eb; padding: 8px 12px; border-radius: 8px; cursor: pointer; }
+.feedbackMessage { color: #111827; background: #f9fafb; border: 1px solid #f3f4f6; border-radius: 8px; padding: 8px 10px; font-style: italic; }

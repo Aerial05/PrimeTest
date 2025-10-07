@@ -232,11 +232,22 @@ export function SettingsContent() {
     }
   };
 
-  const handleCodeInputChange = (arrSetter, idx, value) => {
+  const handleCodeInputChange = (arrSetter, idx, value, refs, onComplete) => {
     const v = (value || '').replace(/\D/g, '').slice(-1);
     arrSetter((prev) => {
       const next = [...prev];
       next[idx] = v;
+      // auto-advance focus when a digit is entered
+      if (v && refs && refs.current && refs.current[idx + 1] && refs.current[idx + 1].current) {
+        setTimeout(() => refs.current[idx + 1].current.focus(), 0);
+      }
+      // auto-complete when all 6 digits are filled
+      if (typeof onComplete === 'function') {
+        const code = next.join('');
+        if (code.length === 6) {
+          setTimeout(() => onComplete(code), 0);
+        }
+      }
       return next;
     });
   };
@@ -253,7 +264,7 @@ export function SettingsContent() {
     if (e.key === 'Enter' && typeof onEnter === 'function') onEnter();
   };
 
-  const handleCodePaste = (arrSetter, refs, e) => {
+  const handleCodePaste = (arrSetter, refs, e, onComplete) => {
     const text = (e.clipboardData || window.clipboardData).getData('text');
     const digits = (text || '').replace(/\D/g, '').slice(0, 6).split('');
     if (!digits.length) return;
@@ -264,6 +275,9 @@ export function SettingsContent() {
     });
     const lastIdx = Math.min(digits.length - 1, 5);
     if (lastIdx >= 0) refs.current[lastIdx]?.current?.focus();
+    if (typeof onComplete === 'function' && digits.length === 6) {
+      setTimeout(() => onComplete(digits.join('')), 0);
+    }
   };
 
   const handleOtpKeyDown = (idx, e) => {
@@ -305,8 +319,8 @@ export function SettingsContent() {
   };
 
   // Finalize new phone number update
-  const confirmNewPhone = async () => {
-    const code = newOtp.join('');
+  const confirmNewPhone = async (codeArg) => {
+    const code = (codeArg && String(codeArg)) || newOtp.join('');
     if (code.length !== 6) { setChangeMsg('Enter the 6-digit code'); return; }
     setChangeBusy(true);
     setChangeMsg('');
@@ -946,9 +960,40 @@ export function SettingsContent() {
                           ref={reauthRefs.current[i]}
                           className={styles.codeInput}
                           value={d}
-                          onChange={(e)=> handleCodeInputChange(setReauthOtp, i, e.target.value)}
+                          onChange={(e)=> handleCodeInputChange(
+                            setReauthOtp,
+                            i,
+                            e.target.value,
+                            reauthRefs,
+                            async (code) => {
+                              // auto-confirm when all digits are present
+                              setChangeBusy(true);
+                              setChangeMsg('');
+                              try {
+                                await authService.confirmReauthPhone(code);
+                                setChangeStep('newPhone');
+                                setChangeMsg('Verified. Enter a new PH number.');
+                              } catch (err) {
+                                setChangeMsg(err?.message || 'Invalid code.');
+                              } finally {
+                                setChangeBusy(false);
+                              }
+                            }
+                          )}
                           onKeyDown={(e)=> handleCodeKeyDown(reauthRefs, reauthOtp, i, e, async ()=>{ const code = reauthOtp.join(''); if (code.length===6) { setChangeBusy(true); setChangeMsg(''); try { await authService.confirmReauthPhone(code); setChangeStep('newPhone'); setChangeMsg('Verified. Enter a new PH number.'); } catch(err) { setChangeMsg(err?.message || 'Invalid code.'); } finally { setChangeBusy(false); } } })}
-                          onPaste={(e)=> handleCodePaste(setReauthOtp, reauthRefs, e)}
+                          onPaste={(e)=> handleCodePaste(setReauthOtp, reauthRefs, e, async (code) => {
+                            setChangeBusy(true);
+                            setChangeMsg('');
+                            try {
+                              await authService.confirmReauthPhone(code);
+                              setChangeStep('newPhone');
+                              setChangeMsg('Verified. Enter a new PH number.');
+                            } catch (err) {
+                              setChangeMsg(err?.message || 'Invalid code.');
+                            } finally {
+                              setChangeBusy(false);
+                            }
+                          })}
                           maxLength={1}
                           inputMode="numeric"
                           pattern="\d*"
@@ -1005,9 +1050,15 @@ export function SettingsContent() {
                           ref={newOtpRefs.current[i]}
                           className={styles.codeInput}
                           value={d}
-                          onChange={(e)=> handleCodeInputChange(setNewOtp, i, e.target.value)}
-                          onKeyDown={(e)=> handleCodeKeyDown(newOtpRefs, newOtp, i, e, async ()=>{ const code = newOtp.join(''); if (code.length===6) await confirmNewPhone(); })}
-                          onPaste={(e)=> handleCodePaste(setNewOtp, newOtpRefs, e)}
+                          onChange={(e)=> handleCodeInputChange(
+                            setNewOtp,
+                            i,
+                            e.target.value,
+                            newOtpRefs,
+                            async (code) => { await confirmNewPhone(code); }
+                          )}
+                          onKeyDown={(e)=> handleCodeKeyDown(newOtpRefs, newOtp, i, e, async ()=>{ const code = newOtp.join(''); if (code.length===6) await confirmNewPhone(code); })}
+                          onPaste={(e)=> handleCodePaste(setNewOtp, newOtpRefs, e, async (code) => { await confirmNewPhone(code); })}
                           maxLength={1}
                           inputMode="numeric"
                           pattern="\d*"

@@ -15,7 +15,7 @@ export function AccountManagement() {
   const [selected, setSelected] = useState(null);
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 10;
+  const [pageSize, setPageSize] = useState(6);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
   // Filters (persist per admin)
@@ -125,6 +125,10 @@ export function AccountManagement() {
       if (typeof saved.search === 'string') setSearch(saved.search);
       if (typeof saved.joinedFrom === 'string') setJoinedFrom(saved.joinedFrom);
       if (typeof saved.joinedTo === 'string') setJoinedTo(saved.joinedTo);
+      if (typeof saved.pageSize === 'number' && saved.pageSize > 0) {
+        const allowed = new Set([6,10]);
+        setPageSize(allowed.has(saved.pageSize) ? saved.pageSize : 6);
+      }
     } catch (_) { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -132,9 +136,9 @@ export function AccountManagement() {
   // Persist filters
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo }));
+      localStorage.setItem(storageKey, JSON.stringify({ roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo, pageSize }));
     } catch (_) { /* ignore */ }
-  }, [storageKey, roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo]);
+  }, [storageKey, roleFilter, statusFilter, providerFilter, search, joinedFrom, joinedTo, pageSize]);
 
   // Providers list from rows
   const providerOptions = useMemo(() => {
@@ -173,9 +177,9 @@ export function AccountManagement() {
 
   // Clamp page when filtered length changes
   useEffect(() => {
-    const maxPage = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+    const maxPage = Math.max(1, Math.ceil(filteredRows.length / pageSize));
     if (page > maxPage) setPage(maxPage);
-  }, [filteredRows, page]);
+  }, [filteredRows, page, pageSize]);
 
   // Prevent body scroll while any modal is open
   useEffect(() => {
@@ -189,12 +193,12 @@ export function AccountManagement() {
 
   // Derive paginated slice and range text
   const total = filteredRows.length;
-  const maxPage = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const maxPage = Math.max(1, Math.ceil(total / pageSize));
   const currentPage = Math.min(page, maxPage);
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const pageRows = filteredRows.slice(startIndex, startIndex + PAGE_SIZE);
+  const startIndex = (currentPage - 1) * pageSize;
+  const pageRows = filteredRows.slice(startIndex, startIndex + pageSize);
   const from = total === 0 ? 0 : startIndex + 1;
-  const to = Math.min(total, startIndex + PAGE_SIZE);
+  const to = Math.min(total, startIndex + pageSize);
 
   return (
     <>
@@ -259,6 +263,7 @@ export function AccountManagement() {
               setMode('edit');
               setShowAdd(true);
             }}
+            pageSize={pageSize}
           />
 
           {/* Pagination footer */}
@@ -267,6 +272,16 @@ export function AccountManagement() {
               {`Showing ${from.toLocaleString()}–${to.toLocaleString()} of ${total.toLocaleString()} accounts`}
             </div>
             <div className={styles.pageControls}>
+              <label htmlFor="pageSizeSelect" className={styles.pageInfo} style={{ marginRight: 6 }}>Rows</label>
+              <select
+                id="pageSizeSelect"
+                value={pageSize}
+                onChange={(e)=> { const v = Math.max(1, parseInt(e.target.value,10)||8); setPageSize(v); setPage(1); }}
+                style={{ border: '1px solid #cbd5e1', borderRadius: 8, padding: '6px 10px', marginRight: 8 }}
+                aria-label="Rows per page"
+              >
+                {[6,10].map(n => (<option key={n} value={n}>{n}</option>))}
+              </select>
               <button
                 className={styles.pageBtn}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}

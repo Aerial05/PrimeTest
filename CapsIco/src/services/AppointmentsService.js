@@ -195,6 +195,110 @@ class AppointmentsService extends BaseFirebaseService {
     } catch (_e) {}
     return true;
   }
+
+  /**
+   * Add a one-time feedback to an appointment. Allowed only when appointment
+   * is completed/successful and has a PROOF uploaded. Uses a transaction to
+   * guarantee single submission and validates rating bounds (1-5).
+   *
+   * payload: {
+   *   message?: string,
+   *   ratings: {
+   *     bookingEase?: number,
+   *     speed?: number,
+   *     staff?: number,
+   *     cleanliness?: number,
+   *     overall?: number
+   *   }
+   * }
+   */
+  async addFeedback(id, payload = {}, userId = '') {
+    if (!id) throw new Error('Missing appointment id');
+    const now = new Date().toISOString();
+    const normalizeStar = (v) => {
+      const n = Number(v);
+      if (!Number.isFinite(n)) return undefined;
+      if (n < 1) return 1;
+      if (n > 5) return 5;
+      return Math.round(n);
+    };
+
+    const ratings = payload.ratings || {};
+    const normalizedRatings = {
+      bookingEase: normalizeStar(ratings.bookingEase),
+      speed: normalizeStar(ratings.speed),
+      staff: normalizeStar(ratings.staff),
+      cleanliness: normalizeStar(ratings.cleanliness),
+      overall: normalizeStar(ratings.overall),
+    };
+
+    // Remove undefined keys to keep DB clean
+    Object.keys(normalizedRatings).forEach((k) => {
+      if (typeof normalizedRatings[k] === 'undefined' || normalizedRatings[k] === null) {
+        delete normalizedRatings[k];
+      }
+    });
+
+    // Require at least one rating
+    if (Object.keys(normalizedRatings).length === 0) {
+      throw new Error('Please provide at least one rating');
+    }
+
+    const res = await runTransaction(ref(this.database, this.path(id)), (current) => {
+      if (!current) return; // abort if missing
+      const status = String(current.BOOKING_STATUS || '').toLowerCase();
+      const statusOk = status.startsWith('complete') || status.startsWith('success');
+      const hasProof = !!current.PROOF;
+      if (!statusOk || !hasProof) return; // abort if not eligible
+      if (current.FEEDBACK) return; // abort if already submitted
+
+      const feedback = {
+        message: String(payload.message || '').slice(0, 2000),
+        ratings: normalizedRatings,
+        createdAt: now,
+        userId: userId || (current.USER_ID || ''),
+        appointmentId: current.APPT_ID || id,
+        feedbackId: `${id}__${userId || (current.USER_ID || '')}`,
+      };
+      return { ...current, FEEDBACK: feedback, UPDATED_AT: now };
+    });
+
+    if (!res.committed) {
+      // Determine reason by inspecting snapshot when available
+      const val = res.snapshot ? res.snapshot.val() : null;
+      const status = val ? String(val.BOOKING_STATUS || '').toLowerCase() : '';
+      const hasProof = !!(val && val.PROOF);
+      if (val && val.FEEDBACK) throw new Error('Feedback already submitted for this appointment');
+      if (!hasProof) throw new Error('Feedback allowed only after proof is uploaded');
+      if (!(status.startsWith('complete') || status.startsWith('success'))) {
+        throw new Error('Feedback allowed only for completed appointments');
+      }
+      throw new Error('Unable to submit feedback. Please try again.');
+    }
+
+    const saved = res.snapshot.val();
+    const fb = saved && saved.FEEDBACK ? saved.FEEDBACK : null;
+    if (fb) {
+      // Write secondary indices for easier querying
+      const indexRecord = {
+        ...fb,
+        APPT_ID: id,
+        USER_ID: fb.userId || userId || '',
+      };
+      const updates = {};
+      updates[`feedbacks/${id}`] = indexRecord; // one-to-one by appointment
+      updates[`feedbackByAppointment/${id}`] = indexRecord; // alias for clarity
+      if (indexRecord.USER_ID) {
+        updates[`feedbackByUser/${indexRecord.USER_ID}/${id}`] = indexRecord;
+      }
+      try {
+        await update(ref(this.database), updates);
+      } catch (_e) {
+        // Non-fatal: primary FEEDBACK is already saved under appointment
+      }
+    }
+    return fb;
+  }
 }
 
 const appointmentsService = new AppointmentsService();

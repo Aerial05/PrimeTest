@@ -13,6 +13,10 @@ export function HistorySettingsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [expanded, setExpanded] = useState({});
+  const [user, setUser] = useState(null);
+  const [feedbackOpen, setFeedbackOpen] = useState({});
+  const [feedbackDraft, setFeedbackDraft] = useState({});
+  const [submittingId, setSubmittingId] = useState('');
 
   const formatDate = (isoDate) => {
     if (!isoDate) return '';
@@ -125,6 +129,7 @@ export function HistorySettingsPage() {
             updatedAt: r.UPDATED_AT || '',
             slotCapacityRef: r.SLOT_CAPACITY_REF || '',
             proofUrl: r.PROOF || r.proof || '',
+            feedback: r.FEEDBACK || null,
           };
         });
 
@@ -138,10 +143,12 @@ export function HistorySettingsPage() {
     }
 
     const unsub = onAuthStateChanged(authService.auth, (user) => {
+      setUser(user || null);
       loadForUser(user);
     });
     // In case auth is already ready
     if (authService.currentUser) {
+      setUser(authService.currentUser);
       loadForUser(authService.currentUser);
     }
 
@@ -167,6 +174,59 @@ export function HistorySettingsPage() {
     }
     return data;
   }, [items, status, query]);
+
+  const setDraftRating = (id, key, value) => {
+    setFeedbackDraft((prev) => {
+      const curr = prev[id] || { message: '', ratings: {} };
+      return { ...prev, [id]: { ...curr, ratings: { ...curr.ratings, [key]: value } } };
+    });
+  };
+
+  const setDraftMessage = (id, message) => {
+    setFeedbackDraft((prev) => {
+      const curr = prev[id] || { message: '', ratings: {} };
+      return { ...prev, [id]: { ...curr, message } };
+    });
+  };
+
+  const submitFeedback = async (row) => {
+    try {
+      setSubmittingId(row.id);
+      const draft = feedbackDraft[row.id] || { message: '', ratings: {} };
+      const payload = {
+        message: draft.message || '',
+        ratings: {
+          bookingEase: draft.ratings?.bookingEase,
+          speed: draft.ratings?.speed,
+          staff: draft.ratings?.staff,
+          cleanliness: draft.ratings?.cleanliness,
+          overall: draft.ratings?.overall,
+        },
+      };
+      const saved = await appointmentsService.addFeedback(row.id, payload, user?.uid || '');
+      setItems((prev) => prev.map((it) => (it.id === row.id ? { ...it, feedback: saved } : it)));
+      setFeedbackOpen((m) => ({ ...m, [row.id]: false }));
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Unable to submit feedback.');
+    } finally {
+      setSubmittingId('');
+    }
+  };
+
+  const StarBar = ({ value = 0, onChange }) => (
+    <div className={styles.starsRow}>
+      {[1,2,3,4,5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          className={`${styles.star} ${n <= value ? styles.starFilled : ''}`}
+          aria-label={`${n} star${n>1?'s':''}`}
+          onClick={() => onChange && onChange(n)}
+        >★</button>
+      ))}
+    </div>
+  );
 
   return (
     <section className={styles.card}>
@@ -288,6 +348,60 @@ export function HistorySettingsPage() {
                             )}
                           </div>
                         )}
+                        <div className={styles.notesBlock}>
+                          <div className={styles.noteLine}>
+                            <span className={styles.label}>Feedback</span>
+                            <span className={styles.value}>
+                              {row.feedback ? (
+                                <div className={styles.feedbackView}>
+                                  <div className={styles.feedbackRatings}>
+                                    <div className={styles.ratingLine}><span>Easy Booking</span><StarBar value={row.feedback.ratings?.bookingEase || 0} /></div>
+                                    <div className={styles.ratingLine}><span>Fast Transaction</span><StarBar value={row.feedback.ratings?.speed || 0} /></div>
+                                    <div className={styles.ratingLine}><span>Great Staff</span><StarBar value={row.feedback.ratings?.staff || 0} /></div>
+                                    <div className={styles.ratingLine}><span>Clean Facility</span><StarBar value={row.feedback.ratings?.cleanliness || 0} /></div>
+                                    <div className={styles.ratingLine}><span>Overall Experience</span><StarBar value={row.feedback.ratings?.overall || 0} /></div>
+                                  </div>
+                                  {row.feedback.message && (
+                                    <div className={styles.feedbackMessage}>“{row.feedback.message}”</div>
+                                  )}
+                                </div>
+                              ) : (row.status === 'Completed' && row.proofUrl ? (
+                                feedbackOpen[row.id] ? (
+                                  <div className={styles.feedbackForm}>
+                                    <div className={styles.ratingLine}><span>Easy Booking</span><StarBar value={feedbackDraft[row.id]?.ratings?.bookingEase || 0} onChange={(n) => setDraftRating(row.id, 'bookingEase', n)} /></div>
+                                    <div className={styles.ratingLine}><span>Fast Transaction</span><StarBar value={feedbackDraft[row.id]?.ratings?.speed || 0} onChange={(n) => setDraftRating(row.id, 'speed', n)} /></div>
+                                    <div className={styles.ratingLine}><span>Great Staff</span><StarBar value={feedbackDraft[row.id]?.ratings?.staff || 0} onChange={(n) => setDraftRating(row.id, 'staff', n)} /></div>
+                                    <div className={styles.ratingLine}><span>Clean Facility</span><StarBar value={feedbackDraft[row.id]?.ratings?.cleanliness || 0} onChange={(n) => setDraftRating(row.id, 'cleanliness', n)} /></div>
+                                    <div className={styles.ratingLine}><span>Overall Experience</span><StarBar value={feedbackDraft[row.id]?.ratings?.overall || 0} onChange={(n) => setDraftRating(row.id, 'overall', n)} /></div>
+                                    <textarea
+                                      className={styles.feedbackTextarea}
+                                      placeholder="Share more about your experience (optional)"
+                                      value={feedbackDraft[row.id]?.message || ''}
+                                      onChange={(e) => setDraftMessage(row.id, e.target.value)}
+                                      maxLength={2000}
+                                    />
+                                    <div className={styles.feedbackActions}>
+                                      {(() => {
+                                        const d = feedbackDraft[row.id] || { ratings: {} };
+                                        const any = [d.ratings?.bookingEase, d.ratings?.speed, d.ratings?.staff, d.ratings?.cleanliness, d.ratings?.overall].some((v) => Number(v) > 0);
+                                        return (
+                                          <button type="button" className={styles.btnPrimary} disabled={submittingId === row.id || !any} onClick={() => submitFeedback(row)} title={!any ? 'Select at least one rating' : undefined}>
+                                            {submittingId === row.id ? 'Submitting…' : 'Submit Feedback'}
+                                          </button>
+                                        );
+                                      })()}
+                                      <button type="button" className={styles.btnGhost} onClick={() => setFeedbackOpen((m) => ({ ...m, [row.id]: false }))}>Cancel</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button type="button" className={styles.btnPrimary} onClick={() => setFeedbackOpen((m) => ({ ...m, [row.id]: true }))}>Add Feedback</button>
+                                )
+                              ) : (
+                                <span className={styles.subCell}>Available after completion</span>
+                              ))}
+                            </span>
+                          </div>
+                        </div>
                         {(row.createdAt || row.updatedAt || row.slotCapacityRef) && (
                           <div className={styles.metaBlock}>
                             {row.createdAt && <div className={styles.metaItem}>Created: <span className={styles.mono}>{row.createdAt}</span></div>}
