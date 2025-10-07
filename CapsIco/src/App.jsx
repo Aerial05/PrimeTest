@@ -294,13 +294,29 @@ Admin must insert image per successful appointment and Users must be able to vie
 9. Contact form must send message to database and can be viewed in admin panel
             
 
-NEW TO DO:
+NEW TO DO(DONE):
 AUTOMATE Email after 10 mins Send an Approved Appointment
   if Service has Per Appointment (this must be manualy approved in the admin panel)
 
 Send Email per Update of Status of Appointment (Approved, Declined, Successful)
-  + if successful, include image link if available
+  + if successful, include image link if available 
   
+
+
+
+  
+
+NEW TO DO(Finishings): 
+Dashboard include reports for the feedback
+
+Add a Activity log on the recent activity on the dashboard (call all actions done by an admin
+ (editing account management, appointments, curd services, sending email to a feedback and such))
+
+Services should be seen complete in the screen (no need to scroll), 
+Add tab for checking of list of services and packages (so no need to scroll to bottom)
+  on the list of services and packages should have pagination so no need to scroll
+
+
 
 
 

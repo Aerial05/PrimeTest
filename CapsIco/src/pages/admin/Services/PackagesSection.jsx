@@ -51,7 +51,7 @@ export default function PackagesSection({
         </div>
 
         <div className={styles.cardBody}>
-          <form onSubmit={onSubmit}>
+          <form onSubmit={onSubmit} className={styles.formGrid}>
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
                 <label htmlFor="name">Name of Service</label>
