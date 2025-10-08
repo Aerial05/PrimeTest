@@ -5,6 +5,7 @@ import { sendAppointmentEmailCallable } from '/src/config/firebase-config';
 import servicePackagesService from '@/services/ServicePackagesService';
 import singleServicesService from '@/services/SingleServicesService';
 import { useLocation } from 'react-router-dom';
+import activityLogService from '/src/services/ActivityLogService';
 
 function to12h(hhmm) {
   if (!hhmm) return '—';
@@ -418,6 +419,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               });
               if (res && res.ok) {
                 showPopup({ title: 'Email sent', message: 'A notification email was sent to the user.', type: 'info' });
+                // No log for email sends per requirement
               }
             } catch (e) {
               console.warn('sendAppointmentEmail callable failed', e);

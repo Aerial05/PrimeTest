@@ -9,6 +9,7 @@ import {RecentActivity} from '/src/components/admin/dashboard/RecentActivity/Rec
 import styles from './AdminDashboard.module.css'; // <-- CSS Module
 import { createIcons, icons } from 'lucide';
 import { ReportPreviewModal } from '/src/components/admin/dashboard/ReportPreviewModal/ReportPreviewModal';
+import activityLogService from '/src/services/ActivityLogService';
 
 export function AdminDashboard() {
   const navigate = useNavigate();
@@ -68,7 +69,7 @@ export function AdminDashboard() {
           <button
             type="button"
             className={styles.primaryBtn}
-            onClick={() => setActivityOpen(true)}
+            onClick={() => { setActivityOpen(true); }}
             title="View recent activity"
             aria-label="View recent activity"
           >
@@ -81,7 +82,16 @@ export function AdminDashboard() {
   {/* RecentActivity moved into a large popup */}
       </main>
       {previewOpen && (
-        <ReportPreviewModal html={previewHTML} onClose={() => setPreviewOpen(false)} />
+        <ReportPreviewModal
+          html={previewHTML}
+          onClose={() => setPreviewOpen(false)}
+          onPrint={() => {
+            try { activityLogService.log({ type: 'report', action: 'print_report', description: 'Printed dashboard report' }); } catch {}
+          }}
+          onDownloadPdf={() => {
+            try { activityLogService.log({ type: 'report', action: 'download_report', description: 'Downloaded dashboard report PDF' }); } catch {}
+          }}
+        />
       )}
       {activityOpen && (
         <div className={styles.modalOverlay} role="dialog" aria-modal="true" aria-label="Recent Activity">

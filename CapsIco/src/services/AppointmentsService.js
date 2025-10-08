@@ -1,5 +1,6 @@
 import { ref, push, set, get, runTransaction, update, remove, query, orderByChild, equalTo } from 'firebase/database';
 import BaseFirebaseService from './BaseFirebaseService';
+import activityLogService from './ActivityLogService';
 import { app, auth, usersDB, storage } from '/src/config/firebase-config';
 import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -122,6 +123,14 @@ class AppointmentsService extends BaseFirebaseService {
   async updateStatus(id, status) {
     const now = new Date().toISOString();
     await update(ref(this.database, this.path(id)), { BOOKING_STATUS: String(status || '').toLowerCase(), UPDATED_AT: now });
+    try {
+      await activityLogService.log({
+        type: 'appointment',
+        action: 'update_status',
+        description: `Updated status to ${String(status || '').toLowerCase()}`,
+        targetId: id,
+      });
+    } catch (_) {}
   }
 
   async delete(id) {
@@ -136,6 +145,15 @@ class AppointmentsService extends BaseFirebaseService {
         await remove(ref(this.database, this.bySlotPath(appt.SERVICE_ID, appt.DATE_OF_APPOINTMENT, appt.TIME_SLOT, id)));
       }
     } catch (_e) {}
+    try {
+      await activityLogService.log({
+        type: 'appointment',
+        action: 'delete',
+        description: `Deleted appointment ${id}`,
+        targetId: id,
+        metadata: { SERVICE_ID: appt?.SERVICE_ID, DATE_OF_APPOINTMENT: appt?.DATE_OF_APPOINTMENT, TIME_SLOT: appt?.TIME_SLOT },
+      });
+    } catch (_) {}
     return true;
   }
 
@@ -166,6 +184,15 @@ class AppointmentsService extends BaseFirebaseService {
     const url = await getDownloadURL(task.snapshot.ref);
     const now = new Date().toISOString();
     await update(ref(this.database, this.path(id)), { PROOF: url, UPDATED_AT: now });
+    try {
+      await activityLogService.log({
+        type: 'appointment',
+        action: 'upload_proof',
+        description: `Uploaded proof image`,
+        targetId: id,
+        metadata: { path },
+      });
+    } catch (_) {}
     return { url };
   }
 
@@ -193,6 +220,15 @@ class AppointmentsService extends BaseFirebaseService {
         await remove(ref(this.database, this.bySlotPath(rec.SERVICE_ID, rec.DATE_OF_APPOINTMENT, rec.TIME_SLOT, id)));
       }
     } catch (_e) {}
+    try {
+      await activityLogService.log({
+        type: 'appointment',
+        action: 'archive',
+        description: `Archived appointment ${id}`,
+        targetId: id,
+        metadata: { BOOKING_STATUS: rec?.BOOKING_STATUS },
+      });
+    } catch (_) {}
     return true;
   }
 

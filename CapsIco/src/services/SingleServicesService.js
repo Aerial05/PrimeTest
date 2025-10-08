@@ -1,5 +1,6 @@
 import { ref, push, set, update, remove, get } from 'firebase/database';
 import BaseFirebaseService from './BaseFirebaseService';
+import activityLogService from './ActivityLogService';
 import { app, auth, usersDB } from '/src/config/firebase-config';
 
 class SingleServicesService extends BaseFirebaseService {
@@ -27,6 +28,15 @@ class SingleServicesService extends BaseFirebaseService {
     };
     await set(ref(this.database, `${this.archivePath}/${id}`), archivedRec);
     await remove(ref(this.database, this.path(id)));
+    try {
+      await activityLogService.log({
+        type: 'single_service',
+        action: 'archive',
+        description: `Archived single service ${id}`,
+        targetId: id,
+        targetName: rec?.NAME || '',
+      });
+    } catch (_) {}
     return true;
   }
 
@@ -72,17 +82,43 @@ class SingleServicesService extends BaseFirebaseService {
     const dbRec = this.toDbRecord(ui);
     // If SERVICE_ID is blank, generate one like SP-<idNum> later in the caller; keep here simple
     await set(newRef, dbRec);
+    try {
+      await activityLogService.log({
+        type: 'single_service',
+        action: 'create',
+        description: `Created single service ${dbRec.NAME || ''}`,
+        targetId: newRef.key,
+        targetName: dbRec.NAME || '',
+      });
+    } catch (_) {}
     return newRef.key;
   }
 
   async update(id, ui) {
     const dbRec = this.toDbRecord(ui);
     await update(ref(this.database, this.path(id)), dbRec);
+    try {
+      await activityLogService.log({
+        type: 'single_service',
+        action: 'update',
+        description: `Updated single service ${dbRec.NAME || ''}`,
+        targetId: id,
+        targetName: dbRec.NAME || '',
+      });
+    } catch (_) {}
     return id;
   }
 
   async remove(id) {
     await remove(ref(this.database, this.path(id)));
+    try {
+      await activityLogService.log({
+        type: 'single_service',
+        action: 'delete',
+        description: `Deleted single service ${id}`,
+        targetId: id,
+      });
+    } catch (_) {}
     return true;
   }
 }

@@ -57,8 +57,25 @@ export function ReportPreviewModal({ html, onClose, onPrint, onDownloadPdf }) {
         <div className={styles.header}>
           <div className={styles.title}>Report Preview</div>
           <div className={styles.actions}>
-            <button className={styles.btn} onClick={onDownloadPdf || defaultDownloadPdf} title="Download as PDF">Download PDF</button>
-            <button className={styles.btn} onClick={onPrint || defaultPrint}>Print</button>
+            <button
+              className={styles.btn}
+              onClick={async () => {
+                try { if (typeof onDownloadPdf === 'function') await onDownloadPdf(); } catch (_) {}
+                await defaultDownloadPdf();
+              }}
+              title="Download as PDF"
+            >
+              Download PDF
+            </button>
+            <button
+              className={styles.btn}
+              onClick={() => {
+                try { if (typeof onPrint === 'function') onPrint(); } catch (_) {}
+                defaultPrint();
+              }}
+            >
+              Print
+            </button>
             <button className={`${styles.btn}`} onClick={onClose}>Close</button>
           </div>
         </div>

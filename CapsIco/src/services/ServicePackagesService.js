@@ -1,5 +1,6 @@
 import { ref, push, set, update, remove, get } from 'firebase/database';
 import BaseFirebaseService from './BaseFirebaseService';
+import activityLogService from './ActivityLogService';
 import { app, auth, usersDB } from '/src/config/firebase-config';
 
 class ServicePackagesService extends BaseFirebaseService {
@@ -35,6 +36,15 @@ class ServicePackagesService extends BaseFirebaseService {
     // Write to archive path using same id, then remove original
     await set(ref(this.database, `${this.archivePath}/${id}`), archivedRec);
     await remove(ref(this.database, this.path(id)));
+    try {
+      await activityLogService.log({
+        type: 'service_package',
+        action: 'archive',
+        description: `Archived service package ${id}`,
+        targetId: id,
+        targetName: rec?.NAME || '',
+      });
+    } catch (_) {}
     return true;
   }
 
@@ -86,17 +96,43 @@ class ServicePackagesService extends BaseFirebaseService {
       dbRec.SERVICE_PACKGE_ID = `PKG-${newRef.key}`;
     }
     await set(newRef, dbRec);
+    try {
+      await activityLogService.log({
+        type: 'service_package',
+        action: 'create',
+        description: `Created service package ${dbRec.NAME || ''}`,
+        targetId: newRef.key,
+        targetName: dbRec.NAME || '',
+      });
+    } catch (_) {}
     return newRef.key;
   }
 
   async update(id, ui) {
     const dbRec = this.toDbRecord(ui);
     await update(ref(this.database, this.path(id)), dbRec);
+    try {
+      await activityLogService.log({
+        type: 'service_package',
+        action: 'update',
+        description: `Updated service package ${dbRec.NAME || ''}`,
+        targetId: id,
+        targetName: dbRec.NAME || '',
+      });
+    } catch (_) {}
     return id;
   }
 
   async remove(id) {
     await remove(ref(this.database, this.path(id)));
+    try {
+      await activityLogService.log({
+        type: 'service_package',
+        action: 'delete',
+        description: `Deleted service package ${id}`,
+        targetId: id,
+      });
+    } catch (_) {}
     return true;
   }
 }

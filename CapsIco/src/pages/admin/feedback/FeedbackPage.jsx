@@ -3,6 +3,7 @@ import styles from './FeedbackPage.module.css';
 import appointmentsService from '/src/services/AppointmentsService';
 import { useToast } from '/src/components/shared/toast/ToastProvider.jsx';
 import { ref as dbRef, push as dbPush } from 'firebase/database';
+import activityLogService from '/src/services/ActivityLogService';
 import { usersDB } from '/src/config/firebase-config';
 
 function Stars({ value=0 }) {

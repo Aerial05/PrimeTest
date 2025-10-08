@@ -7,6 +7,7 @@ import { usersDB } from '@/config/firebase-config';
 import { ref, onValue, update as dbUpdate, remove as dbRemove, set as dbSet, get as dbGet } from 'firebase/database';
 import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
 import authService from '@/services/AuthService';
+import activityLogService from '/src/services/ActivityLogService';
 
 export function AccountManagement() {
   const { show } = useToast();
@@ -348,6 +349,7 @@ export function AccountManagement() {
               };
               try {
                 await dbUpdate(ref(usersDB, `users/${uid}`), payload);
+                try { await activityLogService.log({ type: 'account', action: mode==='add' ? 'create' : 'update', description: `${mode==='add' ? 'Added' : 'Updated'} account ${payload.email || payload.username || uid}`, targetId: uid, targetName: `${payload.lastName || ''}, ${payload.firstName || ''}`.trim() }); } catch (_) {}
                 show({ type: 'success', title: 'Saved', message: 'Account changes were saved successfully.' });
               } catch (e) {
                 console.error('Failed to save user to DB', e);
@@ -406,6 +408,7 @@ export function AccountManagement() {
                       await dbSet(ref(usersDB, `usersArchive/${deleteTarget.id}`), archivePayload);
                       await dbRemove(ref(usersDB, `users/${deleteTarget.id}`));
                       setDeleteTarget(null);
+                      try { await activityLogService.log({ type: 'account', action: 'delete', description: `Archived & removed account ${deleteTarget.email || deleteTarget.username || deleteTarget.id}`, targetId: deleteTarget.id, targetName: `${deleteTarget.lastName || ''}, ${deleteTarget.firstName || ''}`.trim() }); } catch (_) {}
                       show({ type: 'success', title: 'Removed', message: 'User archived and removed from active list.' });
                     } catch (e) {
                       console.error('Failed to archive/remove user', e);
