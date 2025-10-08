@@ -5,15 +5,22 @@
   width: 100%;
   max-width: 100%;
   margin: 0 auto;
-  padding-left: 32px;
-  padding-right: 32px;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+
+main.container {
+  /* Fit to viewport height minus approx header height; adjust if header changes */
+  min-height: calc(100vh - 100px);
+  display: flex;
+  flex-direction: column;
 }
 
 .actionsBar {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 16px 0 20px 0;
+  margin: 8px 0 12px 0;
 }
 
 .primaryBtn {

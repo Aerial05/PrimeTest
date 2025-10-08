@@ -51,7 +51,7 @@ function normalizeService(raw) {
 
 function SvgBarsBase({ data, color = '#2563eb', showValues = false, rotateLabels = true, labelMaxLen = 12, labelFontSize = 10, forceAllLabels = false }) {
   // Use a larger virtual width and height; render responsive to container width
-  const width = 960, height = 460, pad = 40;
+  const width = 960, height = 280, pad = 40;
   const ys = data.map(d => d.value);
   const max = Math.max(1, ...ys);
   const bw = (width - pad*2) / Math.max(1, data.length);
@@ -93,11 +93,11 @@ function SvgBarsBase({ data, color = '#2563eb', showValues = false, rotateLabels
         </linearGradient>
       </defs>
       {/* baseline grid */}
-      <line x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} stroke="#e2e8f0" strokeWidth="1"/>
+  <line x1={pad} y1={height - pad - 10} x2={width - pad} y2={height - pad - 10} stroke="#e2e8f0" strokeWidth="1"/>
       {data.map((d, i) => {
         const h = (d.value / max) * (height - pad*2);
         const x = pad + i * bw + 6;
-        const y = height - pad - h;
+  const y = height - pad - 10 - h;
         return (
           <g key={i}>
             <rect x={x} y={y} width={bw - 12} height={clamp(h,0,height)} rx={6} fill="url(#barGrad)" aria-label={`${d.label}: ${d.value}`}>
@@ -115,9 +115,10 @@ function SvgBarsBase({ data, color = '#2563eb', showValues = false, rotateLabels
         if (!showLabel) return null;
         if (rotateLabels) {
           const angle = data.length > 14 ? -35 : -20;
+          const baseY = height - 29; // lift labels to avoid overlapping legend below
           const lines = wrapLabel(d.label, 22, 3);
           return (
-            <text key={`t${i}`} x={x} y={height - 6} fontSize={labelFontSize} textAnchor="end" fill="#475569" transform={`rotate(${angle} ${x},${height - 6})`}>
+            <text key={`t${i}`} x={x} y={baseY} fontSize={labelFontSize} textAnchor="end" fill="#475569" transform={`rotate(${angle} ${x},${baseY})`}>
               {lines.map((ln, idx) => (
                 <tspan key={idx} x={x} dy={idx === 0 ? 0 : 12}>{ln}</tspan>
               ))}
