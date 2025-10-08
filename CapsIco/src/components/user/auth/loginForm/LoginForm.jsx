@@ -7,7 +7,7 @@ import authService from "../../../../services/AuthService";
 
 export function LoginForm({ onSwitch }) {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -99,7 +99,7 @@ export function LoginForm({ onSwitch }) {
         await handleSendOtp();
         return;
       }
-      await authService.signInWithEmail({ email, password, remember });
+  await authService.signInWithIdentifier({ identifier, password, remember });
       await handlePostSignIn();
     } catch (err) {
       setError(err.message || "Failed to log in. Please try again.");
@@ -287,14 +287,15 @@ export function LoginForm({ onSwitch }) {
           </div>
           <div className={styles.inputField}>
             <input
-              type="email"
-              id="login-email"
-              name="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text"
+              id="login-identifier"
+              name="identifier"
+              autoComplete="username email"
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
               required
             />
-            <label htmlFor="login-email">Email</label>
+            <label htmlFor="login-identifier">Email or Username</label>
           </div>
         </div>
         )}

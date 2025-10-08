@@ -1,34 +1,7 @@
-
-.banner {
-  background: var(--gradient-primary);
-  padding: 1.25rem 0; /* smaller header height */
-  color: #fff;
-  border-bottom-left-radius: 16px;
-  border-bottom-right-radius: 16px;
-  border-bottom: 2px solid var(--primary-light);
-  box-shadow: 0 6px 16px rgba(37, 99, 235, 0.15);
-}
-
 .container {
   width: 95%;
   max-width: 1600px;
-  margin: 10px  auto;
-}
-
-.banner h1 {
-  color: #f8fafc;
-  font-size: 24px; /* smaller title */
-  font-weight: 700;
-  margin: 0.1rem 0 0;
-}
-
-.banner p {
-  color: #e0ecff; /* themed label */
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin: 0;
+  margin: 16px auto;
 }
 
 

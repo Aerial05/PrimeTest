@@ -39,14 +39,6 @@ export function UserSettingsPage() {
 
   return (
     <>
-
-      <div className={styles.banner}>
-        <div className={styles.container}>
-          <p>Configuration</p>
-          <h1>Settings</h1>
-        </div>
-      </div>
-
       <main className={styles.container}>
         <div className={styles.settingsContainer}>
           <SettingsSidebar active={active} onSelect={setActive} />

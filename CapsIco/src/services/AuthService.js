@@ -114,6 +114,22 @@ export class AuthService extends BaseFirebaseService {
     return user;
   }
 
+  // Allow users to sign in with either email or username
+  async signInWithIdentifier({ identifier, password, remember }) {
+    const id = (identifier || '').trim();
+    if (!id) throw new Error('Please enter your email or username.');
+    let emailToUse = '';
+    if (id.includes('@')) {
+      emailToUse = id;
+    } else {
+      emailToUse = await this.resolveEmailFromUsername(id);
+      if (!emailToUse) throw new Error('Username not found.');
+    }
+    const user = await this.providers.email.signIn({ email: emailToUse, password, remember });
+    await this.afterSignIn(user);
+    return user;
+  }
+
   async signInWithProvider(provider, options = {}) {
     const strategy = this.providers[provider];
     if (!strategy) {

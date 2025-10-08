@@ -19,10 +19,10 @@
   gap: 10px;
 }
 
-.logoIconLarge { font-size: 40px; color: var(--primary-color); margin-right: 15px; filter: drop-shadow(0 0 8px rgba(37,99,235,0.3)); }
+.logoIconLarge { font-size: var(--fs-xl); color: var(--primary-color); margin-right: 15px; filter: drop-shadow(0 0 8px rgba(37,99,235,0.3)); }
 
 .logo h1 {
-  font-size: 24px;
+  font-size: var(--fs-xl);
   font-weight: 700;
 }
 
@@ -30,10 +30,7 @@
   color: var(--primary-color);
 }
 
-.tagline {
-  color: var(--text-light);
-  font-size: 14px;
-}
+.tagline { color: var(--text-light); font-size: var(--fs-xs); }
 
 /* Info Card */
 .infoCard {
@@ -65,17 +62,9 @@
   flex-shrink: 0;
 }
 
-.infoContent h3 {
-  font-size: 16px;
-  font-weight: 600;
-  color: var(--primary-dark);
-  margin-bottom: 5px;
-}
+.infoContent h3 { font-size: var(--fs-base); font-weight: 600; color: var(--primary-dark); margin-bottom: 5px; }
 
-.infoContent p {
-  font-size: 14px;
-  color: var(--text-light);
-}
+.infoContent p { font-size: var(--fs-base); color: var(--text-light); }
 
 .compact {
   align-items: center;
@@ -104,7 +93,7 @@
   top: 12px;
   left: 12px;
   color: var(--text-light);
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .inputField input {
@@ -113,14 +102,14 @@
   border: 1px solid #ccc;
   border-radius: 6px;
   outline: none;
-  font-size: 14px;
+  font-size: var(--fs-base);
 }
 
 .inputField label {
   position: absolute;
   top: -10px;
   left: 36px;
-  font-size: 12px;
+  font-size: var(--fs-xs);
   background: #fff;
   padding: 0 4px;
   color: var(--text-light);
@@ -142,11 +131,7 @@
 }
 
 /* Terms and Privacy */
-.termsPrivacy {
-  font-size: 12px;
-  color: var(--text-light);
-  margin: 8px 0 16px;
-}
+.termsPrivacy { font-size: var(--fs-xs); color: var(--text-light); margin: 8px 0 16px; }
 
 .termsPrivacy a {
   color: var(--primary-color);
@@ -161,7 +146,7 @@
   padding: 12px;
   color: #fff;
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-base);
   border-radius: 6px;
   cursor: pointer;
   display: flex;
@@ -177,20 +162,12 @@
 
 .registerBtn:hover { background-color: var(--primary-light); box-shadow: 0 6px 12px rgba(37, 99, 235, 0.2); }
 
-.btnText {
-  font-size: 14px;
-}
+.btnText { font-size: var(--fs-base); }
 
-.btnIcon i {
-  font-size: 16px;
-}
+.btnIcon i { font-size: var(--fs-base); }
 
 /* Toggle Link */
-.toggleLink {
-  text-align: center;
-  font-size: 14px;
-  margin-top: 16px;
-}
+.toggleLink { text-align: center; font-size: var(--fs-base); margin-top: 16px; }
 
 .toggleLink a {
   color: var(--primary-color);

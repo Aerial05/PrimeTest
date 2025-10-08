@@ -666,25 +666,7 @@ export function SettingsContent() {
         </form>
       </section>
 
-      {/* Preferences (non-functional placeholders) */}
-      <section className={styles.section}>
-        <h3>Preferences</h3>
-        {[
-          { label: 'Email Notifications', desc: 'Receive email notifications for important updates', checked: true },
-          { label: 'Two-Factor Authentication', desc: 'Add an extra layer of security to your account', checked: false },
-        ].map((pref, i) => (
-          <div key={i} className={styles.switchContainer}>
-            <div className={styles.switchLabel}>
-              <h4>{pref.label}</h4>
-              <p>{pref.desc}</p>
-            </div>
-            <label className={styles.switch}>
-              <input type="checkbox" defaultChecked={pref.checked} disabled />
-              <span className={styles.slider}></span>
-            </label>
-          </div>
-        ))}
-      </section>
+      {/* Preferences section removed per request */}
 
       {/* Password */}
       <section className={styles.section}>

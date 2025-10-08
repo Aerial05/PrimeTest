@@ -85,7 +85,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-user"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" value={firstName} onChange={(e)=>setFirstName(e.target.value)} required />
+              <input type="text" name="givenName" autoComplete="given-name" value={firstName} onChange={(e)=>setFirstName(e.target.value)} required />
               <label>First Name</label>
             </div>
           </div>
@@ -95,7 +95,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-user"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" value={middleName} onChange={(e)=>setMiddleName(e.target.value)} />
+              <input type="text" name="additionalName" autoComplete="additional-name" value={middleName} onChange={(e)=>setMiddleName(e.target.value)} />
               <label>Middle Name</label>
             </div>
           </div>
@@ -107,7 +107,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-user"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" value={lastName} onChange={(e)=>setLastName(e.target.value)} required />
+              <input type="text" name="familyName" autoComplete="family-name" value={lastName} onChange={(e)=>setLastName(e.target.value)} required />
               <label>Last Name</label>
             </div>
           </div>
@@ -117,7 +117,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-at"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="text" value={username} onChange={(e)=>setUsername(e.target.value)} />
+              <input type="text" name="username" autoComplete="username" value={username} onChange={(e)=>setUsername(e.target.value)} />
               <label>Username</label>
             </div>
           </div>
@@ -131,6 +131,8 @@ export function RegisterForm({ onSwitch }) {
             <div className={styles.inputField}>
               <input
                 type="tel"
+                name="tel"
+                autoComplete="tel"
                 inputMode="numeric"
                 maxLength={16}
                 value={phone}
@@ -147,7 +149,7 @@ export function RegisterForm({ onSwitch }) {
               <i className="fas fa-envelope"></i>
             </div>
             <div className={styles.inputField}>
-              <input type="email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
+              <input type="email" name="email" autoComplete="email" value={email} onChange={(e)=>setEmail(e.target.value)} required />
               <label>Email</label>
             </div>
           </div>
@@ -160,6 +162,8 @@ export function RegisterForm({ onSwitch }) {
   </div>
   <div className={styles.inputField}>
     <input
+      name="newPassword"
+      autoComplete="new-password"
       type={showPassword ? "text" : "password"}
       value={password}
       onChange={(e)=>setPassword(e.target.value)}
@@ -181,6 +185,8 @@ export function RegisterForm({ onSwitch }) {
   </div>
   <div className={styles.inputField}>
     <input
+      name="confirmPassword"
+      autoComplete="new-password"
       type={showConfirm ? "text" : "password"}
       value={confirmPassword}
       onChange={(e)=>setConfirmPassword(e.target.value)}

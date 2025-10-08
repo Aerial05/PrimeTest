@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import styles from './SettingsContent.module.css';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
+// Reuse the exact user profile styles for visual parity
+import styles from '@/pages/user/settings/Profile/SettingsContentUser.module.css';
 import { auth, usersDB } from '@/config/firebase-config';
-import { onAuthStateChanged, updateProfile, updateEmail, reload, sendEmailVerification, signOut } from 'firebase/auth';
+import { onAuthStateChanged, updateProfile, reload, sendEmailVerification, signOut } from 'firebase/auth';
 import authService from '@/services/AuthService';
 import { ref, get, update as dbUpdate } from 'firebase/database';
 import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
+import { formatPHDisplay, toE164PH as toE164, isValidE164PH as isValidE164 } from '@/utils/phone';
 
 export function SettingsContent() {
   const { show } = useToast();
@@ -35,8 +37,15 @@ export function SettingsContent() {
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
-  // Store only the local part for PH numbers (e.g., 9XXXXXXXXX)
-  const [phoneLocal, setPhoneLocal] = useState('');
+  // Phone and verification (mirror user profile UX)
+  const [phone, setPhone] = useState('');
+  const [phoneVerified, setPhoneVerified] = useState(false);
+  const [phoneOtp, setPhoneOtp] = useState(['','','','','','']);
+  const [phoneOtpSent, setPhoneOtpSent] = useState(false);
+  const [phoneBusy, setPhoneBusy] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [showVisibleCaptcha, setShowVisibleCaptcha] = useState(false);
+  const otpRefs = useRef(Array.from({ length: 6 }, () => React.createRef()));
   const [email, setEmail] = useState('');
   const [createdAt, setCreatedAt] = useState('');
   const [lastLoginAt, setLastLoginAt] = useState('');
@@ -52,8 +61,8 @@ export function SettingsContent() {
       }
 
       try {
-        setEmail(u.email || '');
-        setEmailVerified(!!u.emailVerified);
+  setEmail(u.email || '');
+  setEmailVerified(!!u.emailVerified);
         const display = u.displayName || '';
         const parts = display.split(' ');
         setFirstName(parts[0] || '');
@@ -63,17 +72,13 @@ export function SettingsContent() {
         // load DB profile if exists
         const snap = await get(ref(usersDB, `users/${u.uid}`));
         const dbv = snap.exists() ? snap.val() : {};
-        setFirstName(dbv.firstName ?? (parts[0] || ''));
-        setMiddleName(dbv.middleName ?? (parts.length > 2 ? parts.slice(1, -1).join(' ') : ''));
-        setLastName(dbv.lastName ?? (parts.length > 1 ? parts[parts.length - 1] : ''));
-  setUsername(dbv.username ?? '');
-  // Parse and normalize to local part (strip +63/63/leading 0, keep digits only)
-  const rawPhone = dbv.phone ?? (u.phoneNumber || '');
-  const onlyDigits = String(rawPhone || '').replace(/\D/g, '');
-  let local = onlyDigits;
-  if (local.startsWith('63')) local = local.slice(2);
-  if (local.startsWith('0')) local = local.slice(1);
-  setPhoneLocal(local.slice(0, 10)); // cap to 10 digits typical PH mobile local part
+    setFirstName(dbv.firstName ?? (parts[0] || ''));
+    setMiddleName(dbv.middleName ?? (parts.length > 2 ? parts.slice(1, -1).join(' ') : ''));
+    setLastName(dbv.lastName ?? (parts.length > 1 ? parts[parts.length - 1] : ''));
+    setUsername(dbv.username ?? '');
+    const rawPhone = dbv.phone ?? (u.phoneNumber || '');
+    setPhone(formatPHDisplay(rawPhone));
+    setPhoneVerified(!!dbv.phoneVerified);
 
         // createdAt from auth metadata (fallback) and DB; prefer DB if present
         const metaCreated = u.metadata?.creationTime ? new Date(u.metadata.creationTime).toISOString() : '';
@@ -89,6 +94,13 @@ export function SettingsContent() {
     return () => unsub();
   }, []);
 
+  // cooldown timer for resend code
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setInterval(() => setResendCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
+    return () => clearInterval(t);
+  }, [resendCooldown]);
+
   const fullName = useMemo(() => [firstName, middleName, lastName].filter(Boolean).join(' '), [firstName, middleName, lastName]);
 
   const handleSave = async (e) => {
@@ -103,22 +115,15 @@ export function SettingsContent() {
       if (displayName && displayName !== user.displayName) {
         await updateProfile(user, { displayName });
       }
-      // Email updates are sensitive; only update if changed and allowed
-      if (email && email !== user.email) {
-        await updateEmail(user, email);
-      }
+      // Email editing is disabled here to mirror user profile view
 
       // Update DB profile
-      const fullPhone = phoneLocal
-        ? `+63${phoneLocal.startsWith('0') ? phoneLocal.slice(1) : phoneLocal}`
-        : '';
-
       const updates = {
         firstName,
         middleName,
         lastName,
         username,
-        phone: fullPhone,
+        phone: toE164(phone),
       };
       await dbUpdate(ref(usersDB, `users/${user.uid}`), updates);
 
@@ -180,6 +185,69 @@ export function SettingsContent() {
     }
   };
 
+  // Helpers mirroring user profile
+  const maskEmail = (val) => {
+    const e = String(val || '').trim();
+    const at = e.indexOf('@');
+    if (at <= 0) return e ? e.replace(/.(?=.{2})/g, '*') : '';
+    const local = e.slice(0, at);
+    const domain = e.slice(at + 1);
+    const start = local.slice(0, 2);
+    const end = local.slice(-1);
+    const maskedLocal = local.length <= 3 ? `${local[0] || ''}***` : `${start}***${end}`;
+    return `${maskedLocal}@${domain}`;
+  };
+
+  const maskPhoneDisplay = (val) => {
+    const e164 = toE164(val);
+    const m = /^\+63(\d{10})$/.exec(e164 || '');
+    if (!m) return formatPHDisplay(val);
+    const digits = m[1];
+    const first = digits.slice(0, 1);
+    const last4 = digits.slice(-4);
+    return `+63 ${first}*** *** ${last4}`;
+  };
+
+  const handleSendPhoneOtp = async () => {
+    setError('');
+    const e164 = toE164(phone);
+    if (!/^\+63\d{10}$/.test(e164)) { setError('Enter a valid PH number (+63)'); return; }
+    setPhoneBusy(true);
+    try {
+      const containerId = showVisibleCaptcha ? 'admin-profile-phone-recaptcha-visible' : 'admin-profile-phone-recaptcha';
+      await authService.startLinkPhone(e164, containerId, showVisibleCaptcha ? { size: 'normal' } : { size: 'invisible' });
+      setPhoneOtpSent(true);
+      setResendCooldown(60);
+    } catch (e) {
+      setError(e?.message || 'Failed to send verification code');
+      if (String(e?.code || e?.message || '').toLowerCase().includes('captcha') || String(e?.code || e?.message || '').toLowerCase().includes('invalid-app-credential')) {
+        setShowVisibleCaptcha(true);
+      }
+    } finally { setPhoneBusy(false); }
+  };
+
+  const handleConfirmPhoneOtp = async (e) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
+    setError('');
+    const code = phoneOtp.join('');
+    if (code.length !== 6) { setError('Enter the 6-digit code'); return; }
+    setPhoneBusy(true);
+    try {
+      await authService.confirmLinkPhone(code);
+      const uid = authService.currentUser?.uid || user?.uid;
+      const e164 = toE164(phone);
+      if (uid && e164) {
+        await dbUpdate(ref(usersDB, `users/${uid}`), { phone: e164, phoneVerified: true });
+      }
+      setPhoneVerified(true);
+      setPhoneOtp(['','','','','','']);
+      setPhoneOtpSent(false);
+      setSuccess('Phone verified');
+    } catch (err) {
+      setError(err?.message || 'Invalid code. Try again.');
+    } finally { setPhoneBusy(false); }
+  };
+
   const handlePasswordSubmit = async (e) => {
     e.preventDefault();
     setPassError('');
@@ -222,8 +290,8 @@ export function SettingsContent() {
 
   return (
     <div className={styles.content}>
-      <h2>Admin Settings</h2>
-      <p>Manage the administrator account information and preferences.</p>
+  <h2>Profile Settings</h2>
+  <p>Manage your account information and preferences.</p>
 
       {/* Personal Information */}
       <section className={styles.section}>
@@ -242,10 +310,6 @@ export function SettingsContent() {
 
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
-              <label htmlFor="middleName">Middle Name</label>
-              <input type="text" id="middleName" value={middleName} onChange={(e)=>setMiddleName(e.target.value)} disabled={loading || saving} />
-            </div>
-            <div className={styles.formGroup}>
               <label htmlFor="username">Username</label>
               <input type="text" id="username" value={username} onChange={(e)=>setUsername(e.target.value)} disabled={loading || saving} />
             </div>
@@ -254,7 +318,7 @@ export function SettingsContent() {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="email">Email Address</label>
-              <input type="email" id="email" value={email} onChange={(e)=>setEmail(e.target.value)} disabled={loading || saving} />
+              <input type="email" id="email" value={maskEmail(email)} disabled />
               <div className={styles.statusRow}>
                 <span className={`${styles.statusBadge} ${emailVerified ? styles.verified : styles.unverified}`}>
                   <span className={styles.dot}></span>
@@ -288,24 +352,72 @@ export function SettingsContent() {
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="phone">Phone Number</label>
-              <div className={styles.phoneField}>
-                <span className={styles.phonePrefix}>+63</span>
-                <input
-                  type="tel"
-                  id="phone"
-                  className={styles.phoneInput}
-                  value={phoneLocal}
-                  onChange={(e)=>{
-                    const digits = e.target.value.replace(/\D/g, '');
-                    setPhoneLocal(digits.slice(0, 10));
-                  }}
-                  placeholder="9XXXXXXXXX"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  disabled={loading || saving}
-                />
+              <input
+                type="tel"
+                id="phone"
+                inputMode="numeric"
+                maxLength={16}
+                value={phoneVerified ? maskPhoneDisplay(phone) : phone}
+                onChange={(e)=> setPhone(formatPHDisplay(e.target.value))}
+                placeholder="+63 912 345 6789"
+                disabled={loading || phoneVerified}
+              />
+              {showVisibleCaptcha && (
+                <div style={{ marginTop: 8 }}>
+                  <div id="admin-profile-phone-recaptcha-visible"></div>
+                  <div className={styles.muted} style={{ marginTop: 4 }}>Please solve the reCAPTCHA and try sending the code again.</div>
+                </div>
+              )}
+              <div className={styles.statusRow}>
+                <span className={`${styles.statusBadge} ${phoneVerified ? styles.verified : styles.unverified}`}>
+                  <span className={styles.dot}></span>
+                  {phoneVerified ? 'PH Phone Verified' : 'PH Phone Not Verified'}
+                </span>
+                {!phoneVerified && (
+                  !phoneOtpSent ? (
+                    <button type="button" className={styles.linkBtn} onClick={handleSendPhoneOtp} disabled={phoneBusy || loading || !isValidE164(toE164(phone))}>
+                      {phoneBusy ? 'Sending…' : 'Verify phone via SMS'}
+                    </button>
+                  ) : (
+                    <>
+                      <div className={styles.inlineActions}>
+                        <div className={styles.verificationInputs}>
+                          {phoneOtp.map((d, i) => (
+                            <input
+                              key={i}
+                              ref={otpRefs.current[i]}
+                              className={styles.codeInput}
+                              value={d}
+                              onChange={(e)=>{
+                                const v = (e.target.value || '').replace(/\D/g,'').slice(-1);
+                                const next = [...phoneOtp]; next[i] = v; setPhoneOtp(next);
+                                if (v && i < otpRefs.current.length - 1) otpRefs.current[i+1]?.current?.focus();
+                              }}
+                              maxLength={1}
+                              inputMode="numeric"
+                              pattern="\d*"
+                              aria-label={`Digit ${i+1}`}
+                            />
+                          ))}
+                        </div>
+                        <button type="button" onClick={handleConfirmPhoneOtp} className={styles.btnPrimary} disabled={phoneBusy}>
+                          {phoneBusy ? 'Verifying…' : 'Confirm'}
+                        </button>
+                        <button type="button" className={styles.linkBtn} onClick={handleSendPhoneOtp} disabled={phoneBusy || resendCooldown > 0}>
+                          {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+                        </button>
+                      </div>
+                    </>
+                  )
+                )}
+                {phoneVerified && (
+                  <button type="button" className={styles.linkBtn} onClick={()=>{/* Future: implement change-phone flow modal like user */}}>
+                    Change phone number
+                  </button>
+                )}
               </div>
-              <div className={styles.muted}>Philippine numbers. Enter the 10-digit mobile number after +63.</div>
+              {/* Invisible reCAPTCHA container */}
+              <div id="admin-profile-phone-recaptcha" style={{ position:'absolute', left:-9999, bottom:0 }} />
             </div>
           </div>
 
@@ -313,10 +425,6 @@ export function SettingsContent() {
             <div className={styles.formGroup}>
               <label htmlFor="createdAt">Created</label>
               <input type="text" id="createdAt" value={createdAt ? new Date(createdAt).toLocaleString() : ''} disabled />
-            </div>
-            <div className={styles.formGroup}>
-              <label htmlFor="lastLoginAt">Last Login</label>
-              <input type="text" id="lastLoginAt" value={lastLoginAt ? new Date(lastLoginAt).toLocaleString() : ''} disabled />
             </div>
           </div>
 
@@ -374,7 +482,19 @@ export function SettingsContent() {
                   onClick={()=>setShowCur(v=>!v)}
                   disabled={loading || passSaving || !isPasswordProvider}
                 >
-                  {showCur ? 'Hide' : 'Show'}
+                  {showCur ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.76-4.99 5-6.42"/>
+                      <path d="M1 1l22 22"/>
+                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/>
+                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a11.66 11.66 0 0 1-2.17 3.19"/>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -398,7 +518,19 @@ export function SettingsContent() {
                   onClick={()=>setShowNew(v=>!v)}
                   disabled={loading || passSaving || !isPasswordProvider}
                 >
-                  {showNew ? 'Hide' : 'Show'}
+                  {showNew ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.76-4.99 5-6.42"/>
+                      <path d="M1 1l22 22"/>
+                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/>
+                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a11.66 11.66 0 0 1-2.17 3.19"/>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
@@ -420,7 +552,19 @@ export function SettingsContent() {
                   onClick={()=>setShowConf(v=>!v)}
                   disabled={loading || passSaving || !isPasswordProvider}
                 >
-                  {showConf ? 'Hide' : 'Show'}
+                  {showConf ? (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-5 0-9.27-3.11-11-8 1-2.73 2.76-4.99 5-6.42"/>
+                      <path d="M1 1l22 22"/>
+                      <path d="M10.58 10.58A2 2 0 0 0 12 14a2 2 0 0 0 1.42-.58"/>
+                      <path d="M9.88 5.09A10.94 10.94 0 0 1 12 4c5 0 9.27 3.11 11 8a11.66 11.66 0 0 1-2.17 3.19"/>
+                    </svg>
+                  ) : (
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                      <circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  )}
                 </button>
               </div>
             </div>
