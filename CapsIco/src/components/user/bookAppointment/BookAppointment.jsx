@@ -27,6 +27,9 @@ export function BookAppointment() {
   const [modal, setModal] = useState({ open: false, type: 'info', title: '', message: '' });
   const showModal = ({ type = 'info', title = '', message = '' } = {}) => setModal({ open: true, type, title, message });
   const closeModal = () => setModal((m) => ({ ...m, open: false }));
+  // Rules confirmation modal
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [booking, setBooking] = useState(false);
   // Selected item from catalog (either package or single)
   const [activeItem, setActiveItem] = useState(null);
   const [date, setDate] = useState("");
@@ -276,58 +279,65 @@ export function BookAppointment() {
       return;
     }
 
-    // Build appointment record following the CSV schema
-    const user = authService.currentUser;
-    const record = {
-      USER_ID: user?.uid || '',
-      FIRST_NAME: patient.firstName || '',
-      LAST_NAME: patient.lastName || '',
-      PHONE: patient.phone || '',
-      EMAIL: (patient.email || user?.email || '').trim(),
-      BIRTHDAY: patient.birthday || '',
-      GENDER: patient.gender || '',
-      SERVICE_ID: activeItem.id || '',
-      SERVICE_NAME: activeItem.title || '',
-      SERVICE_TYPE: activeItem.kind === 'package' ? 'package' : 'service',
-      DATE_OF_APPOINTMENT: date,
-      TIME_SLOT: time,
-      SLOT_CAPACITY_REF: '',
-      CHIEF_COMPLAINT: patient.complaint || '',
-      SPECIAL_INSTRUCTIONS: patient.notes || '',
-      BOOKING_STATUS: 'pending',
-    };
+    // Open rules confirmation modal; proceed on accept
+    setRulesOpen(true);
+  };
 
-    const capacity = Number(activeItem.capacity || 1) || 1;
-    const serviceId = record.SERVICE_ID;
-    const slotDate = record.DATE_OF_APPOINTMENT;
-    const slotTime = record.TIME_SLOT;
+  const proceedBooking = async () => {
+    if (booking) return;
+    setBooking(true);
+    try {
+      // Build appointment record following the CSV schema
+      const user = authService.currentUser;
+      const record = {
+        USER_ID: user?.uid || '',
+        FIRST_NAME: patient.firstName || '',
+        LAST_NAME: patient.lastName || '',
+        PHONE: patient.phone || '',
+        EMAIL: (patient.email || user?.email || '').trim(),
+        BIRTHDAY: patient.birthday || '',
+        GENDER: patient.gender || '',
+        SERVICE_ID: activeItem.id || '',
+        SERVICE_NAME: activeItem.title || '',
+        SERVICE_TYPE: activeItem.kind === 'package' ? 'package' : 'service',
+        DATE_OF_APPOINTMENT: date,
+        TIME_SLOT: time,
+        SLOT_CAPACITY_REF: '',
+        CHIEF_COMPLAINT: patient.complaint || '',
+        SPECIAL_INSTRUCTIONS: patient.notes || '',
+        BOOKING_STATUS: 'pending',
+      };
 
-    // Reserve slot atomically; if full, show error
-    appointmentsService.reserveSlot(serviceId, slotDate, slotTime, capacity)
-      .then(async (reserved) => {
-        if (!reserved) {
-          showModal({ type: 'error', title: 'Fully booked', message: 'Sorry, this service at the selected date and time is already fully booked. Please choose another time.' });
-          return;
-        }
-        try {
-          const created = await appointmentsService.create(record);
-          await appointmentsService.indexAppointmentBySlot(serviceId, slotDate, slotTime, created.id);
-          showModal({
-            type: 'success',
-            title: 'Appointment submitted',
-            message: "Your appointment request was received and is now pending admin approval. You'll get an email when it's approved.",
-          });
-        } catch (err) {
-          // Rollback reservation on failure
-          await appointmentsService.releaseSlot(serviceId, slotDate, slotTime);
-          console.error('Failed to submit appointment', err);
-          showModal({ type: 'error', title: 'Submission failed', message: 'Failed to submit appointment. Please try again.' });
-        }
-      })
-      .catch((err) => {
-        console.error('Reservation error', err);
-        showModal({ type: 'error', title: 'Reservation failed', message: 'Failed to reserve the selected time. Please try again.' });
-      });
+      const capacity = Number(activeItem.capacity || 1) || 1;
+      const serviceId = record.SERVICE_ID;
+      const slotDate = record.DATE_OF_APPOINTMENT;
+      const slotTime = record.TIME_SLOT;
+
+      const reserved = await appointmentsService.reserveSlot(serviceId, slotDate, slotTime, capacity);
+      if (!reserved) {
+        showModal({ type: 'error', title: 'Fully booked', message: 'Sorry, this service at the selected date and time is already fully booked. Please choose another time.' });
+        return;
+      }
+      try {
+        const created = await appointmentsService.create(record);
+        await appointmentsService.indexAppointmentBySlot(serviceId, slotDate, slotTime, created.id);
+        showModal({
+          type: 'success',
+          title: 'Appointment submitted',
+          message: "Your appointment request was received and is now pending admin approval. You'll get an email when it's approved.",
+        });
+      } catch (err) {
+        await appointmentsService.releaseSlot(serviceId, slotDate, slotTime);
+        console.error('Failed to submit appointment', err);
+        showModal({ type: 'error', title: 'Submission failed', message: 'Failed to submit appointment. Please try again.' });
+      }
+    } catch (err) {
+      console.error('Reservation error', err);
+      showModal({ type: 'error', title: 'Reservation failed', message: 'Failed to reserve the selected time. Please try again.' });
+    } finally {
+      setRulesOpen(false);
+      setBooking(false);
+    }
   };
 
   return (
@@ -513,6 +523,50 @@ export function BookAppointment() {
             </div>
             <div className={styles.modalActions}>
               <button type="button" className={styles.ghostBtn} onClick={closeModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {rulesOpen && (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="rulesModalTitle"
+          onClick={(e) => { if (e.target === e.currentTarget && !booking) setRulesOpen(false); }}
+        >
+          <div className={`${styles.modalCard} ${styles.modalWide}`}>
+            <div className={styles.modalTop}>
+              <div className={`${styles.modalIconWrap} ${styles.modalIconInfo}`} aria-hidden>ℹ</div>
+              <div>
+                <div id="rulesModalTitle" className={styles.modalTitle}>Please review before booking</div>
+                <div className={styles.modalSubtitle}>By proceeding, you confirm you have read and accept these rules.</div>
+              </div>
+            </div>
+            <div className={styles.modalBody} style={{ maxHeight: 360, overflow: 'auto' }}>
+              <div className={styles.modalRuleSection}>
+                <div className={styles.modalRuleTitle}>Service Priority Order</div>
+                <div className={styles.modalRuleSubtitle}>If a walk‑in and a scheduled patient arrive at the same time, we serve patients in this order:</div>
+                <ol className={styles.modalRuleList}>
+                  <li><strong>Medical urgency</strong> — based on the patient’s current condition.</li>
+                  <li><strong>First in queue</strong> — the walk‑in who arrived earlier.</li>
+                  <li><strong>Scheduled time</strong> — patients with appointments at their booked time.</li>
+                </ol>
+              </div>
+              <div className={styles.modalRuleSection}>
+                <div className={styles.modalRuleTitle}>Important Appointment Policy</div>
+                <div className={styles.modalRuleSubtitle}>
+                  Cancellation or rescheduling of appointments multiple times may result in a temporary restriction:
+                  a <strong>3‑day block</strong> from booking new appointments. Please only book when you are reasonably sure you can attend.
+                </div>
+              </div>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.ghostBtn} onClick={() => setRulesOpen(false)} disabled={booking}>Cancel</button>
+              <button type="button" className={styles.primaryBtn} onClick={proceedBooking} disabled={booking}>
+                {booking ? 'Submitting…' : 'I Accept & Book'}
+              </button>
             </div>
           </div>
         </div>

@@ -6,6 +6,19 @@ export function RulesSettingsPage() {
     <section className={styles.rulesSection}>
       <h2>Rules & Regulations</h2>
 
+      {/* Priority order highlight */}
+      <div className={styles.policyCard} role="note" aria-label="Service Priority Order">
+        <h3 className={styles.policyTitle}>Service Priority Order</h3>
+        <p className={styles.policyText}>
+          If a walk‑in and a scheduled patient arrive at the same time, we serve patients in this order:
+        </p>
+        <ol style={{ paddingLeft: 18, margin: '6px 0 0' }}>
+          <li><strong>Medical urgency</strong> — based on the patient’s current condition.</li>
+          <li><strong>First in queue</strong> — the walk‑in who arrived earlier.</li>
+          <li><strong>Scheduled time</strong> — patients with appointments at their booked time.</li>
+        </ol>
+      </div>
+
       <div className={styles.policyCard}>
         <h3 className={styles.policyTitle}>Important Appointment Policy</h3>
         <p className={styles.policyText}>

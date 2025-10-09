@@ -67,6 +67,15 @@
 .ghostBtn { background:transparent; color:#374151; border:1px solid #e5e7eb; padding:.6rem .95rem; border-radius:8px; font-weight:700; cursor:pointer; transition: background .15s ease; }
 .ghostBtn:hover { background:#f9fafb; }
 
+/* Rules modal enhancements */
+.modalWide { width: min(92vw, 760px); }
+.modalIconInfo { background:#eef2ff; color:#3730a3; }
+.modalDivider { height:1px; background:#eef2f7; margin: 8px 0; }
+.modalRuleSection { background:#f9fafb; border:1px solid #eef2f7; border-radius:10px; padding:12px; margin-bottom:10px; }
+.modalRuleTitle { font-weight:800; color:#111827; margin: 0 0 6px 0; }
+.modalRuleSubtitle { color:#374151; font-size:14px; margin: 0 0 6px 0; }
+.modalRuleList { padding-left: 18px; margin: 0; color:#111827; font-size:14px; }
+
 /* Quick slot grid on summary panel */
 .quickSlots { margin-top: .75rem; border-top:1px solid #f3f4f6; padding-top:.75rem; }
 .quickHeader { font-weight:700; color:#374151; margin-bottom:.35rem; }
