@@ -1,11 +1,11 @@
 :root { --primary: var(--primary-color); --primary-light: var(--primary-light); --text-dark:#1f2937; }
 
-.wrapper { display:grid; grid-template-columns: 510px 1fr 280px; gap:1.25rem; margin: 1rem auto; max-width: 1440px; padding: 0 1.25rem; }
+.wrapper { display:grid; grid-template-columns: 420px minmax(720px, 1fr) 320px; gap:1.5rem; margin: 1rem auto; max-width: 100%; padding: 0 1.5rem; }
 
 .infoCard, .mainCard, .summaryCard { background:#fff; border-radius: 12px; box-shadow: 0 8px 24px rgba(15, 23, 42, .06); border: 1px solid #eef2f7; }
-.infoCard { padding: 1rem; }
-.mainCard { padding: 1rem; }
-.summaryCard { padding: 1rem; height: fit-content; position: sticky; top: 1rem; }
+.infoCard { padding: 1.25rem; }
+.mainCard { padding: 1.25rem; }
+.summaryCard { padding: 1.25rem; height: fit-content; position: sticky; top: 1rem; }
 
 .infoTitle { color: var(--primary); margin: 0 0 .5rem 0; font-size: 1.4rem; }
 .infoBody { display:flex; flex-direction:column; gap:.25rem; margin-bottom:.5rem; }
@@ -52,7 +52,8 @@
 .summaryPriceNote { margin-top:.25rem; font-size:.85rem; color:#6b7280; }
 
 /* Simple modal */
-.modalOverlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display:flex; align-items:center; justify-content:center; z-index: 1000; }
+.modalOverlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display:flex; align-items:center; justify-content:center; z-index: 20000; }
+.modalOverlayTop { align-items: flex-start; padding-top: 0; }
 .modalCard { background:#fff; width: min(92vw, 420px); border-radius:14px; box-shadow: 0 16px 48px rgba(15,23,42,.25); border:1px solid #eef2f7; overflow:hidden; }
 .modalTop { display:flex; align-items:center; gap:.75rem; padding: .9rem 1rem; border-bottom:1px solid #eef2f7; }
 .modalIconWrap { background:#fef2f2; color:#b91c1c; display:grid; place-items:center; width:38px; height:38px; border-radius:10px; }
@@ -111,5 +112,247 @@
 .catalogSummary { color:#6b7280; font-size:.87rem; display:-webkit-box; line-clamp: 3; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow:hidden; }
 
 @media (max-width: 1200px) { .wrapper { max-width: 100%; padding: 0 1rem; } }
-@media (max-width: 992px) { .wrapper { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .wrapper { grid-template-columns: 1fr; } }
 @media (max-width: 640px) { .formGrid { grid-template-columns: 1fr; } }
+
+/* --- Calendar-like big day view --- */
+.calHeader { display:flex; align-items:center; justify-content:space-between; gap:.75rem; margin-bottom:.5rem; flex-wrap:wrap; }
+.calHeaderLeft { display:flex; align-items:center; gap:.5rem; }
+.calHeaderRight { display:flex; align-items:center; gap:.5rem; }
+.calNavBtn { border:1px solid #e5e7eb; background:#fff; padding:.45rem .6rem; border-radius:8px; cursor:pointer; font-weight:700; color:#374151; }
+.calNavBtn:hover { background:#f9fafb; }
+.calTitle { font-weight:800; color:#111827; margin-left:.25rem; font-size:1.25rem; }
+
+.calendarWrap { margin-top:.9rem; border:1px solid #e9eef5; border-radius:14px; overflow:hidden; background:#fff; box-shadow: 0 6px 20px rgba(15,23,42,.06), inset 0 1px 0 #f6f8fb; }
+.dayGrid { display:grid; grid-template-columns: 140px 1fr; }
+.dayGridNoTimeCol { grid-template-columns: 1fr; }
+.timeCol { background:#f8fafc; border-right:1px solid #eef2f7; display:flex; flex-direction:column; }
+.dayGridNoTimeCol .timeCol { display:none; }
+.timeCell { position:relative; height: 44px; display:flex; align-items:flex-start; justify-content:flex-end; padding:8px 12px; color:#6b7280; font-size:.95rem; border-bottom:1px solid #eef2f7; }
+.timeLabel { position:sticky; top:0; }
+.gridCol { position:relative; }
+.gridCol::before { content:""; position:absolute; top:0; left:0; right:0; height:1px; background:#eef2f7; }
+.slotCell { position:relative; width:100%; height:44px; display:flex; align-items:center; border:0; border-bottom:1px solid #eef2f7; background:#fff; cursor:pointer; text-align:left; padding:0 12px; transition: background .12s ease, box-shadow .12s ease; border-radius:8px; }
+.slotCell:hover { background:#f8fafc; }
+.slotCellSelected { background:#eef2ff; box-shadow: inset 0 0 0 1px #c7d2fe; }
+.slotCellFull { background:#fff5f5; color:#b91c1c; cursor:not-allowed; }
+.slotCell[aria-disabled="true"] { cursor: default; color:#9ca3af; background:#fff; }
+.cellContent { display:flex; align-items:baseline; gap:.5rem; }
+.cellPrimary { font-weight:800; color:#0f172a; font-size:1rem; }
+.cellSecondary { color:#6b7280; font-size:.95rem; }
+
+.nowLine { position:absolute; left:0; right:0; height:2px; background:#ef4444; z-index:2; box-shadow: 0 0 0 1px rgba(239, 68, 68, .15); }
+.nowDot { position:absolute; width:8px; height:8px; background:#ef4444; border:2px solid #fff; border-radius:999px; left:6px; z-index:3; box-shadow: 0 1px 2px rgba(15,23,42,.2); }
+
+/* Week view */
+.viewTabs { display:inline-flex; background:#f1f5f9; border-radius:10px; padding:4px; margin-right:.5rem; }
+.weekGrid { display:grid; grid-template-rows: auto 1fr; border:1px solid #e9eef5; border-radius:14px; overflow:hidden; background:#fff; box-shadow: 0 6px 20px rgba(15,23,42,.06); margin: 6px 2px; }
+.weekHeader { display:grid; grid-template-columns: 140px repeat(7, 1fr); align-items:stretch; border-bottom:1px solid #eef2f7; background:linear-gradient(180deg,#f9fafb, #f5f7fb); }
+.weekHeaderCell { padding:.45rem .6rem; font-weight:700; color:#0f172a; border-left:1px solid #eef2f7; display:flex; align-items:center; gap:6px; }
+.weekHeaderCellPlaceholder { opacity: 0.15; filter: grayscale(1); }
+.weekHeaderCellPast { opacity: .5; }
+.weekHeaderDay { color:#6b7280; font-weight:600; }
+.weekHeaderDate { width:28px; height:28px; display:inline-grid; place-items:center; border-radius:999px; font-weight:800; }
+.isToday { background: var(--primary-light, #eef2ff); color: var(--primary, #3730a3); }
+.weekHeaderMonth { color:#9ca3af; font-weight:600; font-size:.85rem; }
+.weekBody { display:grid; grid-template-columns: 140px repeat(7, 1fr); min-height:0; }
+.weekTimeCol { background:#f8fafc; border-right:1px solid #eef2f7; overflow:hidden; }
+.weekTimeCell { height:44px; display:flex; align-items:flex-start; justify-content:flex-end; padding:8px 12px; color:#6b7280; font-size:.9rem; border-bottom:1px solid #eef2f7; }
+.weekDayCol { position:relative; border-left:1px solid #eef2f7; overflow:visible; padding: 0 2px; }
+.weekDayColPlaceholder { opacity: 0; }
+.weekDayColPast { opacity: .6; pointer-events: none; }
+.weekDayColDisabled { background:#fbfbfb; opacity:.7; }
+.weekDayCol .slotCell { width:100%; height:44px; border-bottom:1px solid #eef2f7; border-left:0; border-right:0; }
+.weekEmpty { color:#9ca3af; display:flex; align-items:center; justify-content:center; height:64px; }
+.tzLabel { padding:.45rem .6rem; color:#6b7280; font-weight:600; font-size:.85rem; }
+.weekHeaderCellClosed { color:#9ca3af; }
+.weekDayColActive { background:#f8faff; box-shadow: inset 0 0 0 2px #c7d2fe; }
+.weekHeaderCellActive { background:linear-gradient(180deg, #eef2ff, #eaf0ff); box-shadow: inset 0 -2px 0 #c7d2fe; }
+.weekHeaderCellPlaceholder.weekHeaderCellActive { opacity: .5; filter: none; }
+.closedBadge {
+	margin-left: auto;
+	background: #f1f5f9;
+	color: #64748b;
+	border: 1px solid #e2e8f0;
+	font-size: 11px;
+	padding: 2px 6px;
+	border-radius: 999px;
+	line-height: 1;
+}
+
+/* Period section label for stacked morning/evening */
+.periodLabel { color:#6b7280; font-weight:700; margin: 8px 4px 6px; }
+.periodSection { margin-top: 6px; }
+
+/* Extra space at the end so users can scroll to the very last rows */
+.scrollEndPad { height: clamp(96px, 14vh, 240px); }
+
+@media (max-width: 768px) {
+	.dayGrid { grid-template-columns: 1fr; }
+	.timeCol { display:none; }
+}
+
+/* Fullscreen schedule modal */
+.modalFullscreen {
+	width: 80vw;
+	height: 98vh;
+	max-width: none;
+	display: flex;
+	flex-direction: column;
+}
+.modalFsTop {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	padding: 10px 12px 12px;
+	border-bottom: 1px solid #ececec;
+}
+.modalFsBody {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow: auto;
+	padding: 10px 10px 16px;
+	overscroll-behavior: contain;
+	-webkit-overflow-scrolling: touch;
+	background: #fafbff;
+}
+
+.ruleNotice {
+	background: #f0f5ff;
+	border: 1px solid #e3e9fb;
+	color: #334155;
+	padding: 8px 10px;
+	border-radius: 8px;
+	margin: 2px 2px 10px;
+	font-size: .92rem;
+}
+
+/* Horizontal day scroller */
+.dateScrollerWrap {
+	display: flex;
+	gap: 8px;
+	overflow-x: auto;
+	padding: 4px 2px 10px;
+	margin: 0 2px 6px;
+	scrollbar-width: thin;
+	position: relative;
+}
+.dateScrollerWrap::-webkit-scrollbar { height: 8px; }
+.dateScrollerWrap::-webkit-scrollbar-thumb { background:#e2e8f0; border-radius:8px; }
+.dateScrollerWrap::before {
+	content: "";
+	position: absolute;
+	top: 2px;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 0; height: 0;
+	border-left: 7px solid transparent;
+	border-right: 7px solid transparent;
+	border-top: 9px solid #94a3b8;
+	opacity: .75;
+	pointer-events: none;
+	z-index: 2;
+}
+.dateScrollerWrap::after {
+	content: "";
+	position: absolute;
+	top: 4px;
+	bottom: 10px;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-1px);
+	background: #cbd5e1;
+	border-radius: 2px;
+	opacity: .6;
+	pointer-events: none;
+}
+.dateChip {
+	flex: 0 0 auto;
+	display: grid;
+	grid-template-columns: auto auto auto;
+	align-items: baseline;
+	gap: 6px;
+	padding: 8px 10px;
+	border: 1px solid #e5e7eb;
+	background: #fff;
+	border-radius: 999px;
+	color: #0f172a;
+	font-weight: 700;
+	cursor: pointer;
+	transition: background .15s ease, border-color .15s ease, transform .02s ease;
+	position: relative;
+}
+.dateChip:hover { background:#f9fafb; }
+.dateChipActive { background: var(--primary-light, #eef2ff); border-color: #c7d2fe; color: var(--primary, #3730a3); }
+.dateChipActive::after {
+	content: "";
+	position: absolute;
+	left: 50%;
+	bottom: -8px;
+	transform: translateX(-50%);
+	width: 0; height: 0;
+	border-left: 7px solid transparent;
+	border-right: 7px solid transparent;
+	border-bottom: 9px solid var(--primary, #6366f1);
+	opacity: .7;
+	pointer-events: none;
+}
+.dateChipDisabled { opacity: .5; pointer-events: none; }
+.dateChipDow { color:#64748b; font-weight:600; }
+.dateChipDay { font-size: 1rem; }
+.dateChipMon { color:#94a3b8; font-weight:600; }
+
+/* Prevent background scroll when modal is open */
+:global(body.modal-no-scroll) {
+	overflow: hidden !important;
+}
+.timeCell { position:relative; height: 48px; display:flex; align-items:flex-start; justify-content:flex-end; padding:8px 12px; color:#6b7280; font-size:.95rem; border-bottom:1px solid #eef2f7; }
+.slotCell { position:relative; width:100%; height:48px; display:flex; align-items:center; border:0; border-bottom:1px solid #eef2f7; background:#fff; cursor:pointer; text-align:left; padding:0 12px; transition: background .12s ease, box-shadow .12s ease; }
+.weekGrid { display:grid; grid-template-rows: auto 1fr; border:1px solid #eef2f7; border-radius:12px; overflow:hidden; background:#fff; height: auto; }
+.weekTimeCell { height:48px; display:flex; align-items:flex-start; justify-content:flex-end; padding:8px 12px; color:#6b7280; font-size:.9rem; border-bottom:1px solid #eef2f7; }
+.weekDayCol .slotCell { width:100%; height:48px; border-bottom:1px solid #eef2f7; border-left:0; border-right:0; }
+
+/* Inline summary replacing inline grid */
+.inlineScheduleSummary {
+	border: 1px dashed #e2e8f0;
+	background: #fafafa;
+	padding: 14px 16px;
+	border-radius: 10px;
+	margin-top: 12px;
+}
+.inlineSummaryRow {
+	display: flex;
+	align-items: center;
+	gap: 16px;
+}
+
+/* Make rows denser on shorter screens so more times fit without outside scroll */
+@media (max-height: 820px) {
+	.timeCell { height: 40px; }
+	.slotCell { height: 40px; }
+	.weekTimeCell { height: 40px; }
+	.weekDayCol .slotCell { height: 40px; }
+}
+
+/* Selected summary chip shown in the modal header when a time is picked */
+.selectedChip {
+	margin-left: 8px;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 4px 8px;
+	border-radius: 999px;
+	background: #eef2ff;
+	color: #3730a3;
+	font-weight: 700;
+	font-size: .9rem;
+	border: 1px solid #c7d2fe;
+}
+
+/* Small primary button for the confirm action */
+.primaryBtnSm {
+	padding: .5rem .8rem;
+	font-size: .9rem;
+	box-shadow: 0 4px 12px rgba(99,102,241,.25);
+}
