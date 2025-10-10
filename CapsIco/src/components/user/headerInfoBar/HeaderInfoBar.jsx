@@ -10,7 +10,9 @@ export function HeaderInfoBar() {
     const el = headerRef.current;
     if (!el) return;
     const setVar = () => {
-      const h = el.getBoundingClientRect().height;
+      // Use scrollHeight to account for wrapped rows
+      const rectH = el.getBoundingClientRect().height;
+      const h = Math.max(rectH, el.scrollHeight || rectH);
       document.documentElement.style.setProperty('--header-info-height', `${Math.ceil(h)}px`);
     };
     setVar();

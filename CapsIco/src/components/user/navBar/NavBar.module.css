@@ -1,7 +1,7 @@
 .nav {
   position: sticky;
-  /* Sit directly under the header info bar with no gap */
-  top: var(--header-info-height);
+  /* Sit directly under the header info bar; fallback to 0 if unset */
+  top: var(--header-info-height, 0px);
   z-index: 55;
   /* Use an opaque gradient fill so content does not show through while scrolling */
   background: linear-gradient(90deg, #4f46e5 0%, #2563eb 100%);

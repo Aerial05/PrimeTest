@@ -185,15 +185,19 @@ export function AdminHeaderInfoBar({
     if (!el) return;
 
     const setVar = () => {
-      const h = el.getBoundingClientRect().height;
+      const rectH = el.getBoundingClientRect().height;
+      const h = Math.max(rectH, el.scrollHeight || rectH);
       document.documentElement.style.setProperty('--admin-info-height', `${Math.ceil(h)}px`);
     };
 
     setVar();
+    // Re-run after layout settles (e.g., metrics fetched)
+    const t = setTimeout(setVar, 0);
     const ro = new ResizeObserver(setVar);
     ro.observe(el);
     window.addEventListener('resize', setVar);
     return () => {
+      clearTimeout(t);
       ro.disconnect();
       window.removeEventListener('resize', setVar);
     };
