@@ -143,6 +143,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const openModal = (id) => setModalId(id);
   const closeModal = () => setModalId(null);
   const selected = useMemo(() => rows.find(r => r.id === modalId), [rows, modalId]);
+  // View-only mode for cancelled appointments
+  const isCancelled = String(selected?.status || '').toLowerCase() === 'cancelled';
 
   useEffect(() => {
     if (modalId && selected) {
@@ -795,8 +797,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   placeholder="Enter reason for declining (will be included in email)"
                   value={declineReason}
                   onChange={(e)=>setDeclineReason(e.target.value)}
-                  disabled={modalSaving || (String(modalStatus).toLowerCase() !== 'declined' && String(selected.status).toLowerCase() !== 'declined')}
-                  style={{ minHeight: '70px', fontSize: '13px' }}
+                  disabled={isCancelled || modalSaving || (String(modalStatus).toLowerCase() !== 'declined' && String(selected.status).toLowerCase() !== 'declined')}
+                  style={{ minHeight: '70px', fontSize: '13px', opacity: isCancelled ? 0.6 : 1 }}
                 />
               </div>
               {/* Insert Proof - moved to bottom */}
@@ -828,7 +830,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                           type="file"
                           accept="image/*"
                           onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                          disabled={proofUploading}
+                          disabled={proofUploading || isCancelled}
                           id="proofFileInput"
                           style={{ 
                             position: 'absolute',
@@ -856,7 +858,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                             fontSize: '13px',
                             color: '#6b7280',
                             fontWeight: 600,
-                            whiteSpace: 'nowrap'
+                            whiteSpace: 'nowrap',
+                            opacity: isCancelled ? 0.6 : 1,
+                            pointerEvents: isCancelled ? 'none' : 'auto'
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.borderColor = '#2563eb';
@@ -881,7 +885,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                       <button
                         className={`${styles.btn} ${styles.btnApprove}`}
                         onClick={onUploadProof}
-                        disabled={proofUploading || !proofFile}
+                        disabled={proofUploading || !proofFile || isCancelled}
                         style={{ padding: '10px 16px', fontSize: '13px', maxWidth: '180px', fontWeight: 700 }}
                       >
                         {proofUploading ? `Uploading ${proofProgress}%` : 'Upload Proof'}
@@ -893,12 +897,27 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <span style={{ fontSize: '13px', fontWeight: 700 }}>Change status:</span>
+              <span style={{ fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                Change status:
+                {isCancelled && (
+                  <span style={{
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: '#b91c1c',
+                    background: '#fee2e2',
+                    border: '1px solid #fecaca',
+                    borderRadius: 999,
+                    padding: '4px 8px'
+                  }} title="This appointment is cancelled and cannot be edited">
+                    Cancelled — view only
+                  </span>
+                )}
+              </span>
               <select
                 className={styles.select}
-                value={modalStatus}
+                value={isCancelled ? selected.status : modalStatus}
                 onChange={(e) => setModalStatus(e.target.value)}
-                disabled={modalSaving}
+                disabled={modalSaving || isCancelled}
                 style={{ padding: '8px 10px', fontSize: '13px' }}
               >
                 <option>Approved</option>
@@ -909,7 +928,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               <button
                 className={`${styles.btn} ${styles.btnApprove}`}
                 onClick={onSubmitModalStatus}
-                disabled={modalSaving}
+                disabled={modalSaving || isCancelled}
                 style={{ padding: '8px 14px', fontSize: '13px' }}
               >
                 {modalSaving ? 'Submitting…' : 'Submit & Email'}
