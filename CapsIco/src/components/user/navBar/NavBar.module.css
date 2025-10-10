@@ -42,6 +42,14 @@
   gap: 1.25rem;
 }
 
+.left {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
 .navigation {
   justify-self: center;
   display: inline-flex;
@@ -63,7 +71,8 @@
   /* Keep items from overlapping; allow them to wrap if extremely tight */
   flex-wrap: wrap;
   justify-content: flex-end;
-  min-width: max-content;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .navLink {
