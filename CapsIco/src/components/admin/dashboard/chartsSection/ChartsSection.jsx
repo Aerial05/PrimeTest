@@ -41,7 +41,6 @@ function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
 function normalizeService(raw) {
   const s = String(raw || '').toLowerCase();
   // Unify x-ray variants, ultrasound, ob-gyne, ecg
-  if (s.includes('x-ray') || s.includes('x‑ray') || s.includes('xray')) return 'Radiology';
   if (s.includes('ultra')) return 'Ultrasound';
   if (s.includes('ob') || s.includes('gyne') || s.includes('ob-gyn') || s.includes('ob‑gyne')) return 'OB-Gyne';
   if (s.includes('ecg')) return 'ECG';
@@ -61,8 +60,8 @@ function SvgBarsBase({ data, color = '#2563eb', showValues = false, rotateLabels
     : (data.length > 100 ? 12 : data.length > 60 ? 10 : data.length > 28 ? 5 : 1);
   const wrapLabel = (s, maxLen = 18, maxLines = 3) => {
     const words = String(s || '').split(/\s+/);
-    const lines = [];
     let cur = '';
+    const lines = [];
     for (const w of words) {
       if ((cur + ' ' + w).trim().length <= maxLen) {
         cur = (cur ? cur + ' ' : '') + w;
@@ -71,8 +70,6 @@ function SvgBarsBase({ data, color = '#2563eb', showValues = false, rotateLabels
         cur = w;
         if (lines.length >= maxLines - 1) {
           // push the rest into the last line and break
-          const rest = words.slice(words.indexOf(w) + 1).join(' ');
-          cur = rest ? (cur + ' ' + rest) : cur;
           break;
         }
       }
@@ -170,6 +167,10 @@ export function ChartsSection() {
   const [svcSelMonth, setSvcSelMonth] = useState(nowRef.getMonth());
   const [svcSelYear, setSvcSelYear] = useState(nowRef.getFullYear());
   const [svcTotalMode, setSvcTotalMode] = useState(false); // All-time aggregation toggle
+  // Shared custom date range (affects both charts when both dates are set)
+  const [customFrom, setCustomFrom] = useState(''); // YYYY-MM-DD
+  const [customTo, setCustomTo] = useState('');     // YYYY-MM-DD
+  const customActive = useMemo(() => Boolean(customFrom && customTo && customFrom <= customTo), [customFrom, customTo]);
   const [isPending, startTransition] = useTransition();
   const rowsDeferred = useDeferredValue(rows);
   const storageKey = `adminDashboard:chartsFilters:${authService.currentUser?.uid || 'anon'}`;
@@ -191,6 +192,8 @@ export function ChartsSection() {
         if (typeof saved.svcSelMonth === 'number' && saved.svcSelMonth >= 0 && saved.svcSelMonth <= 11) setSvcSelMonth(saved.svcSelMonth);
         if (typeof saved.svcSelYear === 'number') setSvcSelYear(saved.svcSelYear);
         if (typeof saved.svcTotalMode === 'boolean') setSvcTotalMode(saved.svcTotalMode);
+        if (typeof saved.customFrom === 'string') setCustomFrom(saved.customFrom);
+        if (typeof saved.customTo === 'string') setCustomTo(saved.customTo);
       }
     } catch (_) { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -202,10 +205,11 @@ export function ChartsSection() {
       const data = {
         range, selMonth, selYear, monthMode, trendStatus, trendSvcType,
         svcFilter, svcSelMonth, svcSelYear, svcTotalMode,
+        customFrom, customTo,
       };
       localStorage.setItem(storageKey, JSON.stringify(data));
     } catch (_) { /* ignore */ }
-  }, [storageKey, range, selMonth, selYear, monthMode, trendStatus, trendSvcType, svcFilter, svcSelMonth, svcSelYear, svcTotalMode]);
+  }, [storageKey, range, selMonth, selYear, monthMode, trendStatus, trendSvcType, svcFilter, svcSelMonth, svcSelYear, svcTotalMode, customFrom, customTo]);
   
   
 
@@ -269,7 +273,14 @@ export function ChartsSection() {
   const trendData = useMemo(() => {
     const byMonth = monthMode;
     const bucket = new Map();
-    if (byMonth) {
+    if (customActive) {
+      // Prefill bucket for each day between customFrom and customTo
+      const start = new Date(customFrom + 'T00:00:00');
+      const end = new Date(customTo + 'T00:00:00');
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        bucket.set(toISOdateOnly(d), 0);
+      }
+    } else if (byMonth) {
       const start = new Date(selYear, selMonth, 1);
       const daysInMonth = new Date(selYear, selMonth + 1, 0).getDate();
       for (let i=0;i<daysInMonth;i++){
@@ -322,14 +333,27 @@ export function ChartsSection() {
       if (!ds) return;
       try {
         const iso = tryParseDateString(ds);
+        if (!iso) return;
+        if (customActive) {
+          const d = new Date(iso);
+          const s = new Date(customFrom + 'T00:00:00');
+          const e = new Date(customTo + 'T23:59:59');
+          if (d < s || d > e) return;
+        }
         if (bucket.has(iso)) bucket.set(iso, bucket.get(iso)+1);
       } catch(_){/* ignore */}
     });
-    const arr = Array.from(bucket.entries()).map(([k,v]) => ({ label: monthMode ? String(parseInt(k.slice(8),10)) : k.slice(5), value: v }));
+    const arr = Array.from(bucket.entries()).map(([k,v]) => ({ label: (monthMode && !customActive) ? String(parseInt(k.slice(8),10)) : k.slice(5), value: v }));
     return arr;
-  }, [rowsDeferred, range, selMonth, selYear, monthMode, trendStatus, trendSvcType, singleNameById, packageNameById]);
+  }, [rowsDeferred, range, selMonth, selYear, monthMode, trendStatus, trendSvcType, singleNameById, packageNameById, customActive, customFrom, customTo]);
 
   const rangeDisplay = useMemo(() => {
+    if (customActive) {
+      const fmt = (d) => {
+        try { return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }); } catch(_) { return d.toISOString().slice(0,10); }
+      };
+      return `${fmt(new Date(customFrom + 'T00:00:00'))} – ${fmt(new Date(customTo + 'T00:00:00'))}`;
+    }
     if (monthMode) {
       return `${monthNames[selMonth]} ${selYear}`;
     }
@@ -340,7 +364,7 @@ export function ChartsSection() {
       try { return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }); } catch(_) { return d.toISOString().slice(0,10); }
     };
     return `Last ${n} days (${fmt(start)} – ${fmt(end)})`;
-  }, [range, selMonth, selYear, monthMode]);
+  }, [range, selMonth, selYear, monthMode, customActive, customFrom, customTo]);
 
   const statusDisplay = useMemo(() => {
     if (trendStatus === 'success') return 'Success Only';
@@ -384,7 +408,7 @@ export function ChartsSection() {
     const end = new Date(svcSelYear, svcSelMonth + 1, 0, 23, 59, 59, 999);
     rowsDeferred.forEach(r => {
       // Apply time window unless all-time mode is on
-      if (!svcTotalMode) {
+      if (!svcTotalMode && !customActive) {
         // Use UPDATED_AT/DATE_OF_APPOINTMENT/CREATED_AT for bucketing
         const dateStr = r.UPDATED_AT || r.DATE_OF_APPOINTMENT || r.CREATED_AT;
         const iso = tryParseDateString(dateStr);
@@ -395,6 +419,14 @@ export function ChartsSection() {
           // no date => cannot place in selected month window
           return;
         }
+      } else if (customActive) {
+        const dateStr = r.UPDATED_AT || r.DATE_OF_APPOINTMENT || r.CREATED_AT;
+        const iso = tryParseDateString(dateStr);
+        if (!iso) return;
+        const d = new Date(iso);
+        const s = new Date(customFrom + 'T00:00:00');
+        const e = new Date(customTo + 'T23:59:59');
+        if (d < s || d > e) return;
       }
       
       const type = inferType(r);
@@ -424,7 +456,7 @@ export function ChartsSection() {
       arr = [...kept, { label: 'Others', value: othersSum }];
     }
     return arr;
-  }, [rowsDeferred, svcFilter, singleNameById, packageNameById, singleNameSet, packageNameSet, svcSelMonth, svcSelYear, svcTotalMode]);
+  }, [rowsDeferred, svcFilter, singleNameById, packageNameById, singleNameSet, packageNameSet, svcSelMonth, svcSelYear, svcTotalMode, customActive, customFrom, customTo]);
 
   const mostUsed = useMemo(() => {
     if (!topServices.length) return null;
@@ -433,7 +465,17 @@ export function ChartsSection() {
     return top;
   }, [topServices]);
 
-  const svcRangeDisplay = useMemo(() => svcTotalMode ? 'All time' : `${monthNames[svcSelMonth]} ${svcSelYear}`, [svcSelMonth, svcSelYear, svcTotalMode]);
+  const svcRangeDisplay = useMemo(() => {
+    if (customActive) {
+      try {
+        const fmt = (d) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        return `${fmt(new Date(customFrom + 'T00:00:00'))} – ${fmt(new Date(customTo + 'T00:00:00'))}`;
+      } catch (_) {
+        return `${customFrom} – ${customTo}`;
+      }
+    }
+    return svcTotalMode ? 'All time' : `${monthNames[svcSelMonth]} ${svcSelYear}`;
+  }, [svcSelMonth, svcSelYear, svcTotalMode, customActive, customFrom, customTo]);
 
   const svcTypeDisplay = useMemo(() => (svcFilter || 'All Services'), [svcFilter]);
   const svcHasOthers = useMemo(() => topServices.some(d => d.label === 'Others'), [topServices]);
@@ -455,12 +497,16 @@ export function ChartsSection() {
             const t = inferType(r);
             if (!t || t !== trendSvcType) return false;
           }
-          // date window for trend: month or last N days
+          // date window for trend: custom range OR month OR last N days
           const dateStr = r.DATE_OF_APPOINTMENT || r.CREATED_AT;
           const iso = tryParseDateString(dateStr);
           if (!iso) return false;
           const dt = new Date(iso);
-          if (monthMode) {
+          if (customActive) {
+            const s = new Date(customFrom + 'T00:00:00');
+            const e = new Date(customTo + 'T23:59:59');
+            return dt >= s && dt <= e;
+          } else if (monthMode) {
             const start = new Date(selYear, selMonth, 1);
             const end = new Date(selYear, selMonth + 1, 0, 23, 59, 59, 999);
             return dt >= start && dt <= end;
@@ -479,9 +525,9 @@ export function ChartsSection() {
         const merged = {
           ...prev,
           capturedAt: prev.capturedAt || new Date().toISOString(),
-          appointmentFilters: { monthMode, range, selMonth, selYear, trendStatus, trendSvcType },
+          appointmentFilters: { monthMode, range, selMonth, selYear, trendStatus, trendSvcType, customFrom, customTo },
           appointments: filteredAppointments,
-          mostUsedFilters: { svcTotalMode, svcFilter, svcSelMonth, svcSelYear },
+          mostUsedFilters: { svcTotalMode, svcFilter, svcSelMonth, svcSelYear, customFrom, customTo },
           mostUsed: topServices,
         };
         sessionStorage.setItem('adminDashboardReportSnapshot', JSON.stringify(merged));
@@ -491,7 +537,7 @@ export function ChartsSection() {
     };
     window.addEventListener('admin-dashboard:prepare-report', handler);
     return () => window.removeEventListener('admin-dashboard:prepare-report', handler);
-  }, [rowsDeferred, monthMode, range, selMonth, selYear, trendStatus, trendSvcType, svcTotalMode, svcFilter, svcSelMonth, svcSelYear, topServices]);
+  }, [rowsDeferred, monthMode, range, selMonth, selYear, trendStatus, trendSvcType, svcTotalMode, svcFilter, svcSelMonth, svcSelYear, topServices, customActive, customFrom, customTo]);
 
   
 
@@ -531,6 +577,14 @@ export function ChartsSection() {
                 ))}
               </select>
             )}
+            <div className={styles.dateRangeControls}>
+              <input type="date" value={customFrom} onChange={(e)=>startTransition(()=>setCustomFrom(e.target.value))} max={customTo || undefined} title="From" />
+              <span>–</span>
+              <input type="date" value={customTo} onChange={(e)=>startTransition(()=>setCustomTo(e.target.value))} min={customFrom || undefined} title="To" />
+              {customActive && (
+                <button type="button" className={styles.toggleBtn} onClick={()=>startTransition(()=>{ setCustomFrom(''); setCustomTo(''); })} title="Clear custom range">Clear</button>
+              )}
+            </div>
           </>
         )}
       >
@@ -592,6 +646,14 @@ export function ChartsSection() {
                 ))}
               </select>
             )}
+            <div className={styles.dateRangeControls}>
+              <input type="date" value={customFrom} onChange={(e)=>startTransition(()=>setCustomFrom(e.target.value))} max={customTo || undefined} title="From" />
+              <span>–</span>
+              <input type="date" value={customTo} onChange={(e)=>startTransition(()=>setCustomTo(e.target.value))} min={customFrom || undefined} title="To" />
+              {customActive && (
+                <button type="button" className={styles.toggleBtn} onClick={()=>startTransition(()=>{ setCustomFrom(''); setCustomTo(''); })} title="Clear custom range">Clear</button>
+              )}
+            </div>
           </>
         )}
       >

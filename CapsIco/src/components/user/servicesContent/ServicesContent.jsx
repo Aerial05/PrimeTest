@@ -36,8 +36,12 @@ export default function ServicesContent() {
           singleServicesService.list(),
         ]);
         if (cancelled) return;
+        // Filter out inactive items first
+        const activeBundles = (bundles || []).filter((db) => String(db.IS_ACTIVE_YesNo || 'Yes').toLowerCase() !== 'no');
+        const activeSingles = (singles || []).filter((db) => String(db.IS_ACTIVE_YesNo || 'Yes').toLowerCase() !== 'no');
+
         // Map packages
-        const mappedPkgs = (bundles || []).map((db) => {
+        const mappedPkgs = (activeBundles || []).map((db) => {
           const title = db.NAME || '';
           const desc = db.DESC || '';
           const priceNote = db.PRICE_NOTE || db['PRICE_NOTE (If no price)'] || '';
@@ -53,13 +57,14 @@ export default function ServicesContent() {
             philhealthPrice: phil !== undefined ? peso(phil) : undefined,
             discountedPrice: discounted !== undefined ? peso(discounted) : undefined,
             originalPrice: original !== undefined ? peso(original) : undefined,
+            bookingEnabled: String(db.BOOKING_ENABLED_YesNo || 'Yes').toLowerCase() !== 'no',
             // Show a helpful badge when available
             badge: db.BOOKING_ENABLED_YesNo === 'No' ? 'Booking not available' : undefined,
           };
         });
 
         // Map single services
-        const mappedSvcs = (singles || []).map((db) => {
+        const mappedSvcs = (activeSingles || []).map((db) => {
           const title = db.NAME || '';
           const desc = db.DESC || '';
           const priceNote = db.PRICE_NOTE || db['PRICE NOTE'] || db['PRICE_NOTE (If no price)'] || '';
@@ -75,6 +80,7 @@ export default function ServicesContent() {
             philhealthPrice: phil !== undefined ? peso(phil) : undefined,
             discountedPrice: discounted !== undefined ? peso(discounted) : undefined,
             originalPrice: original !== undefined ? peso(original) : undefined,
+            bookingEnabled: true,
           };
         });
 
@@ -204,8 +210,12 @@ export default function ServicesContent() {
                   <button
                     className={styles.appointmentBtn}
                     onClick={() => navigate('/appointment', { state: { selectedItem: item } })}
+                    disabled={item.bookingEnabled === false}
+                    title={item.bookingEnabled === false ? 'Booking disabled for this service' : 'Proceed to booking'}
+                    aria-disabled={item.bookingEnabled === false}
+                    style={item.bookingEnabled === false ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
                   >
-                    Book Appointment
+                    {item.bookingEnabled === false ? 'Booking Disabled' : 'Book Appointment'}
                   </button>
                 )}
                 <div className={styles.cardContent}>

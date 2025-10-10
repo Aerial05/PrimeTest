@@ -23,6 +23,20 @@ export function PackagesPage() {
 	const [pageSingle, setPageSingle] = useState(1);
 	const [pageBundle, setPageBundle] = useState(1);
 
+	// Filters: Singles
+	const [singleStatus, setSingleStatus] = useState(''); // '', 'Active', 'Inactive'
+	const [singleSlotsMin, setSingleSlotsMin] = useState('');
+	const [singleSlotsMax, setSingleSlotsMax] = useState('');
+	const [singlePriceMin, setSinglePriceMin] = useState('');
+	const [singlePriceMax, setSinglePriceMax] = useState('');
+	// Filters: Bundles
+	const [bundleEnabled, setBundleEnabled] = useState(''); // '', 'Yes', 'No'
+	const [bundleStatus, setBundleStatus] = useState(''); // '', 'Active', 'Inactive'
+	const [bundleSlotsMin, setBundleSlotsMin] = useState('');
+	const [bundleSlotsMax, setBundleSlotsMax] = useState('');
+	const [bundlePriceMin, setBundlePriceMin] = useState('');
+	const [bundlePriceMax, setBundlePriceMax] = useState('');
+
 	const [form, setForm] = useState({
 		type: 'single',
 		// shared/basic
@@ -159,6 +173,16 @@ export function PackagesPage() {
 			}
 		}
 		return `SP-${maxNum + 1}`;
+	};
+    
+	// Check duplicates for bundles by Name and Service Package ID
+	const findDuplicateIssues = (name, servicePackageId, excludeDbId = null) => {
+		const norm = (v) => (v || '').toString().trim().toLowerCase();
+		const bundles = services.filter((s) => s.type === 'bundle');
+		const issues = [];
+		if (name && bundles.some((b) => (excludeDbId ? b.dbId !== excludeDbId : true) && norm(b.name) === norm(name))) issues.push('Name already exists');
+		if (servicePackageId && bundles.some((b) => (excludeDbId ? b.dbId !== excludeDbId : true) && norm(b.servicePackageId) === norm(servicePackageId))) issues.push('Service Package ID already exists');
+		return issues;
 	};
 
 	// Load packages and single services from Firebase on mount and map to UI shape
@@ -381,7 +405,7 @@ export function PackagesPage() {
 					.update(dbKey, uiForDb)
 					.then(() => {
 						setServices((prev) => prev.map((s) => (
-							s.dbId === dbKey ? { ...s, ...payload } : s
+							s.dbId === dbKey ? { ...s, ...payload, id: payload.servicePackageId || s.id } : s
 						)));
 						// Keep the form populated on update; just refresh the updatedAt value
 						setForm((prev) => ({ ...prev, updatedAt: nowIso }));
@@ -398,7 +422,7 @@ export function PackagesPage() {
 				servicePackagesService
 					.create(uiForDb)
 					.then((dbId) => {
-						setServices((prev) => [{ ...payload, dbId }, ...prev]);
+						setServices((prev) => [{ ...payload, dbId, id: payload.servicePackageId || payload.id }, ...prev]);
 						show({ type: 'success', title: 'Saved', message: 'Package created successfully.' });
 					})
 					.finally(resetForm);
@@ -498,7 +522,7 @@ export function PackagesPage() {
 					singleServicesService
 						.create(uiForDb)
 						.then((dbId) => {
-							setServices((prev) => [{ ...singlePayload, dbId }, ...prev]);
+							setServices((prev) => [{ ...singlePayload, dbId, id: singlePayload.serviceId || singlePayload.id }, ...prev]);
 							show({ type: 'success', title: 'Saved', message: 'Service created successfully.' });
 							resetForm();
 							setActiveTab('single');
@@ -802,38 +826,75 @@ export function PackagesPage() {
 	// Filtered lists
 	const filteredSingles = useMemo(() => {
 		const q = searchSingle.trim().toLowerCase();
-		const base = services.filter((s) => s.type === 'single');
-		if (!q) return base;
-		const includes = (v) => (v ?? '').toString().toLowerCase().includes(q);
-		return base.filter((s) => (
-			includes(s.name) ||
-			includes(s.serviceId) ||
-			includes(s.description) ||
-			includes(s.specialInstructions) ||
-			includes(s.singleAvailability) ||
-			includes(s.status) ||
-			includes(s.price)
-		));
-	}, [services, searchSingle]);
+		let arr = services.filter((s) => s.type === 'single');
+		if (q) {
+			const includes = (v) => (v ?? '').toString().toLowerCase().includes(q);
+			arr = arr.filter((s) => (
+				includes(s.name) ||
+				includes(s.serviceId) ||
+				includes(s.description) ||
+				includes(s.specialInstructions) ||
+				includes(s.singleAvailability) ||
+				includes(s.status) ||
+				includes(s.price)
+			));
+		}
+		// Apply single-specific filters
+		arr = arr.filter((s) => {
+			// Status filter
+			if (singleStatus && s.status !== singleStatus) return false;
+			// Slots filter
+			const slotsVal = (s.singleSlot !== undefined && s.singleSlot !== '') ? Number(s.singleSlot) : null;
+			if (singleSlotsMin !== '' && !(slotsVal !== null && slotsVal >= Number(singleSlotsMin))) return false;
+			if (singleSlotsMax !== '' && !(slotsVal !== null && slotsVal <= Number(singleSlotsMax))) return false;
+			// Price filter
+			const priceVal = Number(s.price) || 0;
+			if (singlePriceMin !== '' && !(priceVal >= Number(singlePriceMin))) return false;
+			if (singlePriceMax !== '' && !(priceVal <= Number(singlePriceMax))) return false;
+			return true;
+		});
+		return arr;
+	}, [services, searchSingle, singleStatus, singleSlotsMin, singleSlotsMax, singlePriceMin, singlePriceMax]);
 
 	const filteredBundles = useMemo(() => {
 		const q = searchBundle.trim().toLowerCase();
-		const base = services.filter((s) => s.type === 'bundle');
-		if (!q) return base;
-		const includes = (v) => (v ?? '').toString().toLowerCase().includes(q);
-		return base.filter((s) => (
-			includes(s.name) ||
-			includes(s.servicePackageId) ||
-			includes(s.description) ||
-			includes(s.features) ||
-			includes(s.specialInstruction) ||
-			includes(s.slot) ||
-			includes(s.bookingEnabled) ||
-			includes(s.isActive) ||
-			includes(s.status) ||
-			includes(s.price)
-		));
-	}, [services, searchBundle]);
+		let arr = services.filter((s) => s.type === 'bundle');
+		if (q) {
+			const includes = (v) => (v ?? '').toString().toLowerCase().includes(q);
+			arr = arr.filter((s) => (
+				includes(s.name) ||
+				includes(s.servicePackageId) ||
+				includes(s.description) ||
+				includes(s.features) ||
+				includes(s.specialInstruction) ||
+				includes(s.slot) ||
+				includes(s.bookingEnabled) ||
+				includes(s.isActive) ||
+				includes(s.status) ||
+				includes(s.price)
+			));
+		}
+		// Apply bundle-specific filters
+		arr = arr.filter((s) => {
+			// Enabled (booking)
+			if (bundleEnabled && (s.bookingEnabled || 'Yes') !== bundleEnabled) return false;
+			// Status (active)
+			if (bundleStatus) {
+				const isActive = (s.isActive || 'Yes') === 'Yes' ? 'Active' : 'Inactive';
+				if (isActive !== bundleStatus) return false;
+			}
+			// Slots filter
+			const slotsVal = (s.slot !== undefined && s.slot !== '') ? Number(s.slot) : null;
+			if (bundleSlotsMin !== '' && !(slotsVal !== null && slotsVal >= Number(bundleSlotsMin))) return false;
+			if (bundleSlotsMax !== '' && !(slotsVal !== null && slotsVal <= Number(bundleSlotsMax))) return false;
+			// Price filter
+			const priceVal = Number(s.price) || 0;
+			if (bundlePriceMin !== '' && !(priceVal >= Number(bundlePriceMin))) return false;
+			if (bundlePriceMax !== '' && !(priceVal <= Number(bundlePriceMax))) return false;
+			return true;
+		});
+		return arr;
+	}, [services, searchBundle, bundleEnabled, bundleStatus, bundleSlotsMin, bundleSlotsMax, bundlePriceMin, bundlePriceMax]);
 
 	// Pagination: 5 per page, clamp and reset as filters change
 	const PAGE_SIZE = 5;
@@ -923,6 +984,14 @@ export function PackagesPage() {
 						REGULAR_SCHEDULE={REGULAR_SCHEDULE}
 						searchValue={searchSingle}
 						onSearchChange={setSearchSingle}
+						filters={{ status: singleStatus, slotsMin: singleSlotsMin, slotsMax: singleSlotsMax, priceMin: singlePriceMin, priceMax: singlePriceMax }}
+						onFiltersChange={{
+							setStatus: setSingleStatus,
+							setSlotsMin: setSingleSlotsMin,
+							setSlotsMax: setSingleSlotsMax,
+							setPriceMin: setSinglePriceMin,
+							setPriceMax: setSinglePriceMax,
+						}}
 						filteredServices={pageSingles}
 						onEdit={onEdit}
 						onDelete={onDelete}
@@ -991,6 +1060,15 @@ export function PackagesPage() {
 						REGULAR_SCHEDULE={REGULAR_SCHEDULE}
 						searchValue={searchBundle}
 						onSearchChange={setSearchBundle}
+						filters={{ enabled: bundleEnabled, status: bundleStatus, slotsMin: bundleSlotsMin, slotsMax: bundleSlotsMax, priceMin: bundlePriceMin, priceMax: bundlePriceMax }}
+						onFiltersChange={{
+							setEnabled: setBundleEnabled,
+							setStatus: setBundleStatus,
+							setSlotsMin: setBundleSlotsMin,
+							setSlotsMax: setBundleSlotsMax,
+							setPriceMin: setBundlePriceMin,
+							setPriceMax: setBundlePriceMax,
+						}}
 						filteredServices={pageBundles}
 						onEdit={onEdit}
 						onDelete={onDelete}

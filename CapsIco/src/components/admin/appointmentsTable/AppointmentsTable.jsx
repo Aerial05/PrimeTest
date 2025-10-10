@@ -655,6 +655,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                     >
                       {row.status}
                     </span>
+                    {(['Pending','Approved'].includes(row.status) && isRowOverdue(row)) ? (
+                      <span className={styles.overdueBadge} title="This appointment is past its scheduled date/time">Overdue</span>
+                    ) : null}
                   </td>
                   <td className={`${styles.actions} ${styles.colActions}`}>
                     <button
@@ -715,6 +718,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : selected.status === 'Successful' ? styles.successful : styles.pending}`}>{selected.status}</span>
+                {(['Pending','Approved'].includes(selected.status) && isRowOverdue(selected)) ? (
+                  <span className={styles.overdueBadge} title="This appointment is past its scheduled date/time">Overdue</span>
+                ) : null}
                 <button className={`${styles.btn} ${styles.btnDecline}`} onClick={closeModal} title="Close">✕</button>
               </div>
             </div>

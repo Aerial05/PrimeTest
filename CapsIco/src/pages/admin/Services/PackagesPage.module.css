@@ -67,6 +67,8 @@
 .headerActions { display: flex; align-items: center; gap: 0.5rem; }
 .searchWrap { margin-left: auto; }
 .searchInput { padding: 0.5rem 0.65rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; min-width: 200px; }
+.filterBar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.filterInput { padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 0.85rem; background: #fff; }
 .editingBadge {
 	background: rgba(139, 92, 246, 0.1);
 	color: #7c3aed;

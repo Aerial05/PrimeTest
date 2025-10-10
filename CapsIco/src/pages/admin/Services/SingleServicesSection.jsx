@@ -18,6 +18,8 @@ export default function SingleServicesSection({
   // list/table
   searchValue,
   onSearchChange,
+  filters,
+  onFiltersChange,
   filteredServices,
   onEdit,
   onDelete,
@@ -272,6 +274,50 @@ export default function SingleServicesSection({
           </div>
         </div>
         <div className={styles.cardBody}>
+          <div className={styles.filterBar}>
+            <select
+              className={styles.filterInput}
+              value={filters?.status || ''}
+              onChange={(e)=> onFiltersChange?.setStatus && onFiltersChange.setStatus(e.target.value)}
+              title="Status"
+            >
+              <option value="">All Status</option>
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+            <input
+              type="number"
+              className={styles.filterInput}
+              placeholder="Min slots"
+              value={filters?.slotsMin || ''}
+              onChange={(e)=> onFiltersChange?.setSlotsMin && onFiltersChange.setSlotsMin(e.target.value)}
+              min="0"
+            />
+            <input
+              type="number"
+              className={styles.filterInput}
+              placeholder="Max slots"
+              value={filters?.slotsMax || ''}
+              onChange={(e)=> onFiltersChange?.setSlotsMax && onFiltersChange.setSlotsMax(e.target.value)}
+              min="0"
+            />
+            <input
+              type="number"
+              className={styles.filterInput}
+              placeholder="Min price"
+              value={filters?.priceMin || ''}
+              onChange={(e)=> onFiltersChange?.setPriceMin && onFiltersChange.setPriceMin(e.target.value)}
+              min="0" step="0.01"
+            />
+            <input
+              type="number"
+              className={styles.filterInput}
+              placeholder="Max price"
+              value={filters?.priceMax || ''}
+              onChange={(e)=> onFiltersChange?.setPriceMax && onFiltersChange.setPriceMax(e.target.value)}
+              min="0" step="0.01"
+            />
+          </div>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>

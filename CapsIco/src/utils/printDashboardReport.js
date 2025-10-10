@@ -149,6 +149,7 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
     <span class="pill">Month: ${typeof appointmentFilters.selMonth === 'number' ? appointmentFilters.selMonth + 1 : ''}/${esc(appointmentFilters.selYear || '')}</span>
     <span class="pill">Status: ${esc(appointmentFilters.trendStatus || 'all')}</span>
     <span class="pill">Type: ${esc(appointmentFilters.trendSvcType || 'All Services')}</span>
+    ${appointmentFilters.customFrom && appointmentFilters.customTo ? `<span class="pill">Custom: ${esc(appointmentFilters.customFrom)} – ${esc(appointmentFilters.customTo)}</span>` : ''}
   </div>
 
   <h3>Appointments (${appointments.length})</h3>
@@ -159,6 +160,7 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
     <span class="pill">All Time: ${mostUsedFilters.svcTotalMode ? 'On' : 'Off'}</span>
     <span class="pill">Type: ${esc(mostUsedFilters.svcFilter || 'All Services')}</span>
     <span class="pill">Month: ${typeof mostUsedFilters.svcSelMonth === 'number' ? mostUsedFilters.svcSelMonth + 1 : ''}/${esc(mostUsedFilters.svcSelYear || '')}</span>
+    ${mostUsedFilters.customFrom && mostUsedFilters.customTo ? `<span class="pill">Custom: ${esc(mostUsedFilters.customFrom)} – ${esc(mostUsedFilters.customTo)}</span>` : ''}
   </div>
   <table>
     <thead><tr><th>Service</th><th>Count</th></tr></thead>

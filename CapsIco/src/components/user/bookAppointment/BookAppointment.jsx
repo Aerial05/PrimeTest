@@ -123,6 +123,8 @@ export function BookAppointment() {
           price: x.DISCOUNTED_PRICE ?? x.ORIGINAL_PRICE,
           kind: 'package',
           serviceKey: x.SERVICE_PACKGE_ID || x.SERVICE_PACKAGE_ID || x.SERVICE_ID || x.id,
+          bookingEnabled: String(x.BOOKING_ENABLED_YesNo || 'Yes').toLowerCase() !== 'no',
+          active: String(x.IS_ACTIVE_YesNo || 'Yes').toLowerCase() !== 'no',
         });
         const mapSvc = (x) => ({
           id: x.id,
@@ -133,9 +135,12 @@ export function BookAppointment() {
           price: x.DISCOUNTED_PRICE ?? x.ORIGINAL_PRICE,
           kind: 'service',
           serviceKey: x.SERVICE_ID || x.id,
+          // Singles do not have a dedicated booking toggle; assume enabled unless specified otherwise
+          bookingEnabled: true,
+          active: String(x.IS_ACTIVE_YesNo || 'Yes').toLowerCase() !== 'no',
         });
-        setPackagesCatalog(pkgs.map(mapPkg));
-        setServicesCatalog(svcs.map(mapSvc));
+        setPackagesCatalog(pkgs.map(mapPkg).filter(it => it.active));
+        setServicesCatalog(svcs.map(mapSvc).filter(it => it.active));
       } catch (_) {}
     })();
   }, []);
@@ -454,6 +459,10 @@ export function BookAppointment() {
       showModal({ type: 'error', title: 'Select a service', message: 'Please choose a service before picking a schedule.' });
       return;
     }
+    if (activeItem && activeItem.bookingEnabled === false) {
+      showModal({ type: 'error', title: 'Booking disabled', message: 'Booking is currently disabled for this service. Please choose another service or try again later.' });
+      return;
+    }
     if (!date) {
       // Default to earliest allowed date so Week view isn’t blank
       setDate(tomorrowStr);
@@ -468,6 +477,7 @@ export function BookAppointment() {
   const onSubmit = (e) => {
     e.preventDefault();
     if (!activeItem || !date || !time) { showModal({ type:'error', title:'Incomplete details', message:'Please select a service, date, and time.' }); return; }
+    if (activeItem && activeItem.bookingEnabled === false) { showModal({ type:'error', title:'Booking disabled', message:'Booking is currently disabled for this service.' }); return; }
   if (date < tomorrowStr) { showModal({ type:'error', title:'Date not allowed', message:'Appointments can be booked starting tomorrow and onward.' }); return; }
     if (!patient.birthday) { showModal({ type:'error', title:'Missing birthday', message:'Please enter your birthday.' }); return; }
     const bdayStr = String(patient.birthday);
@@ -524,6 +534,20 @@ export function BookAppointment() {
         <div className={styles.infoBody}>
           <div className={styles.label}>Service</div>
           <div className={styles.selectedService}>{activeItem?.title || 'Select a service below'}</div>
+          {activeItem && activeItem.bookingEnabled === false && (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
+              <span style={{
+                display: 'inline-block',
+                padding: '2px 8px',
+                borderRadius: 9999,
+                fontSize: 12,
+                fontWeight: 600,
+                color: '#991b1b',
+                background: '#fee2e2',
+                border: '1px solid #fecaca'
+              }}>Booking disabled</span>
+            </div>
+          )}
           {activeItem?.availability && (<div className={styles.smallNote}><b>Hours:</b> {activeItem.availability}</div>)}
         </div>
 
@@ -540,12 +564,39 @@ export function BookAppointment() {
             <input className={styles.catalogSearch} placeholder="Search..." value={search} onChange={(e)=>setSearch(e.target.value)} />
           </div>
           <div className={styles.catalogList}>
-            {catalog.map((it) => (
-              <button key={it.title} type="button" className={styles.catalogItem} onClick={()=>selectFromCatalog(it.title)}>
-                <div className={styles.catalogTitle}>{it.title}</div>
-                {it.summary && <div className={styles.catalogSummary}>{it.summary}</div>}
-              </button>
-            ))}
+            {catalog.map((it) => {
+              const isDisabled = it.bookingEnabled === false;
+              return (
+                <button
+                  key={`${it.kind}-${it.title}`}
+                  type="button"
+                  className={styles.catalogItem}
+                  onClick={() => { if (!isDisabled) { setActiveItem(it); setTime(''); } }}
+                  disabled={isDisabled}
+                  title={isDisabled ? 'Booking disabled for this service' : 'Select this service'}
+                  aria-disabled={isDisabled}
+                  style={isDisabled ? { opacity: 0.6, cursor: 'not-allowed' } : undefined}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'space-between' }}>
+                    <div className={styles.catalogTitle}>{it.title}</div>
+                    {isDisabled && (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 8px',
+                        borderRadius: 9999,
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#991b1b',
+                        background: '#fee2e2',
+                        border: '1px solid #fecaca',
+                        whiteSpace: 'nowrap'
+                      }}>Booking disabled</span>
+                    )}
+                  </div>
+                  {it.summary && <div className={styles.catalogSummary}>{it.summary}</div>}
+                </button>
+              );
+            })}
           </div>
           <div className={styles.smallNote}>Tip: Click an item to select and prefill the service above.</div>
         </div>
@@ -572,8 +623,8 @@ export function BookAppointment() {
                   type="button"
                   className={styles.primaryBtn}
                   onClick={openSchedule}
-                  disabled={!activeItem}
-                  title={activeItem ? 'Open the full calendar' : 'Select a service to open the calendar'}
+                  disabled={!activeItem || activeItem?.bookingEnabled === false}
+                  title={!activeItem ? 'Select a service to open the calendar' : (activeItem?.bookingEnabled === false ? 'Booking disabled for this service' : 'Open the full calendar')}
                 >
                   Open Full‑Screen Picker
                 </button>
@@ -628,7 +679,7 @@ export function BookAppointment() {
             </div>
           </div>
           <div className={styles.actions}>
-            <button type="submit" className={styles.primaryBtn} disabled={!date || !time}>
+            <button type="submit" className={styles.primaryBtn} disabled={!date || !time || (activeItem && activeItem.bookingEnabled === false)} title={activeItem && activeItem.bookingEnabled === false ? 'Booking disabled for this service' : undefined}>
               Book Now
             </button>
           </div>
