@@ -67,59 +67,80 @@ const TAB_INFO = [
 
 
 export function Hero() {
-  const [activeTab, setActiveTab] = useState(0); // Default to first tab
-useEffect(() => {
+  const [activeTab, setActiveTab] = useState(0);
+  const [name, setName] = useState('');
+  
+  useEffect(() => {
     onValue(ref(usersDB, '/name'), (snapshot) => {
       if(snapshot.exists()){
         setName(snapshot.val());
       }
     })
   }, []);
+
   return (
-    
     <section className={styles.heroSection}>
       <div className={styles.container}>
-        <h1>{name}</h1>
-        {/* 360° Locations: grid, no scroll */}
-        <div className={styles.tabsWrapper}>
-          <div className={styles.tabsContainer}>
-            {TABS.map((tab, idx) => (
-              <button
-                key={tab.name}
-                className={`${styles.tabButton} ${styles['tabIcon' + idx]} ${activeTab === idx ? styles.activeTab : ''}`}
-                onClick={() => setActiveTab(idx)}
-              >
-                {tab.name}
-              </button>
-            ))}
+        {name && <h1 className={styles.pageTitle}>{name}</h1>}
+        
+        <div className={styles.mainLayout}>
+          {/* Vertical Tab Navigation - Left Side */}
+          <div className={styles.tabsNavigation}>
+            <div className={styles.tabsHeader}>
+              <span className={styles.tabsIcon}>🏥</span>
+              <h3 className={styles.tabsTitle}>Virtual Tour</h3>
+            </div>
+            <div className={styles.tabsList}>
+              {TABS.map((tab, idx) => (
+                <button
+                  key={tab.name}
+                  className={`${styles.tabButton} ${activeTab === idx ? styles.activeTab : ''}`}
+                  onClick={() => setActiveTab(idx)}
+                >
+                  <span className={styles.tabIcon}>{['🏥', '🛎️', '🩺', '🩻', '🧰', '🩻', '❤️', '🌿', '🧪'][idx]}</span>
+                  <span className={styles.tabLabel}>{tab.name}</span>
+                  {activeTab === idx && <span className={styles.activeIndicator}></span>}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-        <div className={styles.heroContent}>
-          {/* Left Text */}
-          <div className={styles.textBlock}>
-            <div className={styles.label}>{TAB_INFO[activeTab].label}</div>
-            <h1 className={styles.heading}>
-              {TAB_INFO[activeTab].heading}
-            </h1>
-            <p className={styles.subText}>
-              {TAB_INFO[activeTab].desc}
-            </p>
-            <Link to="/services">
-              <button className={styles.button}>Our Services</button>
-            </Link>
-            {/* Booking card placed directly below the Services button, left-aligned */}
-            <BookingCard align="left" />
-          </div>
-          {/* Right Image Embed */}
-          <div className={styles.embed}>
-            <iframe
-              width="800"
-              height="400"
-              frameBorder="0"
-              src={TABS[activeTab].src}
-              allowFullScreen
-              title={TABS[activeTab].name}
-            ></iframe>
+
+          {/* Content Area - Right Side */}
+          <div className={styles.contentArea}>
+            {/* Info Card */}
+            <div className={styles.infoCard}>
+              <div className={styles.cardBadge}>{TAB_INFO[activeTab].label}</div>
+              <h2 className={styles.cardHeading}>{TAB_INFO[activeTab].heading}</h2>
+              <p className={styles.cardDescription}>{TAB_INFO[activeTab].desc}</p>
+              <div className={styles.cardActions}>
+                <Link to="/services">
+                  <button className={styles.primaryButton}>
+                    <span>Explore Services</span>
+                    <span className={styles.buttonIcon}>→</span>
+                  </button>
+                </Link>
+              </div>
+            </div>
+
+            {/* 360° Virtual Tour Embed */}
+            <div className={styles.virtualTourEmbed}>
+              <div className={styles.embedWrapper}>
+                <iframe
+                  width="100%"
+                  height="100%"
+                  frameBorder="0"
+                  src={TABS[activeTab].src}
+                  allowFullScreen
+                  title={TABS[activeTab].name}
+                  className={styles.embedIframe}
+                ></iframe>
+              </div>
+            </div>
+
+            {/* Booking Card */}
+            <div className={styles.bookingCardWrapper}>
+              <BookingCard align="left" />
+            </div>
           </div>
         </div>
       </div>
