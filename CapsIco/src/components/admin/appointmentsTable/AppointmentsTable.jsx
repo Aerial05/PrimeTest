@@ -98,6 +98,7 @@ function toStatusLabel(s) {
   if (v === 'approved') return 'Approved';
   if (v === 'declined') return 'Declined';
   if (v === 'successful') return 'Successful';
+  if (v === 'cancelled' || v === 'canceled') return 'Cancelled';
   return 'Pending';
 }
 
@@ -552,6 +553,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
             <option value="Pending">Pending</option>
             <option value="Declined">Declined</option>
             <option value="Successful">Successful</option>
+            <option value="Cancelled">Cancelled</option>
           </select>
           <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600 }}>
             <input
@@ -652,6 +654,11 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                           ? styles.successful
                           : styles.pending
                       }`}
+                      title={
+                        String(row.status).toLowerCase() === 'cancelled'
+                          ? (row.raw?.CANCELLATION?.reason || row.raw?.CANCEL_INFO?.reason || row.raw?.CANCEL_REASON || 'Cancelled')
+                          : undefined
+                      }
                     >
                       {row.status}
                     </span>
@@ -730,8 +737,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                 <div className={styles.detailGrid}>
                   <div><span>First Name</span><strong>{selected.raw.FIRST_NAME || '—'}</strong></div>
                   <div><span>Last Name</span><strong>{selected.raw.LAST_NAME || '—'}</strong></div>
-                  <div><span>Phone</span><strong>{selected.raw.PHONE || '—'}</strong></div>
                   <div><span>Email</span><strong>{selected.raw.EMAIL || '—'}</strong></div>
+                  <div><span>Phone</span><strong>{selected.raw.PHONE || '—'}</strong></div>
                   <div><span>Birthday</span><strong>{selected.raw.BIRTHDAY || '—'}</strong></div>
                   <div><span>Gender</span><strong>{selected.raw.GENDER || '—'}</strong></div>
                 </div>
@@ -744,81 +751,155 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   <div><span>Service ID</span><strong>{selected.raw.SERVICE_ID || '—'}</strong></div>
                 </div>
               </div>
-              <div className={styles.detailSection}>
-                <div className={styles.detailTitle}>Appointment Info</div>
-                <div className={styles.detailGrid}>
-                  <div><span>Date</span><strong>{selected.dateDisplay || toLongDate(selected.date) || toLongDate(selected.raw?.DATE_OF_APPOINTMENT)}</strong></div>
-                  <div><span>Time</span><strong>{to12h(selected.time)}</strong></div>
-                  <div><span>Status</span><strong>{selected.status}</strong></div>
-                  {/* Decline reason (optional) */}
-                  <div className={styles.fullRow}>
-                    <span>Decline Reason (optional)</span>
-                    <input
-                      type="text"
-                      className={styles.input}
-                      placeholder="Short reason to include in the email (optional)"
-                      value={declineReason}
-                      onChange={(e)=>setDeclineReason(e.target.value)}
-                      disabled={modalSaving || (String(modalStatus).toLowerCase() !== 'declined' && String(selected.status).toLowerCase() !== 'declined')}
-                    />
+              <div className={`${styles.detailSection} ${styles.appointmentSection}`}>
+                <div className={styles.detailTitle}>Appointment Details</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '10px' }}>
+                  <div className={styles.detailGrid} style={{ marginBottom: 0 }}>
+                    <div><span>Date</span><strong>{selected.dateDisplay || toLongDate(selected.date) || toLongDate(selected.raw?.DATE_OF_APPOINTMENT)}</strong></div>
+                    <div><span>Time</span><strong>{to12h(selected.time)}</strong></div>
+                    <div><span>Status</span><strong>{selected.status}</strong></div>
                   </div>
-                  <div><span>Chief Complaint</span><strong>{selected.raw.CHIEF_COMPLAINT || '—'}</strong></div>
-                  <div className={styles.fullRow}><span>Special Instructions</span><strong>{selected.raw.SPECIAL_INSTRUCTIONS || '—'}</strong></div>
-                  <div><span>Created</span><strong title={String(selected.raw.CREATED_AT || '')}>{toLongDateTime(selected.raw.CREATED_AT)}</strong></div>
-                  <div><span>Updated</span><strong title={String(selected.raw.UPDATED_AT || '')}>{toLongDateTime(selected.raw.UPDATED_AT)}</strong></div>
+                  {String(selected.status).toLowerCase() === 'cancelled' ? (
+                    <div className={styles.detailGrid} style={{ marginBottom: 0 }}>
+                      <div>
+                        <span>Cancellation Reason</span>
+                        <strong>{(selected.raw?.CANCELLATION?.reason || selected.raw?.CANCEL_INFO?.reason || selected.raw?.CANCEL_REASON || '—')}</strong>
+                      </div>
+                      <div>
+                        <span>Cancelled At</span>
+                        <strong>{toLongDateTime(selected.raw?.CANCELLATION?.at || selected.raw?.UPDATED_AT)}</strong>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className={styles.detailGrid} style={{ marginBottom: 0 }}>
+                    <div><span>Created</span><strong>{toLongDateTime(selected.raw.CREATED_AT)}</strong></div>
+                    <div><span>Updated</span><strong>{toLongDateTime(selected.raw.UPDATED_AT)}</strong></div>
+                  </div>
+                  <div className={styles.detailGrid} style={{ marginBottom: 0 }}>
+                    <div>
+                      <span>Chief Complaint</span>
+                      <strong style={{ fontSize: '13px', lineHeight: '1.5' }}>{selected.raw.CHIEF_COMPLAINT || '—'}</strong>
+                    </div>
+                    <div>
+                      <span>Special Instructions</span>
+                      <strong style={{ fontSize: '13px', lineHeight: '1.5' }}>{selected.raw.SPECIAL_INSTRUCTIONS || '—'}</strong>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className={styles.detailSection}>
+              {/* Decline Reason - for easy status editing */}
+              <div className={`${styles.detailSection} ${styles.appointmentSection}`}>
+                <div className={styles.detailTitle}>Decline Reason (Optional)</div>
+                <textarea
+                  className={styles.textarea}
+                  placeholder="Enter reason for declining (will be included in email)"
+                  value={declineReason}
+                  onChange={(e)=>setDeclineReason(e.target.value)}
+                  disabled={modalSaving || (String(modalStatus).toLowerCase() !== 'declined' && String(selected.status).toLowerCase() !== 'declined')}
+                  style={{ minHeight: '70px', fontSize: '13px' }}
+                />
+              </div>
+              {/* Insert Proof - moved to bottom */}
+              <div className={`${styles.detailSection} ${styles.proofSection}`}>
                 <div className={styles.detailTitle}>Insert Proof</div>
-                <div className={styles.detailGrid}>
-                  <div className={styles.fullRow}>
-                    <span>Current Proof</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '16px', alignItems: 'start' }}>
+                  <div>
+                    <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Current Proof</span>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '12px', minHeight: '100px', minWidth: '120px' }}>
                       {selected.raw.PROOF || selected.raw.proof ? (
-                        <>
-                          <a href={(selected.raw.PROOF || selected.raw.proof)} target="_blank" rel="noreferrer">Open</a>
+                        <div style={{ textAlign: 'center' }}>
                           <img
                             src={(selected.raw.PROOF || selected.raw.proof)}
                             alt="Proof"
-                            style={{ maxHeight: 80, borderRadius: 6, border: '1px solid #ddd' }}
+                            style={{ maxHeight: 80, maxWidth: 120, borderRadius: 6, border: '1px solid #ddd', display: 'block', marginBottom: '8px' }}
                           />
-                        </>
+                          <a href={(selected.raw.PROOF || selected.raw.proof)} target="_blank" rel="noreferrer" style={{ fontSize: '11px', color: '#2563eb', textDecoration: 'underline' }}>View Full</a>
+                        </div>
                       ) : (
-                        <strong>—</strong>
+                        <strong style={{ fontSize: '12px', color: '#9ca3af' }}>No proof</strong>
                       )}
                     </div>
                   </div>
-                  <div className={styles.fullRow}>
-                    <span>Upload Image</span>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={(e) => setProofFile(e.target.files?.[0] || null)}
-                        disabled={proofUploading}
-                        className={styles.input}
-                      />
+                  <div>
+                    <span style={{ fontSize: '11px', color: '#6b7280', fontWeight: 600, textTransform: 'uppercase', display: 'block', marginBottom: '8px' }}>Upload New</span>
+                    <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '14px' }}>
+                      <div style={{ marginBottom: '10px', maxWidth: '280px', position: 'relative' }}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setProofFile(e.target.files?.[0] || null)}
+                          disabled={proofUploading}
+                          id="proofFileInput"
+                          style={{ 
+                            position: 'absolute',
+                            opacity: 0,
+                            width: '1px',
+                            height: '1px',
+                            cursor: 'pointer',
+                            pointerEvents: 'none',
+                            zIndex: -1
+                          }}
+                        />
+                        <label 
+                          htmlFor="proofFileInput"
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '8px',
+                            padding: '10px 14px',
+                            background: '#fff',
+                            border: '2px dashed #d1d5db',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease',
+                            fontSize: '13px',
+                            color: '#6b7280',
+                            fontWeight: 600,
+                            whiteSpace: 'nowrap'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.borderColor = '#2563eb';
+                            e.currentTarget.style.background = '#f0f9ff';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.borderColor = '#d1d5db';
+                            e.currentTarget.style.background = '#fff';
+                          }}
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/>
+                          </svg>
+                          Choose Image
+                        </label>
+                        {proofFile && (
+                          <div style={{ fontSize: '11px', color: '#6b7280', marginTop: '6px', fontStyle: 'italic' }}>
+                            Selected: {proofFile.name}
+                          </div>
+                        )}
+                      </div>
                       <button
                         className={`${styles.btn} ${styles.btnApprove}`}
                         onClick={onUploadProof}
                         disabled={proofUploading || !proofFile}
-                        title="Upload proof image"
+                        style={{ padding: '10px 16px', fontSize: '13px', maxWidth: '180px', fontWeight: 700 }}
                       >
-                        {proofUploading ? `Uploading… ${proofProgress}%` : 'Insert Proof'}
+                        {proofUploading ? `Uploading ${proofProgress}%` : 'Upload Proof'}
                       </button>
-                      {proofError ? <span className={styles.error} style={{ marginLeft: 8 }}>{proofError}</span> : null}
+                      {proofError ? <div style={{ fontSize: '11px', color: '#dc2626', marginTop: 8, padding: '6px 8px', background: '#fef2f2', borderRadius: '6px', maxWidth: '400px' }}>{proofError}</div> : null}
                     </div>
                   </div>
                 </div>
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <span style={{ alignSelf: 'center', fontWeight: 700 }}>Change status:</span>
+              <span style={{ fontSize: '13px', fontWeight: 700 }}>Change status:</span>
               <select
                 className={styles.select}
                 value={modalStatus}
                 onChange={(e) => setModalStatus(e.target.value)}
                 disabled={modalSaving}
+                style={{ padding: '8px 10px', fontSize: '13px' }}
               >
                 <option>Approved</option>
                 <option>Pending</option>
@@ -829,12 +910,15 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                 className={`${styles.btn} ${styles.btnApprove}`}
                 onClick={onSubmitModalStatus}
                 disabled={modalSaving}
-                title="Submit status change and send email when applicable"
+                style={{ padding: '8px 14px', fontSize: '13px' }}
               >
-                {modalSaving ? 'Submitting…' : 'Submit and Send Email'}
+                {modalSaving ? 'Submitting…' : 'Submit & Email'}
               </button>
-              <div style={{ flex: 1 }}></div>
-              <button className={`${styles.btn} ${styles.btnDelete}`} onClick={() => onDelete(selected.id)}>Delete</button>
+              <button 
+                className={`${styles.btn} ${styles.btnDelete}`} 
+                onClick={() => onDelete(selected.id)}
+                style={{ padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}
+              >Delete</button>
             </div>
           </div>
         </div>

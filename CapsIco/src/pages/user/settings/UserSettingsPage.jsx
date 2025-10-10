@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { SettingsSidebar } from '/src/components/user/SettingsSidebar/SettingsSidebar';
 import { SettingsContent } from '/src/pages/user/settings/Profile/SettingsContentUser';
 import { RulesSettingsPage } from '/src/pages/user/settings/Rules/RulesSettingsPage';
-import { HistorySettingsPage } from '/src/pages/user/settings/History/History.SettingsPage';
+import { AppointmentsSettingsPage } from '/src/pages/user/settings/Appointments/Appointments.SettingsPage';
 
 import styles from './UserSettingsPage.module.css';
 import { createIcons, icons } from 'lucide';
@@ -13,7 +13,8 @@ export function UserSettingsPage() {
   const navigate = useNavigate();
   const query = useMemo(() => new URLSearchParams(location.search), [location.search]);
   const tabParam = query.get('tab');
-  const initial = (tabParam === 'rules' || tabParam === 'history' || tabParam === 'profile') ? tabParam : 'profile';
+  const initialRaw = (tabParam === 'rules' || tabParam === 'history' || tabParam === 'profile' || tabParam === 'appointments') ? tabParam : 'profile';
+  const initial = initialRaw === 'history' ? 'appointments' : initialRaw;
   const [active, setActive] = useState(initial);
 
   useEffect(() => {
@@ -24,15 +25,17 @@ export function UserSettingsPage() {
   useEffect(() => {
     const qp = new URLSearchParams(location.search);
     const t = qp.get('tab');
-    const valid = (t === 'rules' || t === 'history' || t === 'profile') ? t : 'profile';
-    if (valid !== active) setActive(valid);
+    const valid = (t === 'rules' || t === 'history' || t === 'profile' || t === 'appointments') ? t : 'profile';
+    const mapped = valid === 'history' ? 'appointments' : valid;
+    if (mapped !== active) setActive(mapped);
   }, [location.search]);
 
   // Push tab changes to URL for shareable/refreshable deep links
   useEffect(() => {
     const qp = new URLSearchParams(location.search);
-    if (qp.get('tab') !== active) {
-      qp.set('tab', active);
+    const val = active;
+    if (qp.get('tab') !== val) {
+      qp.set('tab', val);
       navigate({ search: `?${qp.toString()}` }, { replace: true });
     }
   }, [active]);
@@ -44,7 +47,7 @@ export function UserSettingsPage() {
           <SettingsSidebar active={active} onSelect={setActive} />
           {active === 'profile' && <SettingsContent />}
           {active === 'rules' && <RulesSettingsPage />}
-          {active === 'history' && <HistorySettingsPage />}
+          {active === 'appointments' && <AppointmentsSettingsPage />}
         </div>
       </main>
     </>

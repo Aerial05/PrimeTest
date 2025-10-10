@@ -4,7 +4,7 @@ import styles from './SettingsSidebar.module.css';
 const menuItems = [
   { id: 'profile', label: 'Profile', icon: 'fas fa-user' },
   { id: 'rules', label: 'Rules and Regulations', icon: 'fas fa-list-check' },
-  { id: 'history', label: 'Appointment History', icon: 'fas fa-clock-rotate-left' },
+  { id: 'appointments', label: 'Appointments', icon: 'fas fa-clock-rotate-left' },
 ];
 
 export function SettingsSidebar({ active = 'profile', onSelect }) {

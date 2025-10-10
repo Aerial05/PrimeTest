@@ -138,7 +138,7 @@ export function NavBar() {
                 {currentUser ? (
                   <>
                     <Link to="/profile">View Profile</Link>
-                    <Link to="/settings?tab=history">Appointment History</Link>
+                    <Link to="/settings?tab=appointments">Appointments</Link>
                     <a
                       href="#"
                       onClick={(e) => {

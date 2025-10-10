@@ -133,6 +133,109 @@ class AppointmentsService extends BaseFirebaseService {
     } catch (_) {}
   }
 
+  /**
+   * Cancel an appointment: sets BOOKING_STATUS to 'cancelled', stores a CANCELLATION object
+   * with { reason, at, by }, updates UPDATED_AT, and best-effort releases the reserved slot
+   * and removes the slot index. Returns true on success.
+   */
+  async cancel(id, reason = '', userId = '') {
+    if (!id) throw new Error('Missing appointment id');
+    const now = new Date().toISOString();
+    const appt = await this.getById(id);
+    if (!appt) throw new Error('Appointment not found');
+
+    const updates = {
+      BOOKING_STATUS: 'cancelled',
+      UPDATED_AT: now,
+      CANCELLATION: {
+        reason: String(reason || '').slice(0, 1000),
+        at: now,
+        by: userId || '',
+      },
+      CANCELLED_BY_USER: true,
+    };
+
+  await update(ref(this.database, this.path(id)), updates);
+
+    // Best-effort slot cleanup so capacity is freed
+    try {
+      if (appt.SERVICE_ID && appt.DATE_OF_APPOINTMENT && appt.TIME_SLOT) {
+        await this.releaseSlot(appt.SERVICE_ID, appt.DATE_OF_APPOINTMENT, appt.TIME_SLOT);
+        await remove(ref(this.database, this.bySlotPath(appt.SERVICE_ID, appt.DATE_OF_APPOINTMENT, appt.TIME_SLOT, id)));
+      }
+    } catch (_e) {}
+
+    try {
+      await activityLogService.log({
+        type: 'appointment',
+        action: 'cancel',
+        description: `Cancelled appointment`,
+        targetId: id,
+        metadata: { reason: updates.CANCELLATION.reason },
+      });
+    } catch (_) {}
+    // Update per-user cancellation policy (3 chances before cooldown)
+    let remaining = null;
+    let cooldownUntil = '';
+    try {
+      if (userId || appt.USER_ID) {
+        const uid = String(userId || appt.USER_ID || '');
+        const policyRef = ref(this.database, `users/${uid}/APPOINTMENT_POLICY`);
+        const nowMs = Date.now();
+        const res = await runTransaction(policyRef, (current) => {
+          const policy = current && typeof current === 'object' ? current : {};
+          let cancelCount = Number(policy.cancelCountCycle || 0);
+          let cd = typeof policy.cooldownUntil === 'string' ? policy.cooldownUntil : '';
+          const cdMs = cd ? Date.parse(cd) : 0;
+          const isoNow = new Date(nowMs).toISOString();
+          // If cooldown active, don't increment; keep as-is.
+          if (cd && !Number.isNaN(cdMs) && cdMs > nowMs) {
+            remaining = 0;
+            cooldownUntil = cd;
+            return policy; // no changes during cooldown window
+          }
+          // If cooldown expired, reset cycle
+          if (cd && cdMs && cdMs <= nowMs) {
+            cancelCount = 0;
+            cd = '';
+          }
+          cancelCount = Math.min(3, cancelCount + 1);
+          if (cancelCount === 3) {
+            cd = new Date(nowMs + 3 * 24 * 60 * 60 * 1000).toISOString();
+          }
+          remaining = Math.max(0, 3 - cancelCount);
+          cooldownUntil = cd || '';
+          return {
+            cancelCountCycle: cancelCount,
+            cooldownUntil: cd,
+            updatedAt: isoNow,
+          };
+        });
+        // res.committed not strictly needed for return values; remaining computed in closure
+      }
+    } catch (_e) {}
+
+    return { remaining, cooldownUntil };
+  }
+
+  /** Read user's appointment policy: returns { cancelCountCycle, cooldownUntil } or null */
+  async getUserPolicy(userId) {
+    if (!userId) return null;
+    try {
+      const snap = await get(ref(this.database, `users/${userId}/APPOINTMENT_POLICY`));
+      if (!snap.exists()) return { cancelCountCycle: 0, cooldownUntil: '' };
+      const v = snap.val() || {};
+      const cd = typeof v.cooldownUntil === 'string' ? v.cooldownUntil : '';
+      const cc = Number(v.cancelCountCycle || 0) || 0;
+      // If cooldown expired, normalize client-side values (do not write)
+      const cdMs = cd ? Date.parse(cd) : 0;
+      const active = cd && !Number.isNaN(cdMs) && cdMs > Date.now();
+      return { cancelCountCycle: cc, cooldownUntil: active ? cd : '' };
+    } catch (_e) {
+      return { cancelCountCycle: 0, cooldownUntil: '' };
+    }
+  }
+
   async delete(id) {
     const appt = await this.getById(id);
     if (!appt) return false;
