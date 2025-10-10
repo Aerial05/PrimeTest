@@ -61,7 +61,7 @@ export function RegisterForm({ onSwitch }) {
         <div className={styles.logo}>
           <Activity className={styles.logoIconLarge} />
           <h1>
-            PrimeLab <span>Appoint</span>
+            JRAE
           </h1>
         </div>
         <p className={styles.tagline}>Create your account</p>
@@ -72,7 +72,7 @@ export function RegisterForm({ onSwitch }) {
           <i className="fas fa-user-plus"></i>
         </div>
         <div className={styles.infoContent}>
-          <h3>Join PrimeLab Appoint</h3>
+          <h3>Join JRAE</h3>
           <p>Create an account to schedule appointments, receive reminders, and access your medical records securely.</p>
         </div>
       </div>

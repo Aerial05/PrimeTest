@@ -1,18 +1,35 @@
 import styles from './HeaderInfoBar.module.css';
 import { Activity, Phone, Clock, MapPin } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import React, { useEffect, useRef } from 'react';
 
 export function HeaderInfoBar() {
+  // Keep a live CSS variable of the header's actual height so the sticky nav can offset correctly
+  const headerRef = useRef(null);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const setVar = () => {
+      const h = el.getBoundingClientRect().height;
+      document.documentElement.style.setProperty('--header-info-height', `${Math.ceil(h)}px`);
+    };
+    setVar();
+    const ro = new ResizeObserver(setVar);
+    ro.observe(el);
+    window.addEventListener('resize', setVar);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', setVar);
+    };
+  }, []);
+
   return (
-    <header className={styles.siteHeader}>
+    <header className={styles.siteHeader} ref={headerRef}>
       <div className={styles.container}>
         <div className={styles.headerContent}>
           <Link to="/" className={styles.logoLink}>
             <Activity className={styles.logoIcon} />
-            <span className={styles.brandName}>
-              <span className={styles.textPrimary}>PRIME</span>
-              <span className={styles.textSecondary}>LAB</span>
-            </span>
+            <span className={styles.brandName}>Prime Medical Laboratory</span>
           </Link>
 
           <div className={styles.contactInfo}>

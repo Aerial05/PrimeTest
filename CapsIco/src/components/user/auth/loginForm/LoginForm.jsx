@@ -261,7 +261,7 @@ export function LoginForm({ onSwitch }) {
           <div className={styles.logo}>
             <Activity className={styles.logoIconLarge} />
             <h1>
-              PrimeLab <span className="brand-gradient-text">Appoint</span>
+              JRAE
             </h1>
           </div>
           <p className={styles.tagline}>Your health, Our priority</p>
@@ -532,7 +532,7 @@ export function LoginForm({ onSwitch }) {
               <Activity className={styles.welcomeLogo} />
             </div>
             <div className={styles.welcomeTextBlock}>
-              <h2 className={styles.welcomeTitle}>Welcome to PrimeLab Appoint</h2>
+              <h2 className={styles.welcomeTitle}>Welcome to JRAE</h2>
               <div className={styles.welcomeName}>{welcomeName}</div>
             </div>
             <div className={styles.welcomeSub}>{welcomeSubtitle}</div>

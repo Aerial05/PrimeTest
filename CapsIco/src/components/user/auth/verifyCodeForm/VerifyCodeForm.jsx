@@ -21,7 +21,7 @@ export function VerifyCodeForm({ onSwitch }) {
         <div className={styles.logo}>
           <Activity className={styles.logoIconLarge} />
           <h1>
-            PrimeLab <span className="brand-gradient-text">Appoint</span>
+            JRAE
           </h1>
         </div>
         <p className={styles.tagline}>Enter Verification Code</p>

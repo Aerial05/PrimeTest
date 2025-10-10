@@ -93,7 +93,7 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>PrimeLab - Dashboard Report</title>
+  <title>JRAE - Dashboard Report</title>
   <style>
     :root { --ink:#0f172a; --muted:#475569; --border:#cbd5e1; --bg:#ffffff; --pill:#f1f5f9; }
     * { box-sizing: border-box; }

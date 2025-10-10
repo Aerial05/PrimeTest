@@ -1,15 +1,23 @@
 .nav {
   position: sticky;
+  /* Sit directly under the header info bar with no gap */
   top: var(--header-info-height);
   z-index: 55;
-  background: var(--gradient-primary);
+  /* Use an opaque gradient fill so content does not show through while scrolling */
+  background: linear-gradient(90deg, #4f46e5 0%, #2563eb 100%);
   color: #fff;
-  padding: var(--nav-padding-block) 0;
+  /* Slightly taller navbar */
+  padding: calc(var(--nav-padding-block) + 4px) 0;
+  /* Add a bit of space below the navbar */
+  margin-bottom: 12px;
   min-height: var(--nav-height);
   border-bottom: 2px solid rgba(255,255,255,0.18);
   border-bottom-left-radius: 24px;
   border-bottom-right-radius: 24px;
   box-shadow: 0 18px 38px rgba(37, 99, 235, 0.25);
+  /* Remove glass blur to ensure a solid look */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
 }
 
 .nav::after {
@@ -21,12 +29,15 @@
   pointer-events: none;
 }
 
+/* Removed top hairline to avoid a visible line between header and navbar */
+
 .container {
   width: min(100%, var(--header-container-max-width));
   margin: 0 auto;
   padding: 0 var(--header-padding-inline) 0 0;
   display: grid;
-  grid-template-columns: 1fr auto;
+  /* Make the left area shrinkable so it won't overflow into the actions column */
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 1.25rem;
 }
@@ -36,13 +47,23 @@
   display: inline-flex;
   align-items: center;
   gap: 1rem;
+  /* Allow wrapping and prevent overflow into the right column */
   flex-wrap: wrap;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .right {
   display: inline-flex;
   gap: 0.8rem;
   align-items: center;
+  /* Subtle divider from the left nav links */
+  border-left: 1px solid rgba(255,255,255,0.18);
+  padding-left: 1rem;
+  /* Keep items from overlapping; allow them to wrap if extremely tight */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: max-content;
 }
 
 .navLink {
@@ -60,6 +81,7 @@
   font-weight: 700;
   transition: transform 0.18s ease, box-shadow 0.2s ease, background 0.2s ease, color 0.2s ease;
   backdrop-filter: blur(8px);
+  position: relative;
 }
 
 .navLink:hover {
@@ -69,11 +91,34 @@
   background: rgba(255,255,255,0.12);
 }
 
+/* Active/hover underline accent */
+.navLink::after {
+  content: "";
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 6px;
+  height: 2px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.85);
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.2s ease;
+}
+
+.navLink:hover::after {
+  transform: scaleX(1);
+}
+
 .active {
   color: #fff;
   background: var(--nav-highlight);
   border: 1px solid var(--nav-active-ring);
   box-shadow: 0 10px 24px rgba(8, 47, 141, 0.28);
+}
+
+.active::after {
+  transform: scaleX(1);
 }
 
 .btnAdmin {
@@ -120,6 +165,7 @@
   box-shadow: 0 18px 34px rgba(37, 99, 235, 0.3);
   cursor: pointer;
   transition: transform 0.18s ease, box-shadow 0.2s ease;
+  white-space: nowrap;
 }
 
 .btnAppointment:hover {
@@ -207,6 +253,20 @@
 
   .navigation {
     justify-content: center;
+  }
+}
+
+/* Tweak for medium widths where links + actions can get tight */
+@media (max-width: 1280px) and (min-width: 1025px) {
+  .container {
+    grid-template-columns: 1fr;
+    row-gap: 0.6rem;
+    justify-items: center;
+  }
+  .right {
+    justify-content: center;
+    border-left: 0;
+    padding-left: 0;
   }
 }
 

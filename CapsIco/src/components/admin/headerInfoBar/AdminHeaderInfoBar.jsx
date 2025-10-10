@@ -292,10 +292,7 @@ export function AdminHeaderInfoBar({
         <div className={styles.headerContent}>
           <Link to="/admin-dashboard" className={styles.logoLink}>
             <Activity className={styles.logoIcon} />
-            <span className={styles.brandName}>
-              <span className={styles.textPrimary}>PRIME</span>
-              <span className={styles.textSecondary}>LAB</span>
-            </span>
+            <span className={styles.brandName}>Prime Medical Laboratory</span>
           </Link>
 
           <div className={styles.infoRow}>

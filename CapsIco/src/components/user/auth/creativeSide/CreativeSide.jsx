@@ -9,12 +9,12 @@ export function CreativeSide() {
       <div className={styles.gridOverlay} aria-hidden="true" />
       <div className={styles.brandSection}>
         <span className={styles.badge}>
-          <span className={styles.badgeDot} /> PrimeLab <span className="brand-gradient-text">Appoint</span>
+          <span className={styles.badgeDot} /> JRAE
         </span>
         <div className={styles.logoLarge}>
           <Activity className={styles.logoIconLarge} />
           <h1>
-            PrimeLab <span>Appoint</span>
+            JRAE
           </h1>
         </div>
         <p className={styles.taglineLarge}>Your health, our priority</p>

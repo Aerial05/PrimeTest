@@ -7,8 +7,8 @@ export function Footer() {
       
       <div className={styles.footerGrid}>
         <div>
-          <h3 className={styles.brand}>PRIMELAB</h3>
-          <p>PrimeLab Appoint:</p>
+          <h3 className={styles.brand}>JRAE</h3>
+          <p>JRAE</p>
           <p>Excellence and Trusted Care</p>
         </div>
 
@@ -49,7 +49,7 @@ export function Footer() {
       </div>
 
       <div className={styles.footerBottom}>
-        <p>© 2021 PrimeLab All Rights Reserved</p>
+  <p>© 2021 JRAE All Rights Reserved</p>
       </div>
     </footer>
   );

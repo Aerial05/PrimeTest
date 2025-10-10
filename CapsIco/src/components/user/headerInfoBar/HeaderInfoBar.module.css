@@ -10,6 +10,8 @@
   display: flex;
   align-items: center;
   width: 100%;
+  /* No explicit gap so navbar sits flush */
+  margin-bottom: 0;
 }
 
 .container {
@@ -28,26 +30,39 @@
 .logoLink {
   display: inline-flex;
   align-items: center;
-  gap: 0.45rem;
+  gap: 0.55rem;
   text-decoration: none;
   justify-self: start;
+  /* Brand pill styling */
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(37,99,235,0.06), rgba(99,102,241,0.08));
+  border: 1px solid rgba(37,99,235,0.18);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  -webkit-backdrop-filter: saturate(130%) blur(6px);
+  backdrop-filter: saturate(130%) blur(6px);
 }
 
 .logoIcon {
-  width: calc(var(--header-logo-size) - 6px);
-  height: calc(var(--header-logo-size) - 6px);
-  padding: 0.2rem;
-  border-radius: 10px;
-  background: linear-gradient(135deg, rgba(37,99,235,0.1), rgba(109,40,217,0.16));
+  width: calc(var(--header-logo-size) - 4px);
+  height: calc(var(--header-logo-size) - 4px);
+  padding: 0.22rem;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(37,99,235,0.12), rgba(109,40,217,0.18));
   color: var(--primary-color);
-  box-shadow: inset 0 0 0 1px rgba(37,99,235,0.2);
+  box-shadow: inset 0 0 0 1px rgba(37,99,235,0.24);
 }
 
 .brandName {
-  font-weight: 700;
-  font-size: 1.1rem;
+  font-weight: 800;
+  font-size: 1.08rem;
   letter-spacing: 0.02em;
-  color: var(--text-dark);
+  /* Gradient text fill (not hollow) */
+  background: linear-gradient(90deg, #06b6d4, #6366f1);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  text-shadow: 0 1px 0 rgba(255,255,255,0.35);
 }
 
 .textPrimary { color: var(--primary-color); }
