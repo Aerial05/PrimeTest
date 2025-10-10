@@ -1,4 +1,5 @@
 import React from 'react';
+import AvailabilityBuilder from './AvailabilityBuilder.jsx';
 import styles from './PackagesPage.module.css';
 
 export default function SingleServicesSection({
@@ -127,11 +128,12 @@ export default function SingleServicesSection({
                   type="text"
                   id="singleAvailability"
                   name="singleAvailability"
-                  placeholder="e.g., Daily 09:00–16:00"
+                  placeholder="e.g., Daily 07:00-16:00; Sun 07:30-11:30"
                   value={form.singleAvailability}
                   onChange={onChange}
                   disabled={form.singleUseRegular}
                 />
+                <small className={styles.helpText}>Format: "Daily 07:00-16:00" or "Mon-Fri 07:00-16:00; Sun 07:30-11:30"</small>
                 <div className={styles.inlineControl}>
                   <input
                     type="checkbox"
@@ -145,6 +147,13 @@ export default function SingleServicesSection({
                     <span className={styles.badge}>Regular</span>
                   )}
                 </div>
+                {!form.singleUseRegular && (
+                  <AvailabilityBuilder
+                    value={form.singleAvailability}
+                    onChange={(v) => onChange({ target: { name: 'singleAvailability', value: v } })}
+                    disabled={!!form.singleUseRegular}
+                  />
+                )}
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="singleDurMinute">Duration (minutes)</label>
@@ -196,9 +205,8 @@ export default function SingleServicesSection({
                   name="singleOriginalPrice"
                   value={form.singleOriginalPrice}
                   onChange={onChange}
-                  required={!(form.singlePriceNote || '').trim().length}
                 />
-                <small className={styles.helpText}>Required unless a Price Note is provided.</small>
+                <small className={styles.helpText}>At least one of Price Note, Original, Discounted, or PhilHealth Promo is required.</small>
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="singleDiscountedPrice">Discounted Price</label>
@@ -210,9 +218,8 @@ export default function SingleServicesSection({
                   name="singleDiscountedPrice"
                   value={form.singleDiscountedPrice}
                   onChange={onChange}
-                  required={!(form.singlePriceNote || '').trim().length}
                 />
-                <small className={styles.helpText}>Required unless a Price Note is provided.</small>
+                <small className={styles.helpText}>At least one of Price Note, Original, Discounted, or PhilHealth Promo is required.</small>
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="singlePhilHealthPromoPrice">PhilHealth Promo Price</label>
@@ -224,9 +231,8 @@ export default function SingleServicesSection({
                   name="singlePhilHealthPromoPrice"
                   value={form.singlePhilHealthPromoPrice}
                   onChange={onChange}
-                  required={!(form.singlePriceNote || '').trim().length}
                 />
-                <small className={styles.helpText}>Required unless a Price Note is provided.</small>
+                <small className={styles.helpText}>At least one of Price Note, Original, Discounted, or PhilHealth Promo is required.</small>
               </div>
             </div>
 

@@ -8,11 +8,11 @@ import servicePackagesService from "/src/services/ServicePackagesService";
 import singleServicesService from "/src/services/SingleServicesService";
 import { get, ref, onValue } from "firebase/database";
 import { usersDB } from "/src/config/firebase-config";
+import { computeSlotsForDateFromSpec, minutesFromHHMM, toHHMM } from "/src/utils/availability";
 
 // Helpers
 function pad(n) { return String(n).padStart(2, "0"); }
-function minutesFromHHMM(hhmm) { const [h,m] = hhmm.split(":").map(Number); return h*60 + m; }
-function toHHMM(mins) { const h = Math.floor(mins/60), m = mins%60; return `${pad(h)}:${pad(m)}`; }
+// minutesFromHHMM and toHHMM from shared utils
 function labelFromHHMM(hhmm) { const [h,m]=hhmm.split(":").map(Number); const ampm=h>=12?"PM":"AM"; const h12=h%12===0?12:h%12; return `${h12}:${pad(m)} ${ampm}`; }
 function hourLabelFromHHMM(hhmm) {
   const [h,m] = hhmm.split(":").map(Number);
@@ -155,54 +155,10 @@ export function BookAppointment() {
     if (found) setActiveItem(found);
   }, [location.state, servicesCatalog, packagesCatalog]);
 
-  // Build day slots for a given date string (YYYY-MM-DD)
+  // Build day slots for a given date string (YYYY-MM-DD) using shared availability parser
   function computeSlotsForDate(dateStr) {
     if (!dateStr || !activeItem) return [];
-    const d = new Date(dateStr + 'T00:00:00');
-    const dow = d.getDay(); // 0=Sun ... 6=Sat
-    // Defaults from the original behavior (7AM–7PM)
-    let start = '07:00';
-    let end = '19:00';
-    const step = 30; // minutes
-    const availRaw = String(activeItem.availability || '');
-    const avail = availRaw.toLowerCase();
-    const parseTime = (s) => {
-      const m = s.match(/(1[0-2]|0?[1-9]):([0-5][0-9])\s*(am|pm)/i);
-      if (!m) return null;
-      let h = parseInt(m[1], 10);
-      const mins = parseInt(m[2], 10);
-      const ampm = m[3].toLowerCase();
-      if (ampm === 'pm' && h !== 12) h += 12;
-      if (ampm === 'am' && h === 12) h = 0;
-      return toHHMM(h * 60 + mins);
-    };
-    // Look for an explicit global range (e.g., "7:00 AM - 7:00 PM")
-    const rangeMatch = availRaw.match(/(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)/i);
-    if (rangeMatch) {
-      const s = parseTime(rangeMatch[1]);
-      const e = parseTime(rangeMatch[2]);
-      if (s && e) { start = s; end = e; }
-    }
-    // Allow phrases like "Regular Schedule: 7:00 AM - 7:00 PM"
-    const regularMatch = availRaw.match(/regular[^\d]*(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)/i);
-    if (regularMatch) {
-      const s = parseTime(regularMatch[1]);
-      const e = parseTime(regularMatch[2]);
-      if (s && e) { start = s; end = e; }
-    }
-    if (dow === 0) { // Sunday special hours if mentioned
-      const sunMatch = availRaw.match(/sun(day)?[^\d]*(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)/i);
-      if (sunMatch) {
-        const s = parseTime(sunMatch[2]);
-        const e = parseTime(sunMatch[3]);
-        if (s && e) { start = s; end = e; }
-      }
-    }
-    const startMin = minutesFromHHMM(start);
-    const endMin = minutesFromHHMM(end);
-    const times = [];
-    for (let t = startMin; t < endMin; t += step) times.push(toHHMM(t));
-    return times;
+    return computeSlotsForDateFromSpec(String(activeItem.availability || ''), dateStr, 30, { start: '07:00', end: '19:00' });
   }
 
   const slots = useMemo(() => computeSlotsForDate(date), [date, activeItem]);

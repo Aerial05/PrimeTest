@@ -122,11 +122,33 @@ export function PackagesPage() {
 
 	// Singles helpers
 	const getSingleAvailabilityValue = () => (form.singleUseRegular ? REGULAR_SCHEDULE : (form.singleAvailability || ''));
+	// Validate availability format: semicolon-separated segments like "Mon-Fri 07:00-16:00; Sun 07:30-11:30" or "Daily 07:00-16:00"
+	const isValidAvailabilityFormat = (str) => {
+		if (!str) return false;
+		const segments = String(str).split(/;|\n/).map(s => s.trim()).filter(Boolean);
+		if (segments.length === 0) return false;
+		const day = '(Mon|Tue|Wed|Thu|Fri|Sat|Sun)';
+		const time = '([01]\\d|2[0-3]):[0-5]\\d';
+		const re = new RegExp(`^(?:Daily|${day}(?:-${day})?)\\s+${time}-${time}$`);
+		for (const seg of segments) {
+			const m = seg.match(re);
+			if (!m) return false;
+			// Extract times and ensure start < end
+			const times = seg.match(new RegExp(time, 'g')) || [];
+			if (times.length !== 2) return false;
+			const [a,b] = times;
+			const toMin = (t) => { const [h,mi] = t.split(':').map(Number); return h*60+mi; };
+			if (toMin(a) >= toMin(b)) return false;
+		}
+		return true;
+	};
 	const collectMissingFieldsForSingle = () => {
 		const miss = [];
 		if (!(form.name || '').trim()) miss.push('Name of Service');
 		if (!(form.description || '').trim()) miss.push('Description');
-		if (!getSingleAvailabilityValue().trim()) miss.push('Availability');
+		const av = getSingleAvailabilityValue().trim();
+		if (!av) miss.push('Availability');
+		else if (!form.singleUseRegular && !isValidAvailabilityFormat(av)) miss.push('Availability format (e.g., Mon-Fri 07:00-16:00; Sun 07:30-11:30)');
 		return miss;
 	};
 	const generateNextSingleServiceId = () => {
@@ -156,7 +178,9 @@ export function PackagesPage() {
 		const missing = [];
 		if (!(form.name || '').trim()) missing.push('Name of Service');
 		if (!(form.description || '').trim()) missing.push('Description');
-		if (!getAvailabilityValue().trim()) missing.push('Availability');
+		const av = getAvailabilityValue().trim();
+		if (!av) missing.push('Availability');
+		else if (!form.useRegularSchedule && !isValidAvailabilityFormat(av)) missing.push('Availability format (e.g., Mon-Fri 07:00-16:00; Sun 07:30-11:30)');
 		return missing;
 	};
 
@@ -327,9 +351,9 @@ export function PackagesPage() {
 			const hasOriginal = form.originalPrice !== '' && Number(form.originalPrice) > 0;
 			const hasDiscounted = form.discountedPrice !== '' && Number(form.discountedPrice) > 0;
 			const hasPhilHealth = form.philHealthPromoPrice !== '' && Number(form.philHealthPromoPrice) > 0;
-
-			if (!hasNote && !(hasOriginal && hasDiscounted && hasPhilHealth)) {
-				alert('Please provide Original, Discounted, and PhilHealth Promo prices or add a Price Note.');
+			const ok = hasNote || hasOriginal || hasDiscounted || hasPhilHealth;
+			if (!ok) {
+				alert('Please provide at least one: Price Note, Original Price, Discounted Price, or PhilHealth Promo Price.');
 				return;
 			}
 		}
@@ -373,14 +397,14 @@ export function PackagesPage() {
 		if (isBundle) {
 			// Persist to Firebase with exact field names through the service
 			const updating = services.find((s) => s.id === payload.id);
-			const uiForDb = {
+						const uiForDb = {
 				servicePackageId: payload.servicePackageId,
 				name: payload.name,
-				description: payload.description,
+							description: form.description,
 				features: payload.features,
 				specialInstruction: payload.specialInstruction,
 				availability: payload.availability,
-				slot: payload.slot,
+							slot: form.slot !== '' ? Number(form.slot) : undefined,
 				durMinute: payload.durMinute,
 				priceNote: payload.priceNote,
 				bookingEnabled: payload.bookingEnabled,
@@ -404,9 +428,15 @@ export function PackagesPage() {
 				servicePackagesService
 					.update(dbKey, uiForDb)
 					.then(() => {
-						setServices((prev) => prev.map((s) => (
-							s.dbId === dbKey ? { ...s, ...payload, id: payload.servicePackageId || s.id } : s
-						)));
+												setServices((prev) => prev.map((s) => (
+														s.dbId === dbKey ? { 
+															...s, 
+															...payload, 
+															id: payload.servicePackageId || s.id,
+															description: form.description,
+															slot: form.slot !== '' ? Number(form.slot) : s.slot,
+														} : s
+												)));
 						// Keep the form populated on update; just refresh the updatedAt value
 						setForm((prev) => ({ ...prev, updatedAt: nowIso }));
 						show({ type: 'success', title: 'Changes saved', message: 'Package updated successfully.' });
@@ -438,8 +468,9 @@ export function PackagesPage() {
 				const hasOriginal = form.singleOriginalPrice !== '' && Number(form.singleOriginalPrice) > 0;
 				const hasDiscounted = form.singleDiscountedPrice !== '' && Number(form.singleDiscountedPrice) > 0;
 				const hasPhilHealth = form.singlePhilHealthPromoPrice !== '' && Number(form.singlePhilHealthPromoPrice) > 0;
-				if (!hasNote && !(hasOriginal && hasDiscounted && hasPhilHealth)) {
-					alert('Please provide Original, Discounted, and PhilHealth Promo prices or add a Price Note.');
+				const ok = hasNote || hasOriginal || hasDiscounted || hasPhilHealth;
+				if (!ok) {
+					alert('Please provide at least one: Price Note, Original Price, Discounted Price, or PhilHealth Promo Price.');
 					return;
 				}
 
@@ -543,13 +574,13 @@ export function PackagesPage() {
 			return;
 		}
 
-		// Validation for bundle
+		// Validation for bundle: require at least one of the four pricing fields
 		const hasNote = (form.priceNote || '').trim().length > 0;
 		const hasOriginal = form.originalPrice !== '' && Number(form.originalPrice) > 0;
 		const hasDiscounted = form.discountedPrice !== '' && Number(form.discountedPrice) > 0;
 		const hasPhilHealth = form.philHealthPromoPrice !== '' && Number(form.philHealthPromoPrice) > 0;
-		if (!hasNote && !(hasOriginal && hasDiscounted && hasPhilHealth)) {
-			alert('Please provide Original, Discounted, and PhilHealth Promo prices or add a Price Note.');
+		if (!(hasNote || hasOriginal || hasDiscounted || hasPhilHealth)) {
+			alert('Please provide at least one: Price Note, Original Price, Discounted Price, or PhilHealth Promo Price.');
 			return;
 		}
 
@@ -638,13 +669,13 @@ export function PackagesPage() {
 			return;
 		}
 
-		// Pricing validation: either note or all 3 prices
+		// Pricing validation (single): require at least one of the four pricing fields
 		const hasNote = (form.singlePriceNote || '').trim().length > 0;
 		const hasOriginal = form.singleOriginalPrice !== '' && Number(form.singleOriginalPrice) > 0;
 		const hasDiscounted = form.singleDiscountedPrice !== '' && Number(form.singleDiscountedPrice) > 0;
 		const hasPhilHealth = form.singlePhilHealthPromoPrice !== '' && Number(form.singlePhilHealthPromoPrice) > 0;
-		if (!hasNote && !(hasOriginal && hasDiscounted && hasPhilHealth)) {
-			alert('Please provide Original, Discounted, and PhilHealth Promo prices or add a Price Note.');
+		if (!(hasNote || hasOriginal || hasDiscounted || hasPhilHealth)) {
+			alert('Please provide at least one: Price Note, Original Price, Discounted Price, or PhilHealth Promo Price.');
 			return;
 		}
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import AvailabilityBuilder from './AvailabilityBuilder.jsx';
 import styles from './PackagesPage.module.css';
 
 export default function PackagesSection({
@@ -148,11 +149,12 @@ export default function PackagesSection({
                   type="text"
                   id="availability"
                   name="availability"
-                  placeholder="e.g., Daily 09:00–16:00"
+                  placeholder="e.g., Daily 07:00-16:00; Sun 07:30-11:30"
                   value={form.availability}
                   onChange={onChange}
                   disabled={form.useRegularSchedule}
                 />
+                <small className={styles.helpText}>Format: "Daily 07:00-16:00" or "Mon-Fri 07:00-16:00; Sun 07:30-11:30"</small>
                 <div className={styles.inlineControl}>
                   <input
                     type="checkbox"
@@ -166,6 +168,13 @@ export default function PackagesSection({
                     <span className={styles.badge}>Regular</span>
                   )}
                 </div>
+                {!form.useRegularSchedule && (
+                  <AvailabilityBuilder
+                    value={form.availability}
+                    onChange={(v) => onChange({ target: { name: 'availability', value: v } })}
+                    disabled={!!form.useRegularSchedule}
+                  />
+                )}
               </div>
             </div>
 
@@ -217,9 +226,8 @@ export default function PackagesSection({
                   name="originalPrice"
                   value={form.originalPrice}
                   onChange={onChange}
-                  required={!(form.priceNote || '').trim().length}
                 />
-                <small className={styles.helpText}>Required unless a Price Note is provided.</small>
+                <small className={styles.helpText}>At least one of Price Note, Original, Discounted, or PhilHealth Promo is required.</small>
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="discountedPrice">Discounted Price</label>
@@ -231,9 +239,8 @@ export default function PackagesSection({
                   name="discountedPrice"
                   value={form.discountedPrice}
                   onChange={onChange}
-                  required={!(form.priceNote || '').trim().length}
                 />
-                <small className={styles.helpText}>Required unless a Price Note is provided.</small>
+                <small className={styles.helpText}>At least one of Price Note, Original, Discounted, or PhilHealth Promo is required.</small>
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="philHealthPromoPrice">PhilHealth Promo Price</label>
@@ -245,9 +252,8 @@ export default function PackagesSection({
                   name="philHealthPromoPrice"
                   value={form.philHealthPromoPrice}
                   onChange={onChange}
-                  required={!(form.priceNote || '').trim().length}
                 />
-                <small className={styles.helpText}>Required unless a Price Note is provided.</small>
+                <small className={styles.helpText}>At least one of Price Note, Original, Discounted, or PhilHealth Promo is required.</small>
               </div>
             </div>
 

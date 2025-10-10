@@ -52,6 +52,8 @@ export function StatsOverview() {
   const [completedRange, setCompletedRange] = useState('7d');
   // Filter for Upcoming Appointments: 'today' | '7d' | 'month'
   const [upcomingRange, setUpcomingRange] = useState('today');
+  // Filter for Pending Appointments count on the card: 'all' | 'upcoming' | 'overdue'
+  const [pendingScope, setPendingScope] = useState('all');
 
   // Load saved filters on mount
   useEffect(() => {
@@ -62,6 +64,7 @@ export function StatsOverview() {
       if (saved) {
         if (saved.completedRange === '7d' || saved.completedRange === '30d') setCompletedRange(saved.completedRange);
         if (saved.upcomingRange === 'today' || saved.upcomingRange === '7d' || saved.upcomingRange === 'month') setUpcomingRange(saved.upcomingRange);
+        if (saved.pendingScope === 'all' || saved.pendingScope === 'upcoming' || saved.pendingScope === 'overdue') setPendingScope(saved.pendingScope);
       }
     } catch (_) { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,9 +73,9 @@ export function StatsOverview() {
   // Persist when filters change
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ completedRange, upcomingRange }));
+      localStorage.setItem(storageKey, JSON.stringify({ completedRange, upcomingRange, pendingScope }));
     } catch (_) { /* ignore */ }
-  }, [storageKey, completedRange, upcomingRange]);
+  }, [storageKey, completedRange, upcomingRange, pendingScope]);
   const [stats, setStats] = useState({
     // Upcoming (scheduled)
     upcomingToday: 0,
@@ -83,7 +86,9 @@ export function StatsOverview() {
     completed7d: 0,
     completed30d: 0,
     approvedThisMonth: 0,
-    pendingToday: 0,
+    pendingAll: 0,
+    pendingUpcoming: 0,
+    pendingOverdue: 0,
     deltas: {
       // Upcoming (scheduled)
       upcomingToday: 0,
@@ -184,13 +189,24 @@ export function StatsOverview() {
         const approvedThisMonth = rows.filter(r => statusIsApproved(r.BOOKING_STATUS) && inRange(pickDate(r), monthStart, monthEnd)).length;
         const approvedPrevMonth = rows.filter(r => statusIsApproved(r.BOOKING_STATUS) && inRange(pickDate(r), prevMonthStart, prevMonthEnd)).length;
 
-        // Pending Today (strict pending by DATE_OF_APPOINTMENT)
-        const pendingToday = rows.filter(r => {
+        // Pending counts by schedule relative to today
+        const pendingOverdue = rows.filter(r => {
           const status = String(r.BOOKING_STATUS || '').toLowerCase();
           if (status !== 'pending') return false;
           const iso = tryParseDateString(r.DATE_OF_APPOINTMENT);
-          return iso === todayISO;
+          if (!iso) return false;
+          const d = new Date(iso);
+          return d < startOfToday; // before today
         }).length;
+        const pendingUpcoming = rows.filter(r => {
+          const status = String(r.BOOKING_STATUS || '').toLowerCase();
+          if (status !== 'pending') return false;
+          const iso = tryParseDateString(r.DATE_OF_APPOINTMENT);
+          if (!iso) return false;
+          const d = new Date(iso);
+          return d >= startOfToday; // today and future
+        }).length;
+        const pendingAll = pendingOverdue + pendingUpcoming;
 
         const pct = (curr, prev) => {
           if (prev === 0) return curr > 0 ? 100 : 0;
@@ -207,7 +223,9 @@ export function StatsOverview() {
           completed7d,
           completed30d,
           approvedThisMonth,
-          pendingToday,
+          pendingAll,
+          pendingUpcoming,
+          pendingOverdue,
           deltas: {
             // Upcoming (scheduled)
             upcomingToday: pct(todayCount, yesterdayCount),
@@ -339,10 +357,27 @@ export function StatsOverview() {
     },
     {
       icon: <FaCalendarCheck />,
-      value: loading ? '…' : stats.pendingToday,
+      value: loading ? '…' : (pendingScope === 'overdue' ? stats.pendingOverdue : pendingScope === 'upcoming' ? stats.pendingUpcoming : stats.pendingAll),
       label: 'Pending Appointments',
       color: 'pink',
-      metaLeft: todayStr,
+      metaLeft: (
+        <select
+          value={pendingScope}
+          onChange={(e) => setPendingScope(e.target.value)}
+          aria-label="Pending scope"
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--border, #e5e7eb)',
+            borderRadius: 6,
+            padding: '2px 6px',
+            fontSize: 12,
+          }}
+        >
+          <option value="all">All</option>
+          <option value="upcoming">Upcoming</option>
+          <option value="overdue">Overdue</option>
+        </select>
+      ),
       metaRight: (
         <button
           className={styles.linkBtn}

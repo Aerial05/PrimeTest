@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import styles from "./BookAppointment.module.css";
 import { onValue, ref } from "firebase/database";
 import { usersDB } from "/src/config/firebase-config";
+import { computeSlotsForDateFromSpec, minutesFromHHMM, toHHMM } from "/src/utils/availability";
 
 // Helpers (duplicated locally for self-contained reuse)
 function pad(n) { return String(n).padStart(2, "0"); }
-function minutesFromHHMM(hhmm) { const [h,m] = hhmm.split(":").map(Number); return h*60 + m; }
-function toHHMM(mins) { const h = Math.floor(mins/60), m = mins%60; return `${pad(h)}:${pad(m)}`; }
+// minutesFromHHMM and toHHMM imported from utils
 function labelFromHHMM(hhmm) { const [h,m]=hhmm.split(":").map(Number); const ampm=h>=12?"PM":"AM"; const h12=h%12===0?12:h%12; return `${h12}:${pad(m)} ${ampm}`; }
 function hourLabelFromHHMM(hhmm) { const [h,m] = hhmm.split(":").map(Number); if (m !== 0) return ""; const ampm = h >= 12 ? "PM" : "AM"; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12} ${ampm}`; }
 function gmtOffsetLabel(date = new Date()) { const offsetMinutes = -date.getTimezoneOffset(); const sign = offsetMinutes >= 0 ? '+' : '-'; const abs = Math.abs(offsetMinutes); const hours = Math.floor(abs / 60); const mins = abs % 60; const hh = String(hours).padStart(2, '0'); const mm = mins ? String(mins).padStart(2, '0') : '00'; return `GMT${sign}${hh}${mm !== '00' ? ':'+mm : ''}`; }
@@ -42,34 +42,7 @@ export default function ScheduleCalendar({
   // Build day slots for a given date string (YYYY-MM-DD)
   function computeSlotsForDate(dateStr) {
     if (!dateStr || !activeItem) return [];
-    const d = new Date(dateStr + 'T00:00:00');
-    const dow = d.getDay(); // 0=Sun ... 6=Sat
-    // Defaults 7AM–7PM
-    let start = '07:00';
-    let end = '19:00';
-    const step = 30; // minutes
-    const availRaw = String(activeItem.availability || '');
-    const parseTime = (s) => {
-      const m = s.match(/(1[0-2]|0?[1-9]):([0-5][0-9])\s*(am|pm)/i);
-      if (!m) return null;
-      let h = parseInt(m[1], 10);
-      const mins = parseInt(m[2], 10);
-      const ampm = m[3].toLowerCase();
-      if (ampm === 'pm' && h !== 12) h += 12;
-      if (ampm === 'am' && h === 12) h = 0;
-      return toHHMM(h * 60 + mins);
-    };
-    const rangeMatch = availRaw.match(/(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)/i);
-    if (rangeMatch) { const s = parseTime(rangeMatch[1]); const e = parseTime(rangeMatch[2]); if (s && e) { start = s; end = e; } }
-    const regularMatch = availRaw.match(/regular[^\d]*(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)/i);
-    if (regularMatch) { const s = parseTime(regularMatch[1]); const e = parseTime(regularMatch[2]); if (s && e) { start = s; end = e; } }
-    if (dow === 0) { // Sunday specific
-      const sunMatch = availRaw.match(/sun(day)?[^\d]*(\d{1,2}:\d{2}\s*[ap]m)\s*-\s*(\d{1,2}:\d{2}\s*[ap]m)/i);
-      if (sunMatch) { const s = parseTime(sunMatch[2]); const e = parseTime(sunMatch[3]); if (s && e) { start = s; end = e; } }
-    }
-    const startMin = minutesFromHHMM(start); const endMin = minutesFromHHMM(end);
-    const times = []; for (let t = startMin; t < endMin; t += step) times.push(toHHMM(t));
-    return times;
+    return computeSlotsForDateFromSpec(String(activeItem.availability || ''), dateStr, 30, { start: '07:00', end: '19:00' });
   }
 
   const slots = useMemo(() => computeSlotsForDate(date), [date, activeItem]);
@@ -377,17 +350,17 @@ export default function ScheduleCalendar({
                     const weekday = dObj.toLocaleDateString(undefined, { weekday: 'short' });
                     const dateNum = dObj.getDate();
                     const month = dObj.toLocaleDateString(undefined, { month: 'short' });
-                    const isSunday = dObj.getDay() === 0;
                     const todayStrLocal = toLocalDateStringYYYYMMDD(new Date());
                     const isPast = dStr < todayStrLocal;
                     const isActiveCol = date === dStr;
-                    const headerCls = `${styles.weekHeaderCell} ${isSunday ? styles.weekHeaderCellPlaceholder : ''} ${isPast ? styles.weekHeaderCellPast : ''} ${isActiveCol ? styles.weekHeaderCellActive : ''}`;
+                    const isEveningClosed = (eveningWeekDaySlots[dStr] || []).length === 0;
+                    const headerCls = `${styles.weekHeaderCell} ${isEveningClosed ? styles.weekHeaderCellPlaceholder : ''} ${isPast ? styles.weekHeaderCellPast : ''} ${isActiveCol ? styles.weekHeaderCellActive : ''}`;
                     return (
                       <div key={dStr} className={headerCls} role="columnheader">
                         <span className={styles.weekHeaderDay}>{weekday}</span>
                         <span className={styles.weekHeaderDate}>{dateNum}</span>
                         <span className={styles.weekHeaderMonth}>{month}</span>
-                        {isSunday && (
+                        {isEveningClosed && (
                           <span className={styles.closedBadge} aria-label="Closed this evening">Closed</span>
                         )}
                       </div>
@@ -402,9 +375,8 @@ export default function ScheduleCalendar({
                   </div>
                   {weekDates.map(dStr => {
                     const counts = slotCountsByDate[dStr] || {};
-                    const dObj = new Date(dStr + 'T00:00:00');
-                    const isSunday = dObj.getDay() === 0;
-                    if (isSunday) {
+                    const isEveningClosed = (eveningWeekDaySlots[dStr] || []).length === 0;
+                    if (isEveningClosed) {
                       return (
                         <div key={dStr} className={`${styles.weekDayCol} ${styles.weekDayColPlaceholder}`} role="grid" aria-hidden="true">
                           {eveningRowTimes.map(hhmm => (
