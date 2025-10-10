@@ -3,7 +3,7 @@
   top: 0;
   z-index: 60;
   background: rgba(255, 255, 255, 0.96);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  border-bottom: 0px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(12px);
   height: var(--header-info-height);

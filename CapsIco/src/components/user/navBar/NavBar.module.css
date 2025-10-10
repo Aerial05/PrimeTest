@@ -276,7 +276,11 @@
     justify-content: center;
     border-left: 0;
     padding-left: 0;
+    gap: 0.6rem;
   }
+  .btnAppointment { padding: 0.56rem 1rem; font-size: 0.8rem; }
+  .btnAdmin { padding: 0.54rem 0.95rem; font-size: 0.78rem; }
+  .usernameText { display: none; }
 }
 
 @media (max-width: 640px) {
