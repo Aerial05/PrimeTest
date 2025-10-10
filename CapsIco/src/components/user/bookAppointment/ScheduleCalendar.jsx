@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import styles from "./BookAppointment.module.css";
 import { onValue, ref } from "firebase/database";
 import { usersDB } from "/src/config/firebase-config";
@@ -19,6 +20,7 @@ const tomorrowStr = toLocalDateStringYYYYMMDD(tomorrow);
 export default function ScheduleCalendar({
   open,
   onClose,
+  onConfirm,
   activeItem,
   serviceKey,
   date,
@@ -161,7 +163,7 @@ export default function ScheduleCalendar({
 
   const capacity = Number(activeItem?.capacity ?? activeItem?.SLOT ?? 1) || 1;
 
-  return (
+  const modalNode = (
     <div className={`${styles.modalOverlay} ${styles.modalOverlayTop}`} role="dialog" aria-modal="true" aria-labelledby="scheduleFsTitle" onClick={(e)=>{ if (e.target===e.currentTarget) onClose && onClose(); }}>
       <div className={`${styles.modalCard} ${styles.modalFullscreen}`}>
         <div className={styles.modalFsTop}>
@@ -209,7 +211,17 @@ export default function ScheduleCalendar({
               onChange={(e)=>{ const v=e.target.value; if(!v){ return; } const todayStrLocal = toLocalDateStringYYYYMMDD(new Date()); const clamped = v < todayStrLocal ? todayStrLocal : v; setDate(clamped); setTime(""); }}
             />
             {time && (
-              <button type="button" className={`${styles.primaryBtn} ${styles.primaryBtnSm}`} onClick={()=> onClose && onClose()} title="Confirm this selection">Confirm</button>
+              <button
+                type="button"
+                className={`${styles.primaryBtn} ${styles.primaryBtnSm}`}
+                onClick={()=> {
+                  if (typeof onConfirm === 'function') onConfirm();
+                  else if (onClose) onClose();
+                }}
+                title="Confirm this selection"
+              >
+                Confirm
+              </button>
             )}
             <button type="button" className={styles.ghostBtn} onClick={()=> onClose && onClose()}>Close</button>
           </div>
@@ -420,4 +432,11 @@ export default function ScheduleCalendar({
       </div>
     </div>
   );
+
+  try {
+    return createPortal(modalNode, document.body);
+  } catch (_) {
+    // Fallback if portal is unavailable (e.g., SSR): render inline
+    return modalNode;
+  }
 }

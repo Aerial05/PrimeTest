@@ -52,8 +52,12 @@
 .summaryPriceNote { margin-top:.25rem; font-size:.85rem; color:#6b7280; }
 
 /* Simple modal */
-.modalOverlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display:flex; align-items:center; justify-content:center; z-index: 20000; }
-.modalOverlayTop { align-items: flex-start; padding-top: 0; }
+.modalOverlay { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display:flex; align-items:center; justify-content:center; z-index: 99999; }
+.modalOverlayTop {
+	align-items: flex-start; /* keep centered horizontally via base overlay */
+	justify-content: center;
+	padding-top: calc(var(--header-info-height, 0px) + var(--nav-height, 56px) + 8px);
+}
 .modalCard { background:#fff; width: min(92vw, 420px); border-radius:14px; box-shadow: 0 16px 48px rgba(15,23,42,.25); border:1px solid #eef2f7; overflow:hidden; }
 .modalTop { display:flex; align-items:center; gap:.75rem; padding: .9rem 1rem; border-bottom:1px solid #eef2f7; }
 .modalIconWrap { background:#fef2f2; color:#b91c1c; display:grid; place-items:center; width:38px; height:38px; border-radius:10px; }
@@ -195,10 +199,11 @@
 /* Fullscreen schedule modal */
 .modalFullscreen {
 	width: 80vw;
-	height: 98vh;
+	height: calc(100vh - var(--header-info-height, 0px) - var(--nav-height, 56px) - 16px);
 	max-width: none;
 	display: flex;
 	flex-direction: column;
+	/* Use default .modalCard rounding/shadow */
 }
 .modalFsTop {
 	display: flex;

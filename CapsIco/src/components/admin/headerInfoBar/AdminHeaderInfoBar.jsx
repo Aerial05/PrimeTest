@@ -17,6 +17,8 @@ const EMPTY_COUNTS = Object.freeze({
   today: 0,
   overdue: 0,
   cancelled: 0,
+  reschedPending: 0,
+  reschedApproved: 0,
 });
 
 function normalizeStatus(raw) {
@@ -102,11 +104,13 @@ export function AdminHeaderInfoBar({
         const upcomingEnd = new Date(startOfToday);
         upcomingEnd.setDate(upcomingEnd.getDate() + 7);
 
-        let pending = 0;
-        let upcoming = 0;
-        let today = 0;
-        let overdue = 0;
-        let cancelled = 0;
+  let pending = 0;
+  let upcoming = 0;
+  let today = 0;
+  let overdue = 0;
+  let cancelled = 0;
+  let reschedPending = 0;
+  let reschedApproved = 0;
 
         const parseTimeSlot = (raw) => {
           if (!raw) return null;
@@ -135,6 +139,13 @@ export function AdminHeaderInfoBar({
 
           if (status === 'pending') pending += 1;
           if (isCancelled) cancelled += 1;
+
+          // Reschedule-aware counts (support legacy/lowercase field)
+          const hasRes = Boolean(appt?.RESCHEDULE_INFO || appt?.rescheduleInfo || appt?.RESCHEDULED_AT);
+          const labelIsApprovedLike = (status === 'approved' || status === 'successful' || status === 'success' || status === 'successfull');
+          const rawIsRescheduled = String(appt?.BOOKING_STATUS || '').trim().toLowerCase() === 'rescheduled';
+          if (hasRes && status === 'pending') reschedPending += 1;
+          if ((hasRes && labelIsApprovedLike) || (rawIsRescheduled && status !== 'pending')) reschedApproved += 1;
 
           if (!appointmentDate || !isScheduled) continue;
 
@@ -168,7 +179,7 @@ export function AdminHeaderInfoBar({
           }
         }
 
-        setAuto({ pending, upcoming, today, overdue, cancelled });
+  setAuto({ pending, upcoming, today, overdue, cancelled, reschedPending, reschedApproved });
       } catch (_err) {
         if (!active) return;
         setAuto(EMPTY_COUNTS);
@@ -203,12 +214,17 @@ export function AdminHeaderInfoBar({
     };
   }, []);
 
-  const pendingVal = pickCount(pendingCount, auto.pending);
+  // Separate pending into non-rescheduled and rescheduled
+  const pendingNonRes = Math.max(0, Number(auto.pending || 0) - Number(auto.reschedPending || 0));
+  const pendingVal = pickCount(pendingCount, pendingNonRes);
   const upcomingVal = pickCount(upcomingCount, auto.upcoming);
   const todayVal = pickCount(todayCount, auto.today);
   const overdueVal = pickCount(overdueCount, auto.overdue);
   const cancelledVal = pickCount(cancelledCount, auto.cancelled);
-  const alertsVal = pickCount(notificationsCount, pendingVal + overdueVal);
+  const reschedPendingVal = auto.reschedPending;
+  const reschedApprovedVal = auto.reschedApproved;
+  // Needs Attention = Pending (non-rescheduled) + Overdue
+  const alertsVal = pickCount(notificationsCount, pendingNonRes + overdueVal);
 
   const items = useMemo(() => [
     {
@@ -222,7 +238,7 @@ export function AdminHeaderInfoBar({
     {
       key: 'pending',
       label: 'Pending',
-      title: 'Bookings waiting for approval or completion',
+      title: 'Bookings waiting for approval or completion (excluding reschedules)',
       value: pendingVal,
       icon: ClipboardList,
       accent: '#0f766e',
@@ -246,13 +262,29 @@ export function AdminHeaderInfoBar({
     {
       key: 'attention',
       label: 'Needs Attention',
-      title: `Pending ${formatCount(pendingVal)} | Overdue ${formatCount(overdueVal)}`,
+      title: `Pending ${formatCount(pendingNonRes)} | Resched P ${formatCount(reschedPendingVal)} | Resched A ${formatCount(reschedApprovedVal)} | Overdue ${formatCount(overdueVal)}`,
       value: alertsVal,
       icon: BellRing,
       accent: '#dc2626',
-      inlineMeta: `Pending ${formatCount(pendingVal)} • Overdue ${formatCount(overdueVal)}`,
+      inlineMeta: `Pending ${formatCount(pendingNonRes)} • Resched P ${formatCount(reschedPendingVal)} • Resched A ${formatCount(reschedApprovedVal)} • Overdue ${formatCount(overdueVal)}`,
     },
-  ], [alertsVal, cancelledVal, overdueVal, pendingVal, todayVal, upcomingVal]);
+    {
+      key: 'resched-pending',
+      label: 'Pending Reschedule',
+      title: 'Pending appointments that requested reschedule',
+      value: reschedPendingVal,
+      icon: ClipboardList,
+      accent: '#6d28d9',
+    },
+    {
+      key: 'resched-approved',
+      label: 'Approved Reschedule',
+      title: 'Approved or successful appointments with reschedules',
+      value: reschedApprovedVal,
+      icon: CalendarDays,
+      accent: '#4f46e5',
+    },
+  ], [alertsVal, cancelledVal, overdueVal, pendingVal, todayVal, upcomingVal, reschedPendingVal, reschedApprovedVal, pendingNonRes]);
 
   const dateStr = (d) => {
     const y = d.getFullYear();
@@ -268,7 +300,7 @@ export function AdminHeaderInfoBar({
     const in7 = (() => { const d = new Date(now); d.setDate(d.getDate() + 7); return dateStr(d); })();
     switch (key) {
       case 'pending':
-        navigate(`/appointment-management?status=pending`);
+        navigate(`/appointment-management?status=pending&excludeResched=1`);
         break;
       case 'today':
         navigate(`/appointment-management?from=${today}&to=${today}`);
@@ -282,8 +314,14 @@ export function AdminHeaderInfoBar({
         navigate(`/appointment-management?overdue=1`);
         break;
       case 'attention':
-        // Navigate with attention flag so the table shows Pending OR Overdue
-        navigate(`/appointment-management?attention=1`);
+        // Navigate with attention flag so the table shows Pending (non-res) OR Overdue
+        navigate(`/appointment-management?attention=1&excludeResched=1`);
+        break;
+      case 'resched-pending':
+        navigate(`/appointment-management?status=pending-reschedule`);
+        break;
+      case 'resched-approved':
+        navigate(`/appointment-management?status=approved-reschedule`);
         break;
       default:
         navigate('/admin-dashboard');

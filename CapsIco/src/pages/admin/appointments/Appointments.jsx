@@ -15,6 +15,8 @@ export function Appointments() {
       const norm = String(v).toLowerCase();
       if (norm === 'approved') return 'Approved';
       if (norm === 'pending') return 'Pending';
+      if (norm === 'pending-reschedule') return 'Pending Reschedule';
+      if (norm === 'approved-reschedule') return 'Approved Reschedule';
       if (norm === 'declined') return 'Declined';
       if (norm === 'successful' || norm === 'success' || norm === 'successfull') return 'Successful';
       return '';
@@ -41,12 +43,18 @@ export function Appointments() {
       return params.get('attention') === '1';
     } catch(_) { return false; }
   }, [location.search]);
+  const excludeResFlag = useMemo(()=>{
+    try {
+      const params = new URLSearchParams(location.search || '');
+      return params.get('excludeResched') === '1';
+    } catch(_) { return false; }
+  }, [location.search]);
 
   // Broadcast initial date filters to the AppointmentsTable via custom event
   useEffect(() => {
-    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo, overdue: overdueFlag, attention: attentionFlag } });
+    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo, overdue: overdueFlag, attention: attentionFlag, excludeResched: excludeResFlag } });
     window.dispatchEvent(ev);
-  }, [initialDateFrom, initialDateTo, overdueFlag, attentionFlag]);
+  }, [initialDateFrom, initialDateTo, overdueFlag, attentionFlag, excludeResFlag]);
   return (
     <main className={styles.main}>
       <div className={styles.card}>
@@ -63,6 +71,7 @@ export function Appointments() {
     initialFilterStatus={initialFilterStatus}
     initialOverdue={overdueFlag}
     initialAttention={attentionFlag}
+    initialExcludeResched={excludeResFlag}
   />
       </div>
     </main>

@@ -69,6 +69,7 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
   const complaint = rec.CHIEF_COMPLAINT || '';
   const proofUrl = rec.PROOF || rec.proof || '';
   const declineReason = rec.DECLINE_REASON || rec.declineReason || '';
+  const res = rec.RESCHEDULE_INFO || rec.rescheduleInfo || null;
 
   const heading = statusTitle === 'Approved'
     ? 'Appointment Confirmed'
@@ -142,6 +143,7 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
               <tr><td class="label">Date:</td><td class="val">${date}</td></tr>
               <tr><td class="label">Time:</td><td class="val">${time}</td></tr>
               <tr><td class="label">Status:</td><td class="val">${statusTitle}</td></tr>
+              ${res && (res.newDate || res.oldDate) ? `<tr><td class="label">Reschedule</td><td class="val">${formatEmailDate(res.oldDate || rec.DATE_OF_APPOINTMENT)} ${res.oldTime ? '• ' + formatTimeLabel(res.oldTime) : ''} → ${formatEmailDate(res.newDate || rec.DATE_OF_APPOINTMENT)} ${res.newTime ? '• ' + formatTimeLabel(res.newTime) : ''}</td></tr>` : ''}
               ${complaint ? `<tr><td class="label">Chief Complaint:</td><td class="val">${complaint}</td></tr>` : ''}
               ${notes ? `<tr><td class="label">Special Instructions:</td><td class="val">${notes}</td></tr>` : ''}
               ${statusTitle === 'Declined' && declineReason ? `<tr><td class="label">Reason:</td><td class="val">${declineReason}</td></tr>` : ''}

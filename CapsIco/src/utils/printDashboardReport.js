@@ -44,6 +44,7 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
     const serviceType = row.SERVICE_TYPE || row.serviceType || '';
     const serviceName = row.SERVICE_NAME || row.serviceName || (serviceId ? `Service ${serviceId}` : (serviceType || 'Service'));
     const slotRef = row.SLOT_CAPACITY_REF || row.slotCapacityRef || '';
+  const rs = row.RESCHEDULE_INFO || row.rescheduleInfo || null;
 
     const userInfo = `
       <div class="kvgrid">
@@ -64,6 +65,7 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
         <div class="kv"><div class="k">Updated At</div><div class="v">${esc(updatedAt)}</div></div>
         <div class="kv"><div class="k">Proof</div><div class="v">${linkify(proof)}</div></div>
         <div class="kv"><div class="k">Special Instructions</div><div class="v">${pretty(special)}</div></div>
+        ${rs ? `<div class="kv"><div class="k">Reschedule</div><div class="v">${esc(rs.oldDate || '')}${rs.oldTime ? ' • ' + esc(rs.oldTime) : ''} → ${esc(rs.newDate || apptDate)}${rs.newTime ? ' • ' + esc(rs.newTime) : ''}${rs.reason ? ' — Reason: ' + pretty(rs.reason) : ''}</div></div>` : ''}
       </div>`;
 
     const svcInfo = `
@@ -93,7 +95,7 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
 <html>
 <head>
   <meta charset="utf-8" />
-  <title>JRAE - Dashboard Report</title>
+  <title>JREA - Dashboard Report</title>
   <style>
     :root { --ink:#0f172a; --muted:#475569; --border:#cbd5e1; --bg:#ffffff; --pill:#f1f5f9; }
     * { box-sizing: border-box; }
@@ -138,7 +140,16 @@ export function buildDashboardReportHTML(snapshot, opts = {}) {
       <tr><td>Tests Completed (7d)</td><td class="num">${esc(statsOverview?.completed?.d7 ?? '')}</td></tr>
       <tr><td>Tests Completed (30d)</td><td class="num">${esc(statsOverview?.completed?.d30 ?? '')}</td></tr>
       <tr><td>Approved This Month</td><td class="num">${esc(statsOverview?.approvedThisMonth ?? '')}</td></tr>
-      <tr><td>Pending Today</td><td class="num">${esc(statsOverview?.pendingToday ?? '')}</td></tr>
+      <tr><th colspan="2">Pending Breakdown</th></tr>
+      <tr><td>Pending (All)</td><td class="num">${esc(statsOverview?.pending?.all ?? '')}</td></tr>
+      <tr><td>Pending (Upcoming)</td><td class="num">${esc(statsOverview?.pending?.upcoming ?? '')}</td></tr>
+      <tr><td>Pending (Overdue)</td><td class="num">${esc(statsOverview?.pending?.overdue ?? '')}</td></tr>
+      <tr><td>Pending Reschedules (All)</td><td class="num">${esc(statsOverview?.pending?.resOnly ?? '')}</td></tr>
+      <tr><td>Pending Reschedules (Upcoming)</td><td class="num">${esc(statsOverview?.pending?.resUpcoming ?? '')}</td></tr>
+      <tr><td>Pending Reschedules (Overdue)</td><td class="num">${esc(statsOverview?.pending?.resOverdue ?? '')}</td></tr>
+      <tr><td>Pending Non-Reschedules (All)</td><td class="num">${esc(statsOverview?.pending?.nonResAll ?? '')}</td></tr>
+      <tr><td>Pending Non-Reschedules (Upcoming)</td><td class="num">${esc(statsOverview?.pending?.nonResUpcoming ?? '')}</td></tr>
+      <tr><td>Pending Non-Reschedules (Overdue)</td><td class="num">${esc(statsOverview?.pending?.nonResOverdue ?? '')}</td></tr>
     </tbody>
   </table>
 

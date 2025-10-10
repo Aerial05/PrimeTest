@@ -159,6 +159,7 @@ export function ChartsSection() {
   const [selYear, setSelYear] = useState(nowRef.getFullYear());
   const [monthMode, setMonthMode] = useState(false);
   const [trendStatus, setTrendStatus] = useState('all'); // 'all' | 'success' | 'scheduled'
+  const [trendRescope, setTrendRescope] = useState('all'); // 'all' | 'only' | 'exclude'
   const [trendSvcType, setTrendSvcType] = useState(serviceFilters[0]);
   const [svcFilter, setSvcFilter] = useState(serviceFilters[0]);
   const [singleNameById, setSingleNameById] = useState({});
@@ -187,6 +188,7 @@ export function ChartsSection() {
         if (typeof saved.selYear === 'number') setSelYear(saved.selYear);
         if (typeof saved.monthMode === 'boolean') setMonthMode(saved.monthMode);
         if (typeof saved.trendStatus === 'string') setTrendStatus(saved.trendStatus);
+  if (typeof saved.trendRescope === 'string') setTrendRescope(saved.trendRescope);
         if (typeof saved.trendSvcType === 'string' && serviceFilters.includes(saved.trendSvcType)) setTrendSvcType(saved.trendSvcType);
         if (typeof saved.svcFilter === 'string' && serviceFilters.includes(saved.svcFilter)) setSvcFilter(saved.svcFilter);
         if (typeof saved.svcSelMonth === 'number' && saved.svcSelMonth >= 0 && saved.svcSelMonth <= 11) setSvcSelMonth(saved.svcSelMonth);
@@ -203,13 +205,13 @@ export function ChartsSection() {
   useEffect(() => {
     try {
       const data = {
-        range, selMonth, selYear, monthMode, trendStatus, trendSvcType,
+        range, selMonth, selYear, monthMode, trendStatus, trendRescope, trendSvcType,
         svcFilter, svcSelMonth, svcSelYear, svcTotalMode,
         customFrom, customTo,
       };
       localStorage.setItem(storageKey, JSON.stringify(data));
     } catch (_) { /* ignore */ }
-  }, [storageKey, range, selMonth, selYear, monthMode, trendStatus, trendSvcType, svcFilter, svcSelMonth, svcSelYear, svcTotalMode, customFrom, customTo]);
+  }, [storageKey, range, selMonth, selYear, monthMode, trendStatus, trendRescope, trendSvcType, svcFilter, svcSelMonth, svcSelYear, svcTotalMode, customFrom, customTo]);
   
   
 
@@ -309,6 +311,12 @@ export function ChartsSection() {
       if (trendStatus === 'scheduled') return statusIsScheduled(s);
       return true;
     };
+    const reschedulePasses = (row) => {
+      const hasRes = !!row.RESCHEDULE_INFO;
+      if (trendRescope === 'only') return hasRes;
+      if (trendRescope === 'exclude') return !hasRes;
+      return true;
+    };
 
     // Quick type inference for filtering by service type without relying on later helpers
     const inferTypeQuick = (row) => {
@@ -329,6 +337,7 @@ export function ChartsSection() {
         if (!t || t !== trendSvcType) return;
       }
       if (!statusPasses(r.BOOKING_STATUS)) return;
+      if (!reschedulePasses(r)) return;
       const ds = r.DATE_OF_APPOINTMENT || r.CREATED_AT;
       if (!ds) return;
       try {
@@ -525,7 +534,7 @@ export function ChartsSection() {
         const merged = {
           ...prev,
           capturedAt: prev.capturedAt || new Date().toISOString(),
-          appointmentFilters: { monthMode, range, selMonth, selYear, trendStatus, trendSvcType, customFrom, customTo },
+          appointmentFilters: { monthMode, range, selMonth, selYear, trendStatus, trendRescope, trendSvcType, customFrom, customTo },
           appointments: filteredAppointments,
           mostUsedFilters: { svcTotalMode, svcFilter, svcSelMonth, svcSelYear, customFrom, customTo },
           mostUsed: topServices,
@@ -564,6 +573,11 @@ export function ChartsSection() {
               <option value="all">All Statuses</option>
               <option value="success">Success Only</option>
               <option value="scheduled">Scheduled (Pending/Approved)</option>
+            </select>
+            <select value={trendRescope} onChange={(e)=>startTransition(()=>setTrendRescope(e.target.value))} title="Reschedules">
+              <option value="all">All (Reschedules + Regular)</option>
+              <option value="only">Reschedules Only</option>
+              <option value="exclude">Exclude Reschedules</option>
             </select>
             <select value={trendSvcType} onChange={(e)=>startTransition(()=>setTrendSvcType(e.target.value))} title="Service Type">
               {serviceFilters.map(f => (

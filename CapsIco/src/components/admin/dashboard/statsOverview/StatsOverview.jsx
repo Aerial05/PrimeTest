@@ -54,6 +54,8 @@ export function StatsOverview() {
   const [upcomingRange, setUpcomingRange] = useState('today');
   // Filter for Pending Appointments count on the card: 'all' | 'upcoming' | 'overdue'
   const [pendingScope, setPendingScope] = useState('all');
+  // Pending card reschedule filter: 'all' | 'only' (pending with reschedule) | 'exclude'
+  const [pendingResScope, setPendingResScope] = useState('all');
 
   // Load saved filters on mount
   useEffect(() => {
@@ -65,6 +67,7 @@ export function StatsOverview() {
         if (saved.completedRange === '7d' || saved.completedRange === '30d') setCompletedRange(saved.completedRange);
         if (saved.upcomingRange === 'today' || saved.upcomingRange === '7d' || saved.upcomingRange === 'month') setUpcomingRange(saved.upcomingRange);
         if (saved.pendingScope === 'all' || saved.pendingScope === 'upcoming' || saved.pendingScope === 'overdue') setPendingScope(saved.pendingScope);
+        if (saved.pendingResScope === 'all' || saved.pendingResScope === 'only' || saved.pendingResScope === 'exclude') setPendingResScope(saved.pendingResScope);
       }
     } catch (_) { /* ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -73,9 +76,9 @@ export function StatsOverview() {
   // Persist when filters change
   useEffect(() => {
     try {
-      localStorage.setItem(storageKey, JSON.stringify({ completedRange, upcomingRange, pendingScope }));
+      localStorage.setItem(storageKey, JSON.stringify({ completedRange, upcomingRange, pendingScope, pendingResScope }));
     } catch (_) { /* ignore */ }
-  }, [storageKey, completedRange, upcomingRange, pendingScope]);
+  }, [storageKey, completedRange, upcomingRange, pendingScope, pendingResScope]);
   const [stats, setStats] = useState({
     // Upcoming (scheduled)
     upcomingToday: 0,
@@ -89,6 +92,12 @@ export function StatsOverview() {
     pendingAll: 0,
     pendingUpcoming: 0,
     pendingOverdue: 0,
+  pendingResAll: 0,
+  pendingResUpcoming: 0,
+  pendingResOverdue: 0,
+  pendingNonResAll: 0,
+  pendingNonResUpcoming: 0,
+  pendingNonResOverdue: 0,
     deltas: {
       // Upcoming (scheduled)
       upcomingToday: 0,
@@ -190,6 +199,9 @@ export function StatsOverview() {
         const approvedPrevMonth = rows.filter(r => statusIsApproved(r.BOOKING_STATUS) && inRange(pickDate(r), prevMonthStart, prevMonthEnd)).length;
 
         // Pending counts by schedule relative to today
+        const isPendingRes = (r) => String(r.BOOKING_STATUS || '').toLowerCase() === 'pending' && !!(r.RESCHEDULE_INFO);
+        const isPendingNonRes = (r) => String(r.BOOKING_STATUS || '').toLowerCase() === 'pending' && !r.RESCHEDULE_INFO;
+
         const pendingOverdue = rows.filter(r => {
           const status = String(r.BOOKING_STATUS || '').toLowerCase();
           if (status !== 'pending') return false;
@@ -207,6 +219,24 @@ export function StatsOverview() {
           return d >= startOfToday; // today and future
         }).length;
         const pendingAll = pendingOverdue + pendingUpcoming;
+
+        // Pending Reschedules breakdown
+        const pendingResOverdue = rows.filter(r => isPendingRes(r) && (() => {
+          const iso = tryParseDateString(r.DATE_OF_APPOINTMENT); if (!iso) return false; const d = new Date(iso); return d < startOfToday;
+        })()).length;
+        const pendingResUpcoming = rows.filter(r => isPendingRes(r) && (() => {
+          const iso = tryParseDateString(r.DATE_OF_APPOINTMENT); if (!iso) return false; const d = new Date(iso); return d >= startOfToday;
+        })()).length;
+        const pendingResAll = pendingResOverdue + pendingResUpcoming;
+
+        // Pending Non-Reschedules breakdown
+        const pendingNonResOverdue = rows.filter(r => isPendingNonRes(r) && (() => {
+          const iso = tryParseDateString(r.DATE_OF_APPOINTMENT); if (!iso) return false; const d = new Date(iso); return d < startOfToday;
+        })()).length;
+        const pendingNonResUpcoming = rows.filter(r => isPendingNonRes(r) && (() => {
+          const iso = tryParseDateString(r.DATE_OF_APPOINTMENT); if (!iso) return false; const d = new Date(iso); return d >= startOfToday;
+        })()).length;
+        const pendingNonResAll = pendingNonResOverdue + pendingNonResUpcoming;
 
         const pct = (curr, prev) => {
           if (prev === 0) return curr > 0 ? 100 : 0;
@@ -226,6 +256,12 @@ export function StatsOverview() {
           pendingAll,
           pendingUpcoming,
           pendingOverdue,
+          pendingResAll,
+          pendingResUpcoming,
+          pendingResOverdue,
+          pendingNonResAll,
+          pendingNonResUpcoming,
+          pendingNonResOverdue,
           deltas: {
             // Upcoming (scheduled)
             upcomingToday: pct(todayCount, yesterdayCount),
@@ -266,10 +302,22 @@ export function StatsOverview() {
             upcoming: { today: stats.upcomingToday, sevenDays: stats.upcoming7d, month: stats.upcomingMonth },
             completed: { d7: stats.completed7d, d30: stats.completed30d },
             approvedThisMonth: stats.approvedThisMonth,
-            pendingToday: stats.pendingToday,
+            pending: {
+              all: stats.pendingAll,
+              upcoming: stats.pendingUpcoming,
+              overdue: stats.pendingOverdue,
+              resOnly: stats.pendingResAll,
+              resUpcoming: stats.pendingResUpcoming,
+              resOverdue: stats.pendingResOverdue,
+              nonResAll: stats.pendingNonResAll,
+              nonResUpcoming: stats.pendingNonResUpcoming,
+              nonResOverdue: stats.pendingNonResOverdue,
+            },
             filters: {
               completedRange,
               upcomingRange,
+              pendingScope,
+              pendingResScope,
               todayStr,
             }
           }
@@ -357,7 +405,16 @@ export function StatsOverview() {
     },
     {
       icon: <FaCalendarCheck />,
-      value: loading ? '…' : (pendingScope === 'overdue' ? stats.pendingOverdue : pendingScope === 'upcoming' ? stats.pendingUpcoming : stats.pendingAll),
+      value: loading ? '…' : (() => {
+        const base = pendingScope === 'overdue' ? 'Overdue' : pendingScope === 'upcoming' ? 'Upcoming' : 'All';
+        if (pendingResScope === 'only') {
+          return base === 'Overdue' ? stats.pendingResOverdue : base === 'Upcoming' ? stats.pendingResUpcoming : stats.pendingResAll;
+        }
+        if (pendingResScope === 'exclude') {
+          return base === 'Overdue' ? stats.pendingNonResOverdue : base === 'Upcoming' ? stats.pendingNonResUpcoming : stats.pendingNonResAll;
+        }
+        return base === 'Overdue' ? stats.pendingOverdue : base === 'Upcoming' ? stats.pendingUpcoming : stats.pendingAll;
+      })(),
       label: 'Pending Appointments',
       color: 'pink',
       metaLeft: (
@@ -369,7 +426,7 @@ export function StatsOverview() {
             background: 'transparent',
             border: '1px solid var(--border, #e5e7eb)',
             borderRadius: 6,
-            padding: '2px 6px',
+            padding: '1px 5px',
             fontSize: 12,
           }}
         >
@@ -379,12 +436,32 @@ export function StatsOverview() {
         </select>
       ),
       metaRight: (
-        <button
-          className={styles.linkBtn}
-          onClick={() => navigate('/appointment-management?status=Pending')}
-        >
-          Manage Pending →
-        </button>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <select
+            value={pendingResScope}
+            onChange={(e) => setPendingResScope(e.target.value)}
+            aria-label="Pending reschedule filter"
+            title="Include only reschedules or exclude them"
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--border, #e5e7eb)',
+              borderRadius: 6,
+              padding: '1px 5px',
+              fontSize: 12,
+            }}
+          >
+            <option value="all">All</option>
+            <option value="only">Reschedules Only</option>
+            <option value="exclude">Exclude Reschedules</option>
+          </select>
+          <button
+            className={styles.linkBtn}
+            onClick={() => navigate('/appointment-management?status=Pending')}
+            style={{ whiteSpace: 'nowrap' }}
+          >
+            Manage Pending →
+          </button>
+        </div>
       ),
     },
   ];

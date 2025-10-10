@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import styles from './Appointments.SettingsPage.module.css';
 import { onAuthStateChanged } from 'firebase/auth';
 import authService from '/src/services/AuthService';
 import { useToast } from '/src/components/shared/toast/ToastProvider.jsx';
 import appointmentsService from '/src/services/AppointmentsService';
+import ScheduleCalendar from '/src/components/user/bookAppointment/ScheduleCalendar';
 import singleServicesService from '/src/services/SingleServicesService';
 import servicePackagesService from '/src/services/ServicePackagesService';
 
@@ -25,6 +27,16 @@ export function AppointmentsSettingsPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelSubmitting, setCancelSubmitting] = useState(false);
   const [policy, setPolicy] = useState({ cancelCountCycle: 0, cooldownUntil: '' });
+
+  // Reschedule state
+  const [resRow, setResRow] = useState(null);
+  const [resScheduleOpen, setResScheduleOpen] = useState(false);
+  const [resDate, setResDate] = useState('');
+  const [resTime, setResTime] = useState('');
+  const [resActiveItem, setResActiveItem] = useState(null); // { availability, capacity }
+  const [resConfirmOpen, setResConfirmOpen] = useState(false);
+  const [resSubmitting, setResSubmitting] = useState(false);
+  const [resReason, setResReason] = useState('');
 
   const formatDate = (isoDate) => {
     if (!isoDate) return '';
@@ -111,6 +123,8 @@ export function AppointmentsSettingsPage() {
           const note = r.SPECIAL_INSTRUCTIONS || r.CHIEF_COMPLAINT || '';
           const refId = r.APPT_ID || r.id;
           const fullName = [r.FIRST_NAME, r.LAST_NAME].filter(Boolean).join(' ');
+          const capacity = Number(meta?.SLOT ?? 1) || 1;
+          const availability = meta?.AVAILABILITY || '';
 
           return {
             id: refId,
@@ -127,6 +141,8 @@ export function AppointmentsSettingsPage() {
             phone: r.PHONE || '',
             serviceType: isPackage ? 'Package' : 'Service',
             serviceId: String(serviceId),
+            availability,
+            capacity,
             birthday: r.BIRTHDAY || '',
             gender: r.GENDER || '',
             complaint: r.CHIEF_COMPLAINT || '',
@@ -137,6 +153,7 @@ export function AppointmentsSettingsPage() {
             proofUrl: r.PROOF || r.proof || '',
             feedback: r.FEEDBACK || null,
             cancelInfo: r.CANCELLATION || r.CANCEL_INFO || (r.CANCEL_REASON ? { reason: r.CANCEL_REASON } : null),
+            rescheduleInfo: r.RESCHEDULE_INFO || null,
           };
         });
 
@@ -290,6 +307,69 @@ export function AppointmentsSettingsPage() {
     return s === 'pending' || s === 'approved';
   };
 
+  const canReschedule = (row) => {
+    const s = String(row.status || '').toLowerCase();
+    return s === 'pending' || s === 'approved';
+  };
+
+  const requestReschedule = (row) => {
+    // Build minimal activeItem shape for ScheduleCalendar
+    const active = {
+      availability: row.availability || '',
+      capacity: Number(row.capacity ?? 1) || 1,
+    };
+    setResActiveItem(active);
+    setResRow(row);
+    setResDate(row.date || '');
+    setResTime(row.time || '');
+    setResScheduleOpen(true);
+  };
+
+  const confirmReschedule = async () => {
+    if (!resRow || !resDate || !resTime) { setResConfirmOpen(false); return; }
+    try {
+      setResSubmitting(true);
+      const payload = {
+        serviceId: resRow.serviceId,
+        oldDate: resRow.date,
+        oldTime: resRow.time,
+        newDate: resDate,
+        newTime: resTime,
+        capacity: Number(resRow.capacity ?? 1) || 1,
+        reason: resReason || '',
+      };
+      const res = await appointmentsService.reschedule(resRow.id, payload, user?.uid || '');
+      // Update table row
+      const isApproved = String(resRow.status || '').toLowerCase().startsWith('approv');
+      setItems((prev) => prev.map((it) => it.id === resRow.id ? {
+        ...it,
+        date: resDate,
+        time: resTime,
+        displayDate: formatDate(resDate),
+        displayTime: formatTime(resTime),
+        status: isApproved ? 'Rescheduled' : 'Pending',
+        rescheduleInfo: { ...(it.rescheduleInfo || {}), reason: resReason || '', at: new Date().toISOString(), by: user?.uid || '' },
+      } : it));
+      // Update policy UI
+      if (isApproved && res && (typeof res.remaining === 'number' || res.cooldownUntil)) {
+        const remain = typeof res.remaining === 'number' ? res.remaining : Math.max(0, 3 - ((policy.cancelCountCycle || 0) + 1));
+        setPolicy({ cancelCountCycle: 3 - remain, cooldownUntil: res.cooldownUntil || '' });
+        const msg = res.cooldownUntil ? 'You reached the limit. You cannot book for 3 days.' : `${remain} chance${remain === 1 ? '' : 's'} left to cancel or reschedule.`;
+        try { show({ type: res.cooldownUntil ? 'warning' : 'info', title: 'Policy updated', message: msg }); } catch (_) {}
+      }
+      try { show({ type: 'success', title: 'Rescheduled', message: isApproved ? 'Your appointment has been rescheduled. One chance was deducted.' : 'Your appointment has been rescheduled. No chances deducted for pending appointments.' }); } catch (_) {}
+  setResConfirmOpen(false);
+  setResScheduleOpen(false);
+      setResRow(null);
+      setResReason('');
+    } catch (e) {
+      console.error(e);
+      alert(e?.message || 'Unable to reschedule. The selected slot may be full.');
+    } finally {
+      setResSubmitting(false);
+    }
+  };
+
   return (
     <section className={styles.card}>
       <div className={styles.header}>
@@ -403,7 +483,10 @@ export function AppointmentsSettingsPage() {
                     </td>
                     <td className={styles.actionsCell}>
                       {canCancel(row) ? (
-                        <button type="button" className={styles.btnDanger} onClick={(e) => { e.stopPropagation(); requestCancel(row); }}>Cancel Appointment</button>
+                        <>
+                          <button type="button" className={styles.btnGhost} onClick={(e) => { e.stopPropagation(); requestReschedule(row); }}>Reschedule</button>
+                          <button type="button" className={styles.btnDanger} onClick={(e) => { e.stopPropagation(); requestCancel(row); }}>Cancel</button>
+                        </>
                       ) : (
                         <span className={styles.subCell}>—</span>
                       )}
@@ -500,6 +583,9 @@ export function AppointmentsSettingsPage() {
                         {canCancel(row) && (
                           <div className={styles.metaBlock}>
                             <div className={styles.metaItem}>
+                              <button type="button" className={styles.btnGhost} onClick={(e) => { e.stopPropagation(); requestReschedule(row); }}>Reschedule</button>
+                            </div>
+                            <div className={styles.metaItem}>
                               <button type="button" className={styles.btnDanger} onClick={(e) => { e.stopPropagation(); requestCancel(row); }}>Cancel Appointment</button>
                             </div>
                           </div>
@@ -522,6 +608,17 @@ export function AppointmentsSettingsPage() {
                                   alt="Appointment proof"
                                   style={{ maxHeight: 100, borderRadius: 6, border: '1px solid #ddd' }}
                                 />
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                        {row.rescheduleInfo && (
+                          <div className={styles.notesBlock}>
+                            <div className={styles.noteLine}>
+                              <span className={styles.label}>Reschedule</span>
+                              <span className={styles.value}>
+                                {row.rescheduleInfo.reason ? `Reason: ${row.rescheduleInfo.reason}` : 'No reason provided'}
+                                {row.rescheduleInfo.at ? ` • at ${row.rescheduleInfo.at}` : ''}
                               </span>
                             </div>
                           </div>
@@ -557,6 +654,62 @@ export function AppointmentsSettingsPage() {
           </div>
         </div>
       )}
+
+      {resScheduleOpen && resRow && (
+        <ScheduleCalendar
+          open={resScheduleOpen}
+          onClose={() => setResScheduleOpen(false)}
+          onConfirm={() => setResConfirmOpen(true)}
+          activeItem={resActiveItem}
+          serviceKey={resRow.serviceId}
+          date={resDate}
+          setDate={setResDate}
+          time={resTime}
+          setTime={setResTime}
+        />
+      )}
+
+      {resConfirmOpen && resRow && (() => {
+        const node = (
+          <div className={`${styles.modalOverlay} ${styles.modalOverlayFront}`}>
+            <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="resTitle">
+              <h3 id="resTitle">Confirm reschedule?</h3>
+              {String(resRow.status || '').toLowerCase().startsWith('approv') ? (
+                <p>
+                  Rescheduling an approved appointment will deduct one chance from your policy. You currently have{' '}
+                  {Math.max(0, 3 - (policy.cancelCountCycle || 0))}
+                  {' '}chance{Math.max(0, 3 - (policy.cancelCountCycle || 0)) === 1 ? '' : 's'} left.
+                </p>
+              ) : (
+                <p>
+                  This appointment is still pending. Rescheduling pending appointments does not deduct chances. The status will remain Pending until approved.
+                </p>
+              )}
+              <p>
+                New schedule: <strong>{resDate}</strong> at <strong>{resTime}</strong>
+              </p>
+              <div className={styles.modalBody}>
+                <label className={styles.label} htmlFor="resReason">Reason (optional)</label>
+                <textarea
+                  id="resReason"
+                  className={styles.cancelTextarea}
+                  placeholder="Reason for rescheduling (optional)"
+                  value={resReason}
+                  onChange={(e) => setResReason(e.target.value)}
+                  maxLength={1000}
+                />
+              </div>
+              <div className={styles.modalActions}>
+                <button type="button" className={styles.btnGhost} onClick={() => setResConfirmOpen(false)} disabled={resSubmitting}>Cancel</button>
+                <button type="button" className={styles.btnPrimary} onClick={confirmReschedule} disabled={resSubmitting}>
+                  {resSubmitting ? 'Rescheduling…' : 'Confirm Reschedule'}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+        try { return createPortal(node, document.body); } catch { return node; }
+      })()}
     </section>
   );
 }

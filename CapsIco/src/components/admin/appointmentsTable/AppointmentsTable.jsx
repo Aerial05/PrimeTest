@@ -95,6 +95,7 @@ function calcAge(birthday) {
 
 function toStatusLabel(s) {
   const v = String(s || '').toLowerCase();
+  if (v === 'rescheduled') return 'Approved Reschedule';
   if (v === 'approved') return 'Approved';
   if (v === 'declined') return 'Declined';
   if (v === 'successful') return 'Successful';
@@ -102,7 +103,7 @@ function toStatusLabel(s) {
   return 'Pending';
 }
 
-export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', initialOverdue = false, initialAttention = false }) {
+export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', initialOverdue = false, initialAttention = false, initialExcludeResched = false }) {
   // Toggle whether proof is required to mark an appointment as Successful
   const requireProofForSuccess = true;
   const [rows, setRows] = useState([]);
@@ -131,8 +132,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [datePreset, setDatePreset] = useState(''); // '', next7, thismonth
   const [filterOverdue, setFilterOverdue] = useState(initialOverdue);
   const [filterAttention, setFilterAttention] = useState(initialAttention);
-  const [didApplyInitialDates, setDidApplyInitialDates] = useState(false);
-  const [didApplyFromQuery, setDidApplyFromQuery] = useState(false);
+  const [excludeResched, setExcludeResched] = useState(initialExcludeResched);
+  // Track last applied URL search to avoid stale filters; but we will re-apply on each change
+  const [lastSearchSig, setLastSearchSig] = useState('');
   const location = useLocation();
   // Insert Proof state
   const [proofFile, setProofFile] = useState(null);
@@ -191,6 +193,14 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
           ? (pkgNameById[String(svcId)] || svcId || '—')
           : (singleNameById[String(svcId)] || svcId || '—');
         const rawDate = r.DATE_OF_APPOINTMENT || '';
+        // Determine status label with reschedule-aware override
+        let baseStatus = toStatusLabel(r.BOOKING_STATUS);
+        const hasResUI = Boolean(r.RESCHEDULE_INFO || r.rescheduleInfo || r.RESCHEDULED_AT);
+        const rawStatusLower = String(r.BOOKING_STATUS || '').trim().toLowerCase();
+        if (hasResUI) {
+          if (baseStatus === 'Pending') baseStatus = 'Pending Reschedule';
+          if (baseStatus === 'Approved' || baseStatus === 'Successful' || rawStatusLower === 'rescheduled') baseStatus = 'Approved Reschedule';
+        }
         return {
           id,
           patient: [r.FIRST_NAME, r.LAST_NAME].filter(Boolean).join(' ') || '—',
@@ -202,7 +212,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
           date: rawDate || '—',
           dateDisplay: toLongDate(rawDate || ''),
           time: r.TIME_SLOT || '—',
-          status: toStatusLabel(r.BOOKING_STATUS),
+          status: baseStatus,
           raw: r,
         };
       });
@@ -232,19 +242,19 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   // Apply initial date filters passed via a window event
   useEffect(() => {
     const onInitDates = (e) => {
-      if (didApplyInitialDates || didApplyFromQuery) return;
       try {
-        const { from, to, overdue, attention } = e.detail || {};
-        if (from) setDateFrom(from);
-        if (to) setDateTo(to);
-        if (overdue === true) setFilterOverdue(true);
-        if (attention === true) setFilterAttention(true);
-        setDidApplyInitialDates(true);
-      } catch(_){ /* ignore */ }
+        const { from, to, overdue, attention, excludeResched: exr } = e.detail || {};
+        setDateFrom(from ?? '');
+        setDateTo(to ?? '');
+        setDatePreset('');
+        setFilterOverdue(Boolean(overdue));
+        setFilterAttention(Boolean(attention));
+        setExcludeResched(Boolean(exr));
+      } catch(_) { /* ignore */ }
     };
     window.addEventListener('appointments:set-initial-dates', onInitDates);
     return () => window.removeEventListener('appointments:set-initial-dates', onInitDates);
-  }, [didApplyInitialDates, didApplyFromQuery]);
+  }, []);
 
   // Derive overdue status for each row
   const isRowOverdue = (r) => {
@@ -303,36 +313,44 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   // Parse URL query parameters to set filters and date presets
   useEffect(() => {
     const qs = new URLSearchParams(location.search || '');
-    let applied = false;
+    // Create a signature of the relevant params to detect changes
+    const sig = location.search || '';
+    if (sig === lastSearchSig) return;
+    setLastSearchSig(sig);
     // status
     const qStatus = (qs.get('status') || '').toLowerCase();
-    if (qStatus) {
-      const map = { approved: 'Approved', pending: 'Pending', declined: 'Declined', successful: 'Successful' };
-      const statusVal = map[qStatus] || '';
-      if (statusVal) {
-        setFilterStatus(statusVal);
-        applied = true;
-      }
-    }
+    const map = {
+      approved: 'Approved',
+      pending: 'Pending',
+      'pending-reschedule': 'Pending Reschedule',
+      'approved-reschedule': 'Approved Reschedule',
+      rescheduled: 'Rescheduled (Any)',
+      declined: 'Declined',
+      successful: 'Successful',
+    };
+    const statusVal = map[qStatus] || '';
+    setFilterStatus(statusVal);
     // range preset
     const qRange = (qs.get('range') || '').toLowerCase();
     if (qRange === 'next7' || qRange === 'thismonth') {
       setDatePreset(qRange);
-      applied = true;
     } else {
       // explicit dates
       const from = qs.get('from');
       const to = qs.get('to');
-      if (from || to) {
-        setDatePreset('');
-        if (from) setDateFrom(from);
-        if (to) setDateTo(to);
-        applied = true;
-      }
+      setDatePreset('');
+      setDateFrom(from || '');
+      setDateTo(to || '');
     }
-    if (applied) setDidApplyFromQuery(true);
+    // Overdue / attention flags
+    const qOverdue = qs.get('overdue');
+    setFilterOverdue(qOverdue === '1');
+    const qAttention = qs.get('attention');
+    setFilterAttention(qAttention === '1');
+    const qExRes = qs.get('excludeResched');
+    setExcludeResched(qExRes === '1');
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [location.search]);
+  }, [location.search, lastSearchSig]);
 
   const setStatusLocal = (id, status) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
@@ -407,7 +425,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         setConfirmSend({
           open: true,
           title: 'Send email?',
-          message: 'Do you want to send an email notification now?',
+          message: backend === 'approved' && selected.raw?.RESCHEDULE_INFO?.newDate
+            ? 'Send an approval email that includes the new rescheduled date/time?'
+            : 'Do you want to send an email notification now?',
           onConfirm: async () => {
             try {
               const res = await sendAppointmentEmailCallable({
@@ -415,8 +435,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                 status: backend,
                 serviceName: selected.serviceName,
                 serviceType: selected.type,
-                date: selected.date || selected.raw?.DATE_OF_APPOINTMENT,
-                time: selected.time || selected.raw?.TIME_SLOT,
+                // If rescheduled, send the latest scheduled values
+                date: (selected.raw?.RESCHEDULE_INFO?.newDate || selected.date || selected.raw?.DATE_OF_APPOINTMENT),
+                time: (selected.raw?.RESCHEDULE_INFO?.newTime || selected.time || selected.raw?.TIME_SLOT),
                 serviceId: selected.raw?.SERVICE_ID,
                 ...(backend === 'declined' && declineReason ? { declineReason } : {}),
               });
@@ -498,10 +519,38 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
     const from = dateFrom ? new Date(dateFrom) : null;
     const to = dateTo ? new Date(dateTo) : null;
     return rows.filter(r => {
-      if (filterStatus && r.status !== filterStatus) return false;
+      const hasRes = Boolean(r.raw?.RESCHEDULE_INFO || r.raw?.rescheduleInfo || r.raw?.RESCHEDULED_AT);
+      const statusLower = String(r.status || '').toLowerCase();
+      const rawStatusLower = String(r.raw?.BOOKING_STATUS || '').trim().toLowerCase();
+      // Special handling for reschedule-focused filters
+      if (filterStatus === 'Pending Reschedule') {
+        const labelIsPendingRes = statusLower === 'pending reschedule';
+        const isPendingRaw = rawStatusLower === 'pending';
+        if (!((labelIsPendingRes) || (isPendingRaw && hasRes))) return false;
+      } else if (filterStatus === 'Approved Reschedule') {
+        const labelIsApprovedRes = statusLower === 'approved reschedule';
+        const isApprovedLike = (statusLower === 'approved' || statusLower === 'successful');
+        const isRescheduledRaw = rawStatusLower === 'rescheduled';
+        // Ensure it's not pending when counting raw rescheduled (avoid overlap)
+        if (!(labelIsApprovedRes || (isApprovedLike && hasRes) || (isRescheduledRaw && rawStatusLower !== 'pending'))) return false;
+      } else if (filterStatus === 'Rescheduled (Any)') {
+        if (!(hasRes || rawStatusLower === 'rescheduled')) return false;
+      } else {
+        if (filterStatus && r.status !== filterStatus) return false;
+      }
+      // Exclude rescheduled rows from generic Pending/Attention scopes when requested
+      if (excludeResched) {
+        if (filterStatus === '' || filterStatus === 'Pending') {
+          if ((statusLower === 'pending' || statusLower === 'pending reschedule') && hasRes) return false;
+        }
+      }
       if (filterType && r.type !== filterType) return false;
       if (filterOverdue && !isRowOverdue(r)) return false;
-      if (filterAttention && !isRowAttention(r)) return false;
+      if (filterAttention) {
+        const isPendingLike = (statusLower === 'pending' || statusLower === 'pending reschedule' || rawStatusLower === 'pending');
+        const isAttention = ((isPendingLike && !(excludeResched && hasRes)) || isRowOverdue(r));
+        if (!isAttention) return false;
+      }
       if (s) {
         const hay = `${r.patient} ${r.email} ${r.serviceName} ${r.type} ${r.status}`.toLowerCase();
         if (!hay.includes(s)) return false;
@@ -553,6 +602,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
             <option value="">All Statuses</option>
             <option value="Approved">Approved</option>
             <option value="Pending">Pending</option>
+            <option value="Pending Reschedule">Pending Reschedule</option>
+            <option value="Approved Reschedule">Approved Reschedule</option>
+            <option value="Rescheduled (Any)">Rescheduled (Any)</option>
             <option value="Declined">Declined</option>
             <option value="Successful">Successful</option>
             <option value="Cancelled">Cancelled</option>
@@ -608,7 +660,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
           />
           <button className={`${styles.btn} ${styles.btnLight}`} onClick={clearFilters}>Reset</button>
         </div>
-        <div className={styles.meta}>{filteredRows.length} / {rows.length} shown</div>
+        <div className={styles.meta}>{pageRows.length} / {filteredRows.length} shown</div>
       </div>
       <div className={styles.tableWrapper}>
         {loading ? (
@@ -622,7 +674,6 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
           <thead>
             <tr>
               <th className={styles.colPatient}>Patient</th>
-              <th className={styles.colEmail}>Email</th>
               <th className={styles.colAge}>Age</th>
               <th className={styles.colGender}>Gender</th>
               <th className={styles.colType}>Type</th>
@@ -638,7 +689,6 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               <React.Fragment key={row.id}>
                 <tr>
                   <td className={`${styles.cellEllipsis} ${styles.colPatient}`}>{row.patient}</td>
-                  <td className={`${styles.cellEllipsis} ${styles.colEmail}`}>{row.email}</td>
                   <td className={styles.colAge}>{row.age}</td>
                   <td className={styles.colGender}>{row.gender}</td>
                   <td className={styles.colType}>{row.type}</td>
@@ -646,27 +696,43 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   <td className={styles.colDate}>{row.dateDisplay || toLongDate(row.date)}</td>
                   <td className={styles.colTime}>{to12h(row.time)}</td>
                   <td className={styles.colStatus}>
-                    <span
-                      className={`${styles.status} ${
-                        row.status === 'Approved'
-                          ? styles.approved
-                          : row.status === 'Declined'
-                          ? styles.declined
-                          : row.status === 'Successful'
-                          ? styles.successful
-                          : styles.pending
-                      }`}
-                      title={
-                        String(row.status).toLowerCase() === 'cancelled'
-                          ? (row.raw?.CANCELLATION?.reason || row.raw?.CANCEL_INFO?.reason || row.raw?.CANCEL_REASON || 'Cancelled')
-                          : undefined
-                      }
-                    >
-                      {row.status}
+                    <span className={styles.statusGroup}>
+                      <span
+                        className={`${styles.status} ${
+                          row.status === 'Approved'
+                            ? styles.approved
+                            : row.status === 'Declined'
+                            ? styles.declined
+                            : row.status === 'Successful'
+                            ? styles.successful
+                            : styles.pending
+                        }`}
+                        title={
+                          String(row.status).toLowerCase() === 'cancelled'
+                            ? (row.raw?.CANCELLATION?.reason || row.raw?.CANCEL_INFO?.reason || row.raw?.CANCEL_REASON || 'Cancelled')
+                            : undefined
+                        }
+                      >
+                        {row.status}
+                      </span>
+                      {row.raw?.RESCHEDULE_INFO ? (
+                        <>
+                          <span aria-hidden style={{ margin: '0 6px', color: '#cbd5e1' }}>•</span>
+                          <span
+                            className={styles.reschedBadge}
+                            title={`Rescheduled: ${toLongDate(row.raw?.RESCHEDULE_INFO?.oldDate || row.date)} ${row.raw?.RESCHEDULE_INFO?.oldTime ? '• ' + to12h(row.raw?.RESCHEDULE_INFO?.oldTime) : ''} → ${toLongDate(row.raw?.RESCHEDULE_INFO?.newDate || row.date)} ${row.raw?.RESCHEDULE_INFO?.newTime ? '• ' + to12h(row.raw?.RESCHEDULE_INFO?.newTime) : ''}`}
+                          >
+                            Rescheduled
+                          </span>
+                        </>
+                      ) : null}
+                      {(['Pending','Approved'].includes(row.status) && isRowOverdue(row)) ? (
+                        <>
+                          <span aria-hidden style={{ margin: '0 6px', color: '#cbd5e1' }}>•</span>
+                          <span className={styles.overdueBadge} title="This appointment is past its scheduled date/time">Overdue</span>
+                        </>
+                      ) : null}
                     </span>
-                    {(['Pending','Approved'].includes(row.status) && isRowOverdue(row)) ? (
-                      <span className={styles.overdueBadge} title="This appointment is past its scheduled date/time">Overdue</span>
-                    ) : null}
                   </td>
                   <td className={`${styles.actions} ${styles.colActions}`}>
                     <button
@@ -761,6 +827,15 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                     <div><span>Time</span><strong>{to12h(selected.time)}</strong></div>
                     <div><span>Status</span><strong>{selected.status}</strong></div>
                   </div>
+                  {selected.raw?.RESCHEDULE_INFO && (
+                    <div className={styles.detailGrid} style={{ marginBottom: 0 }}>
+                      <div><span>Reschedule From</span><strong>{toLongDate(selected.raw?.RESCHEDULE_INFO?.oldDate || selected.raw?.DATE_OF_APPOINTMENT)} • {to12h(selected.raw?.RESCHEDULE_INFO?.oldTime || selected.raw?.TIME_SLOT)}</strong></div>
+                      <div><span>Reschedule To</span><strong>{toLongDate(selected.raw?.RESCHEDULE_INFO?.newDate || selected.raw?.DATE_OF_APPOINTMENT)} • {to12h(selected.raw?.RESCHEDULE_INFO?.newTime || selected.raw?.TIME_SLOT)}</strong></div>
+                      {selected.raw?.RESCHEDULE_INFO?.reason && (
+                        <div><span>Reason</span><strong style={{ fontSize: '13px', lineHeight: '1.5' }}>{selected.raw?.RESCHEDULE_INFO?.reason}</strong></div>
+                      )}
+                    </div>
+                  )}
                   {String(selected.status).toLowerCase() === 'cancelled' ? (
                     <div className={styles.detailGrid} style={{ marginBottom: 0 }}>
                       <div>
@@ -933,6 +1008,49 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               >
                 {modalSaving ? 'Submitting…' : 'Submit & Email'}
               </button>
+              {selected.raw?.RESCHEDULE_INFO && String(selected.status || '').toLowerCase() === 'pending' && (
+                <button
+                  className={`${styles.btn} ${styles.btnApprove}`}
+                  onClick={async () => {
+                    try {
+                      setModalSaving(true);
+                      await appointmentsService.updateStatus(selected.id, 'approved');
+                      setStatusLocal(selected.id, 'Approved');
+                      setConfirmSend({
+                        open: true,
+                        title: 'Send reschedule approval email?',
+                        message: 'Send an email confirming the rescheduled appointment?',
+                        onConfirm: async () => {
+                          try {
+                            const res = await sendAppointmentEmailCallable({
+                              apptId: selected.id,
+                              status: 'approved',
+                              serviceName: selected.serviceName,
+                              serviceType: selected.type,
+                              date: (selected.raw?.RESCHEDULE_INFO?.newDate || selected.date || selected.raw?.DATE_OF_APPOINTMENT),
+                              time: (selected.raw?.RESCHEDULE_INFO?.newTime || selected.time || selected.raw?.TIME_SLOT),
+                              serviceId: selected.raw?.SERVICE_ID,
+                              record: { ...selected.raw },
+                            });
+                            if (res && res.ok) showPopup({ title: 'Email sent', message: 'Reschedule approval email sent.', type: 'info' });
+                          } catch (e) {
+                            console.warn('sendAppointmentEmail callable failed', e);
+                          } finally {
+                            setConfirmSend({ open: false, onConfirm: null, title: '', message: '' });
+                            setModalSaving(false);
+                          }
+                        }
+                      });
+                    } catch (e) {
+                      showPopup({ title: 'Update failed', message: 'Failed to approve rescheduled appointment.', type: 'error' });
+                      setModalSaving(false);
+                    }
+                  }}
+                  style={{ padding: '8px 14px', fontSize: '13px' }}
+                >
+                  Approve Reschedule
+                </button>
+              )}
               <button 
                 className={`${styles.btn} ${styles.btnDelete}`} 
                 onClick={() => onDelete(selected.id)}

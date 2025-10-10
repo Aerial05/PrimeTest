@@ -7,8 +7,8 @@ export function Footer() {
       
       <div className={styles.footerGrid}>
         <div>
-          <h3 className={styles.brand}>JRAE</h3>
-          <p>JRAE</p>
+          <h3 className={styles.brand}>JREA</h3>
+          <p>JREA</p>
           <p>Excellence and Trusted Care</p>
         </div>
 
@@ -49,7 +49,7 @@ export function Footer() {
       </div>
 
       <div className={styles.footerBottom}>
-  <p>© 2021 JRAE All Rights Reserved</p>
+  <p>© 2021 JREA All Rights Reserved</p>
       </div>
     </footer>
   );

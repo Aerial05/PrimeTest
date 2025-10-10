@@ -261,6 +261,97 @@ class AppointmentsService extends BaseFirebaseService {
   }
 
   /**
+   * Reschedule an appointment to a new date/time.
+   * - Checks capacity on the new slot (reserves it)
+   * - Releases the old slot and updates the appointment record
+   * - Increments user's cancellation/reschedule policy counter similar to cancel()
+   * Returns { remaining, cooldownUntil } from policy.
+   */
+  async reschedule(id, { serviceId, oldDate, oldTime, newDate, newTime, capacity = 1, reason = '' }, userId = '') {
+    if (!id) throw new Error('Missing appointment id');
+    if (!serviceId || !newDate || !newTime) throw new Error('Missing new schedule details');
+    // Read the appointment to decide policy behavior based on current status
+    const appt = await this.getById(id);
+    if (!appt) throw new Error('Appointment not found');
+    const rawStatus = String(appt.BOOKING_STATUS || appt.STATUS || '').trim().toLowerCase();
+    const isPending = /pend/i.test(rawStatus);
+    const isApproved = /approv/i.test(rawStatus);
+    // 1) Reserve the new slot first
+    const reserved = await this.reserveSlot(serviceId, newDate, newTime, capacity);
+    if (!reserved) throw new Error('The selected new time is fully booked. Please choose another time.');
+    let success = false;
+    let policyInfo = { remaining: null, cooldownUntil: '' };
+    try {
+      const now = new Date().toISOString();
+      // 2) Update appointment record
+      await update(ref(this.database, this.path(id)), {
+        DATE_OF_APPOINTMENT: newDate,
+        TIME_SLOT: newTime,
+        UPDATED_AT: now,
+        RESCHEDULED_AT: now,
+        // Keep pending appointments in 'pending' status; only mark approved ones as 'rescheduled'
+        BOOKING_STATUS: isApproved ? 'rescheduled' : (appt.BOOKING_STATUS || 'pending'),
+        RESCHEDULE_INFO: {
+          reason: String(reason || '').slice(0, 1000),
+          by: userId || '',
+          at: now,
+          oldDate: oldDate || appt.DATE_OF_APPOINTMENT || '',
+          oldTime: oldTime || appt.TIME_SLOT || '',
+          newDate: newDate,
+          newTime: newTime,
+          source: isApproved ? 'from-approved' : 'from-pending',
+        },
+      });
+      // 3) Update slot index mapping
+      try {
+        await set(ref(this.database, this.bySlotPath(serviceId, newDate, newTime, id)), true);
+        if (oldDate && oldTime) {
+          await remove(ref(this.database, this.bySlotPath(serviceId, oldDate, oldTime, id)));
+        }
+      } catch (_) {}
+      // 4) Release the old slot
+      try {
+        if (oldDate && oldTime) await this.releaseSlot(serviceId, oldDate, oldTime);
+      } catch (_) {}
+      // 5) Policy increment only when rescheduling an approved appointment
+      if (isApproved) {
+        try {
+          const uid = String(userId || '');
+          if (uid) {
+            const policyRef = ref(this.database, `users/${uid}/APPOINTMENT_POLICY`);
+            const nowMs = Date.now();
+            await runTransaction(policyRef, (current) => {
+              const policy = current && typeof current === 'object' ? current : {};
+              let cancelCount = Number(policy.cancelCountCycle || 0);
+              let cd = typeof policy.cooldownUntil === 'string' ? policy.cooldownUntil : '';
+              const cdMs = cd ? Date.parse(cd) : 0;
+              const isoNow = new Date(nowMs).toISOString();
+              if (cd && !Number.isNaN(cdMs) && cdMs > nowMs) {
+                // cooldown active: do not increment further
+                policyInfo = { remaining: 0, cooldownUntil: cd };
+                return policy;
+              }
+              if (cd && cdMs && cdMs <= nowMs) { cancelCount = 0; cd = ''; }
+              cancelCount = Math.min(3, cancelCount + 1);
+              if (cancelCount === 3) cd = new Date(nowMs + 3 * 24 * 60 * 60 * 1000).toISOString();
+              const remaining = Math.max(0, 3 - cancelCount);
+              policyInfo = { remaining, cooldownUntil: cd || '' };
+              return { cancelCountCycle: cancelCount, cooldownUntil: cd, updatedAt: isoNow };
+            });
+          }
+        } catch (_) {}
+      }
+      success = true;
+      return policyInfo;
+    } finally {
+      // If failed after reserving new slot, release the new slot to avoid leaks
+      if (!success) {
+        try { await this.releaseSlot(serviceId, newDate, newTime); } catch (_) {}
+      }
+    }
+  }
+
+  /**
    * Upload a proof image for an appointment and persist its URL under PROOF.
    * Expects FormData with field name 'proof' containing a File/Blob.
    * Returns { url } on success.

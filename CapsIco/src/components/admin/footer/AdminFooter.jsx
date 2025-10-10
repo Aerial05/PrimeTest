@@ -6,7 +6,7 @@ export function AdminFooter() {
       <div className={styles.container}>
         <div className={styles.left}>
           <span className={styles.dot} />
-          <span>JRAE Super Admin Console</span>
+          <span>JREA Super Admin Console</span>
         </div>
         <div className={styles.muted}>View-only tools for user data</div>
       </div>

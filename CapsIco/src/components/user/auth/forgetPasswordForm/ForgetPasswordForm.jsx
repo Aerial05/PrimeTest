@@ -30,7 +30,7 @@ export function ForgetPasswordForm({ onSwitch }) {
         <div className={styles.logo}>
           <Activity className={styles.logoIconLarge} />
           <h1>
-            JRAE
+            JREA
           </h1>
         </div>
         <p className={styles.tagline}>Reset your password</p>
