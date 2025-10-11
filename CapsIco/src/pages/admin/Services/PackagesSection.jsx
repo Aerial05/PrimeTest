@@ -194,11 +194,12 @@ export default function PackagesSection({
                 <label htmlFor="slot">Slots (capacity per schedule)</label>
                 <input
                   type="number"
-                  min="0"
+                  min="1"
                   id="slot"
                   name="slot"
                   value={form.slot}
                   onChange={onChange}
+                  required
                 />
               </div>
               <div className={styles.formGroupFull}>

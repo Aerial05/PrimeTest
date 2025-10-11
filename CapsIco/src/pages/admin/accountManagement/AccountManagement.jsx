@@ -8,6 +8,7 @@ import { ref, onValue, update as dbUpdate, remove as dbRemove, set as dbSet, get
 import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
 import authService from '@/services/AuthService';
 import activityLogService from '/src/services/ActivityLogService';
+import appointmentsService from '/src/services/AppointmentsService';
 
 export function AccountManagement() {
   const { show } = useToast();
@@ -18,6 +19,10 @@ export function AccountManagement() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(6);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [policyInfo, setPolicyInfo] = useState({ cancelCountCycle: 0, cooldownUntil: '', overrideRequests: [] });
+  const [policyLoading, setPolicyLoading] = useState(false);
+  const [policyError, setPolicyError] = useState('');
+  const [resetBusy, setResetBusy] = useState(false);
 
   // Filters (persist per admin)
   const uid = authService.currentUser?.uid || 'anon';
@@ -41,6 +46,58 @@ export function AccountManagement() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [showAdd, deleteTarget]);
+
+  // When opening Add/Edit modal with a selected user, load their appointment policy info
+  useEffect(() => {
+    const uid = selected?.id;
+    if (!showAdd || !uid) { setPolicyInfo({ cancelCountCycle: 0, cooldownUntil: '', overrideRequests: [] }); setPolicyError(''); return; }
+    setPolicyLoading(true);
+    setPolicyError('');
+    const policyRef = ref(usersDB, `users/${uid}/APPOINTMENT_POLICY`);
+    const off = onValue(policyRef, (snap) => {
+      const v = snap.val() || {};
+      const cc = Number(v.cancelCountCycle || 0) || 0;
+      const cd = typeof v.cooldownUntil === 'string' ? v.cooldownUntil : '';
+      const list = v.overrideRequests ? Object.values(v.overrideRequests) : [];
+      setPolicyInfo({ cancelCountCycle: cc, cooldownUntil: cd, overrideRequests: Array.isArray(list) ? list : Object.values(list || {}) });
+      setPolicyLoading(false);
+    }, (err) => {
+      setPolicyError('Failed to load appointment policy');
+      setPolicyLoading(false);
+    });
+    return () => off();
+  }, [showAdd, selected?.id]);
+
+  const resetUserChances = async (uid) => {
+    if (!uid) return;
+    setResetBusy(true);
+    try {
+      const now = new Date().toISOString();
+      const updates = {
+        cancelCountCycle: 0,
+        cooldownUntil: '',
+        updatedAt: now,
+      };
+      await dbUpdate(ref(usersDB, `users/${uid}/APPOINTMENT_POLICY`), updates);
+      // Optionally remove override requests under the user node
+      try { await dbRemove(ref(usersDB, `users/${uid}/APPOINTMENT_POLICY/overrideRequests`)); } catch (_) {}
+      try {
+        await activityLogService.log({
+          type: 'policy',
+          action: 'reset',
+          description: `Reset appointment chances for user ${uid}`,
+          targetId: uid,
+          targetName: `${selected?.lastName || ''}, ${selected?.firstName || ''}`.trim(),
+        });
+      } catch (_) {}
+      show({ type: 'success', title: 'Chances reset', message: 'User chances were reset. They can book again.' });
+    } catch (e) {
+      console.error('Failed to reset chances', e);
+      show({ type: 'error', title: 'Reset failed', message: 'Could not reset chances. Please try again.' });
+    } finally {
+      setResetBusy(false);
+    }
+  };
 
   // Utility: normalize various date formats (ISO string, ms, seconds) to ISO string
   const normalizeDate = (v) => {
@@ -311,11 +368,23 @@ export function AccountManagement() {
             onClick={() => setShowAdd(false)}
           >
             <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-              <AddAdminForm
-                mode={mode}
-                initialData={selected}
-                onClose={() => setShowAdd(false)}
-                onSubmit={async (data) => {
+              <div className={styles.modalContent}>
+                <div className={styles.modalHeader}>
+                  <h2>
+                    <span className={styles.modalHeaderIcon}>
+                      <i className={mode === 'edit' ? 'fas fa-user-edit' : 'fas fa-user-plus'}></i>
+                    </span>
+                    {mode === 'edit' ? 'Edit Account' : 'Add Account'}
+                  </h2>
+                  <button className={styles.btnClose} onClick={() => setShowAdd(false)} aria-label="Close">
+                    <i className="fas fa-times"></i>
+                  </button>
+                </div>
+                <AddAdminForm
+                  mode={mode}
+                  initialData={selected}
+                  onClose={() => setShowAdd(false)}
+                  onSubmit={async (data) => {
               // Persist account fields to Realtime DB; table auto-updates via onValue
               const uid = String(data.id || '').trim();
               if (!uid) {
@@ -356,7 +425,79 @@ export function AccountManagement() {
                 show({ type: 'error', title: 'Save failed', message: 'Failed to save changes. Please try again.' });
               }
                 }}
-              />
+                />
+                
+                {/* Appointment policy panel */}
+                {selected?.id && (
+                  <div className={styles.policyPanel}>
+                    <h4>Appointment Policy</h4>
+                    {policyLoading ? (
+                      <div className={styles.helpText}>Loading policy…</div>
+                    ) : policyError ? (
+                      <div className={styles.errorText}>{policyError}</div>
+                    ) : (
+                      <div className={styles.policyGrid}>
+                        <div className={styles.policyCard}>
+                          <h5>Usage & Status</h5>
+                          <div className={styles.policyMetric}>
+                            <span className={styles.policyLabel}>Chances used</span>
+                            <span className={`${styles.policyValue} ${policyInfo.cancelCountCycle >= 3 ? styles.policyValueWarning : ''}`}>
+                              {policyInfo.cancelCountCycle} / 3
+                            </span>
+                          </div>
+                          <div className={styles.policyMetric}>
+                            <span className={styles.policyLabel}>Chances left</span>
+                            <span className={`${styles.policyValue} ${policyInfo.cancelCountCycle >= 3 ? styles.policyValueWarning : styles.policyValueSuccess}`}>
+                              {Math.max(0, 3 - (policyInfo.cancelCountCycle || 0))}
+                            </span>
+                          </div>
+                          <div className={styles.policyMetric}>
+                            <span className={styles.policyLabel}>Cooldown until</span>
+                            <span className={styles.policyValue}>
+                              {policyInfo.cooldownUntil ? new Date(policyInfo.cooldownUntil).toLocaleString() : '—'}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className={styles.policyCard}>
+                          <h5>Override Request</h5>
+                          <div className={styles.reasonBox}>
+                            {(() => {
+                              const list = Array.isArray(policyInfo.overrideRequests) ? policyInfo.overrideRequests : [];
+                              if (!list.length) return <div className={styles.reasonEmpty}>No override request submitted</div>;
+                              const latest = [...list].sort((a,b) => String(b.at||'').localeCompare(String(a.at||'')))[0];
+                              return (
+                                <div>
+                                  <div className={styles.reasonContent}>
+                                    <strong>Action:</strong> {latest?.action || '—'}
+                                  </div>
+                                  <div className={styles.reasonContent} style={{ marginTop: '0.5rem' }}>
+                                    {latest?.reason || '—'}
+                                  </div>
+                                  <div className={styles.reasonMeta}>
+                                    {latest?.at ? new Date(latest.at).toLocaleString() : ''}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                          <div className={styles.resetActions}>
+                            <button
+                              className={styles.btnReset}
+                              onClick={() => resetUserChances(selected.id)}
+                              disabled={resetBusy}
+                            >
+                              <i className="fas fa-redo" style={{ marginRight: '0.5rem' }}></i>
+                              {resetBusy ? 'Resetting…' : 'Reset Chances'}
+                            </button>
+                            <span className={styles.helpText}>Clears cooldown & requests</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           </div>,
           document.body

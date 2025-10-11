@@ -170,11 +170,12 @@ export default function SingleServicesSection({
                 <label htmlFor="singleSlot">Slots (capacity per schedule)</label>
                 <input
                   type="number"
-                  min="0"
+                  min="1"
                   id="singleSlot"
                   name="singleSlot"
                   value={form.singleSlot}
                   onChange={onChange}
+                  required
                 />
               </div>
             </div>

@@ -78,12 +78,6 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
 
   return (
     <div className={styles.card}>
-      <div className={styles.cardHeader}>
-        <h2>Account Details Management</h2>
-        <button className={styles.btnClose} onClick={onClose}>
-          <i className="fas fa-times"></i>
-        </button>
-      </div>
       <div className={styles.cardBody}>
         <form onSubmit={handleSubmit}>
           <div className={styles.formRow}>
@@ -96,7 +90,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="firstName">First Name</label>
-              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} required />
+              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="middleName">Middle Name</label>
@@ -104,7 +98,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="lastName">Last Name</label>
-              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} required />
+              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} />
             </div>
           </div>
 
@@ -118,7 +112,7 @@ export function AddAdminForm({ onClose, onSubmit, mode = 'add', initialData }) {
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="email">Email</label>
-              <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} required />
+              <input type="email" id="email" name="email" value={formData.email} onChange={handleChange} />
             </div>
             <div className={styles.formGroup}>
               <label htmlFor="phone">Phone Number</label>

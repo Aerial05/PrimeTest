@@ -381,7 +381,7 @@ export function PackagesPage() {
 			features: isBundle ? form.features : undefined,
 			specialInstruction: isBundle ? form.specialInstruction : undefined,
 			availability: isBundle ? (form.useRegularSchedule ? REGULAR_SCHEDULE : form.availability) : undefined,
-			slot: isBundle ? (form.slot !== '' ? Number(form.slot) : undefined) : undefined,
+			slot: isBundle ? (Number(form.slot) >= 1 ? Number(form.slot) : 1) : undefined,
 			durMinute: isBundle ? Number(form.durMinute || 0) : undefined,
 			priceNote: isBundle ? form.priceNote : undefined,
 			bookingEnabled: isBundle ? form.bookingEnabled : undefined, // 'Yes' | 'No'
@@ -404,7 +404,7 @@ export function PackagesPage() {
 				features: payload.features,
 				specialInstruction: payload.specialInstruction,
 				availability: payload.availability,
-							slot: form.slot !== '' ? Number(form.slot) : undefined,
+							slot: Number(form.slot) >= 1 ? Number(form.slot) : 1,
 				durMinute: payload.durMinute,
 				priceNote: payload.priceNote,
 				bookingEnabled: payload.bookingEnabled,
@@ -428,13 +428,13 @@ export function PackagesPage() {
 				servicePackagesService
 					.update(dbKey, uiForDb)
 					.then(() => {
-												setServices((prev) => prev.map((s) => (
+						setServices((prev) => prev.map((s) => (
 														s.dbId === dbKey ? { 
 															...s, 
 															...payload, 
 															id: payload.servicePackageId || s.id,
 															description: form.description,
-															slot: form.slot !== '' ? Number(form.slot) : s.slot,
+															slot: Number(form.slot) >= 1 ? Number(form.slot) : 1,
 														} : s
 												)));
 						// Keep the form populated on update; just refresh the updatedAt value
@@ -485,7 +485,7 @@ export function PackagesPage() {
 					singleAvailability: getSingleAvailabilityValue(),
 					singleUseRegular: form.singleUseRegular,
 					singleDurMinute: Number(form.singleDurMinute || 0),
-					singleSlot: form.singleSlot !== '' ? Number(form.singleSlot) : undefined,
+					singleSlot: Number(form.singleSlot) >= 1 ? Number(form.singleSlot) : 1,
 					singlePriceNote: form.singlePriceNote,
 					singleOriginalPrice: form.singleOriginalPrice !== '' ? Number(form.singleOriginalPrice) : undefined,
 					singleDiscountedPrice: form.singleDiscountedPrice !== '' ? Number(form.singleDiscountedPrice) : undefined,
@@ -512,7 +512,7 @@ export function PackagesPage() {
 					specialInstructions: singlePayload.specialInstructions,
 					availability: singlePayload.singleAvailability,
 					durMinute: singlePayload.singleDurMinute,
-					slot: singlePayload.singleSlot,
+					slot: Number(singlePayload.singleSlot) >= 1 ? Number(singlePayload.singleSlot) : 1,
 					priceNote: singlePayload.singlePriceNote,
 					originalPrice: singlePayload.singleOriginalPrice,
 					discountedPrice: singlePayload.singleDiscountedPrice,
@@ -606,6 +606,7 @@ export function PackagesPage() {
 			features: form.features,
 			specialInstruction: form.specialInstruction,
 			availability: getAvailabilityValue(),
+			slot: Number(form.slot) >= 1 ? Number(form.slot) : 1,
 			durMinute: Number(form.durMinute || 0),
 			priceNote: form.priceNote,
 			bookingEnabled: form.bookingEnabled,
@@ -632,7 +633,7 @@ export function PackagesPage() {
 			features: payload.features,
 			specialInstruction: payload.specialInstruction,
 			availability: payload.availability,
-			slot: payload.slot,
+			slot: Number(payload.slot) >= 1 ? Number(payload.slot) : 1,
 			durMinute: payload.durMinute,
 			priceNote: payload.priceNote,
 			bookingEnabled: payload.bookingEnabled,
@@ -702,6 +703,7 @@ export function PackagesPage() {
 			singleAvailability: getSingleAvailabilityValue(),
 			singleUseRegular: form.singleUseRegular,
 			singleDurMinute: Number(form.singleDurMinute || 0),
+			singleSlot: Number(form.singleSlot) >= 1 ? Number(form.singleSlot) : 1,
 			singlePriceNote: form.singlePriceNote,
 			singleOriginalPrice: form.singleOriginalPrice !== '' ? Number(form.singleOriginalPrice) : undefined,
 			singleDiscountedPrice: form.singleDiscountedPrice !== '' ? Number(form.singleDiscountedPrice) : undefined,
@@ -725,7 +727,7 @@ export function PackagesPage() {
 			specialInstructions: payload.specialInstructions,
 			availability: payload.singleAvailability,
 			durMinute: payload.singleDurMinute,
-					slot: payload.singleSlot,
+					slot: Number(payload.singleSlot) >= 1 ? Number(payload.singleSlot) : 1,
 			priceNote: payload.singlePriceNote,
 			originalPrice: payload.singleOriginalPrice,
 			discountedPrice: payload.singleDiscountedPrice,
