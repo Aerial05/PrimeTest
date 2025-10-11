@@ -6,15 +6,15 @@ import { Link } from 'react-router-dom';
 import { BookingCard } from '../bookingCard/BookingCard';
 
 const TABS = [
-  { name: 'PRIME MEDICAL LABORATORY', src: 'https://momento360.com/e/u/4614a6341be84cb4808f9634ca46f65e?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
+  { name: 'PRIME MEDICAL LABORATORY', src: 'https://momento360.com/e/u/4614a6341be84cb4808f9634ca46f65e?utm_campaign=embed&utm_source=other&heading=0&pitch=15&field-of-view=75&size=medium&display-plan=true' },
   { name: 'RECEIVING AREA', src: 'https://momento360.com/e/u/63c362683d574f4588023d8cc52e44bd?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
-  { name: 'DR. JOY CHECKUP', src: 'https://momento360.com/e/u/24a2d6cb487f49e2b0bbebd6237f8c91?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&autoplay-annotations=true&display-plan=true' },
+  { name: 'DR. JOY CHECKUP ROOM', src: 'https://momento360.com/e/u/24a2d6cb487f49e2b0bbebd6237f8c91?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&autoplay-annotations=true&display-plan=true' },
   { name: 'ULTRASOUND ROOM', src: 'https://momento360.com/e/u/c33dc449e344402bb4555f6a908b2ca2?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
   { name: 'X‑RAY WORKROOM', src: 'https://momento360.com/e/u/fdeffb07ef184fa4a27f8e845cea301c?utm_campaign=embed&utm_source=other&heading=128&pitch=0.25&field-of-view=75&size=medium&display-plan=true '},
   { name: 'X‑RAY ROOM', src: 'https://momento360.com/e/u/3e379cea55cf45cabefdd5ee79ef7348?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
   { name: 'ECG ROOM', src: 'https://momento360.com/e/u/2c1f712f62414ecaa4a1d634e3e2bcff?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
   { name: 'OB‑GYNE ROOM', src: 'https://momento360.com/e/u/cb63f1673a38414a8497e73496085e5f?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
-  { name: 'LABORATORY', src: 'https://momento360.com/e/u/2692612ce8e24f96b4f35576d8c04e19?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
+  { name: 'LABORATORY ROOM', src: 'https://momento360.com/e/u/2692612ce8e24f96b4f35576d8c04e19?utm_campaign=embed&utm_source=other&heading=0&pitch=0&field-of-view=75&size=medium&display-plan=true' },
 ];
 
 const TAB_INFO = [
@@ -97,7 +97,7 @@ export function Hero() {
                   className={`${styles.tabButton} ${activeTab === idx ? styles.activeTab : ''}`}
                   onClick={() => setActiveTab(idx)}
                 >
-                  <span className={styles.tabIcon}>{['🏥', '🛎️', '🩺', '🩻', '🧰', '🩻', '❤️', '🌿', '🧪'][idx]}</span>
+                  <span className={styles.tabIcon}>{['🏥', '🛎️', '🩺', '🩻', '🧰', '🖨️', '❤️', '🌿', '🧪'][idx]}</span>
                   <span className={styles.tabLabel}>{tab.name}</span>
                   {activeTab === idx && <span className={styles.activeIndicator}></span>}
                 </button>
@@ -137,10 +137,6 @@ export function Hero() {
               </div>
             </div>
 
-            {/* Booking Card */}
-            <div className={styles.bookingCardWrapper}>
-              <BookingCard align="left" />
-            </div>
           </div>
         </div>
       </div>

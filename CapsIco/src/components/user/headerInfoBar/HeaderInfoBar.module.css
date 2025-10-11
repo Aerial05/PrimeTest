@@ -44,6 +44,10 @@
   backdrop-filter: saturate(130%) blur(6px);
 }
 
+.logoLink:hover {
+  text-decoration: none;
+}
+
 .logoIcon {
   width: calc(var(--header-logo-size) - 4px);
   height: calc(var(--header-logo-size) - 4px);
@@ -126,6 +130,10 @@
   font-size: 0.9rem;
   font-weight: 700;
   color: var(--text-dark);
+  text-decoration: none;
+}
+
+.infoValue:hover {
   text-decoration: none;
 }
 

@@ -31,13 +31,19 @@ import { Footer } from "./components/user/footer/Footer";
 import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 import { AdminHeaderInfoBar } from "/src/components/admin/headerInfoBar/AdminHeaderInfoBar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
+import { BookingCard } from "./components/user/dashboard/bookingCard/BookingCard";
 
 import authService from "./services/AuthService";
 import { auth, usersDB } from "./config/firebase-config";
 
-function AnimatedRoutes({ role, preferUserView }) {
+function AnimatedRoutes({ role, preferUserView, setIsHomePage }) {
   const location = useLocation();
   const nodeRef = useRef(null);
+
+  // Track if we're on the home page
+  useEffect(() => {
+    setIsHomePage(location.pathname === '/');
+  }, [location.pathname, setIsHomePage]);
 
   const isAdmin = role === "admin";
   const isLoggedIn = !!role;
@@ -103,6 +109,7 @@ export default function App() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const heartbeatRef = useRef(null);
   const [preferredDashboard, setPreferredDashboard] = useState('user');
+  const [isHomePage, setIsHomePage] = useState(false);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -215,10 +222,25 @@ export default function App() {
         )}
 
         <main className="appMain">
-          {!checkingAuth && <AnimatedRoutes role={role} preferUserView={preferUserView} />}
+          {!checkingAuth && <AnimatedRoutes role={role} preferUserView={preferUserView} setIsHomePage={setIsHomePage} />}
         </main>
 
         {checkingAuth ? null : isAdmin && !preferUserView ? <AdminFooter /> : <Footer />}
+        
+        {/* Floating Booking Button - Visible only on home page for user view */}
+        {!checkingAuth && (!isAdmin || preferUserView) && isHomePage && (
+          <div style={{
+            position: 'fixed',
+            bottom: '2rem',
+            left: '1.5rem',
+            zIndex: 9999,
+            animation: 'floatIn 0.5s ease-out',
+            filter: 'drop-shadow(0 8px 24px rgba(124, 58, 237, 0.3))',
+            pointerEvents: 'auto'
+          }}>
+            <BookingCard align="left" />
+          </div>
+        )}
       </div>
     </BrowserRouter>
   );
