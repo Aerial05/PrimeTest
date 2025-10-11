@@ -122,13 +122,19 @@ class AppointmentsService extends BaseFirebaseService {
 
   async updateStatus(id, status) {
     const now = new Date().toISOString();
+    // Best-effort fetch to include targetName in activity log
+    let appt = null;
+    try { appt = await this.getById(id); } catch(_) {}
     await update(ref(this.database, this.path(id)), { BOOKING_STATUS: String(status || '').toLowerCase(), UPDATED_AT: now });
     try {
+      const fullName = appt ? [appt.FIRST_NAME, appt.LAST_NAME].filter(Boolean).join(' ').trim() : '';
+      const tName = fullName || appt?.SERVICE_NAME || appt?.EMAIL || '';
       await activityLogService.log({
         type: 'appointment',
         action: 'update_status',
         description: `Updated status to ${String(status || '').toLowerCase()}`,
         targetId: id,
+        targetName: tName,
       });
     } catch (_) {}
   }
@@ -171,6 +177,7 @@ class AppointmentsService extends BaseFirebaseService {
         action: 'cancel',
         description: `Cancelled appointment`,
         targetId: id,
+        targetName: [appt?.FIRST_NAME, appt?.LAST_NAME].filter(Boolean).join(' ').trim() || appt?.SERVICE_NAME || appt?.EMAIL || '',
         metadata: { reason: updates.CANCELLATION.reason },
       });
     } catch (_) {}
@@ -254,6 +261,7 @@ class AppointmentsService extends BaseFirebaseService {
         action: 'delete',
         description: `Deleted appointment ${id}`,
         targetId: id,
+        targetName: [appt?.FIRST_NAME, appt?.LAST_NAME].filter(Boolean).join(' ').trim() || appt?.SERVICE_NAME || appt?.EMAIL || '',
         metadata: { SERVICE_ID: appt?.SERVICE_ID, DATE_OF_APPOINTMENT: appt?.DATE_OF_APPOINTMENT, TIME_SLOT: appt?.TIME_SLOT },
       });
     } catch (_) {}
@@ -342,6 +350,16 @@ class AppointmentsService extends BaseFirebaseService {
         } catch (_) {}
       }
       success = true;
+      try {
+        await activityLogService.log({
+          type: 'appointment',
+          action: 'reschedule',
+          description: 'Rescheduled appointment',
+          targetId: id,
+          targetName: [appt?.FIRST_NAME, appt?.LAST_NAME].filter(Boolean).join(' ').trim() || appt?.SERVICE_NAME || appt?.EMAIL || '',
+          metadata: { oldDate: oldDate || appt.DATE_OF_APPOINTMENT || '', oldTime: oldTime || appt.TIME_SLOT || '', newDate, newTime }
+        });
+      } catch (_) {}
       return policyInfo;
     } finally {
       // If failed after reserving new slot, release the new slot to avoid leaks
@@ -384,6 +402,9 @@ class AppointmentsService extends BaseFirebaseService {
         action: 'upload_proof',
         description: `Uploaded proof image`,
         targetId: id,
+        targetName: (await this.getById(id).catch(()=>null))?.FIRST_NAME ?
+          [((await this.getById(id).catch(()=>null))?.FIRST_NAME||''), ((await this.getById(id).catch(()=>null))?.LAST_NAME||'')].join(' ').trim()
+          : ((await this.getById(id).catch(()=>null))?.SERVICE_NAME || ''),
         metadata: { path },
       });
     } catch (_) {}
@@ -420,6 +441,7 @@ class AppointmentsService extends BaseFirebaseService {
         action: 'archive',
         description: `Archived appointment ${id}`,
         targetId: id,
+        targetName: [rec?.FIRST_NAME, rec?.LAST_NAME].filter(Boolean).join(' ').trim() || rec?.SERVICE_NAME || rec?.EMAIL || '',
         metadata: { BOOKING_STATUS: rec?.BOOKING_STATUS },
       });
     } catch (_) {}

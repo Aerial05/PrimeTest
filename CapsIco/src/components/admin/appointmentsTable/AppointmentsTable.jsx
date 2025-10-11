@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './AppointmentsTable.module.css';
 import appointmentsService from '@/services/AppointmentsService';
 import { sendAppointmentEmailCallable } from '/src/config/firebase-config';
@@ -144,6 +144,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [proofProgress, setProofProgress] = useState(0);
   // Automation busy flag
   const [autoBusy, setAutoBusy] = useState(false);
+  // Email throttle state (per appointment)
+  const emailSentAtRef = useRef({});
+  const EMAIL_COOLDOWN_MS = 60_000; // 60 seconds
   // Shared toast
   const { show: showToast } = (typeof useToast === 'function' ? (useToast() || { show: () => {} }) : { show: () => {} });
   // Toggle states (persisted per admin)
@@ -414,7 +417,14 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const onSubmitModalStatus = async () => {
     if (!selected) return;
     const desired = modalStatus || 'Pending';
-    const map = { Approved: 'approved', Pending: 'pending', Declined: 'declined', Successful: 'successful' };
+    const map = {
+      'Approved': 'approved',
+      'Pending': 'pending',
+      'Declined': 'declined',
+      'Successful': 'successful',
+      'Pending Reschedule': 'pending',
+      'Approved Reschedule': 'rescheduled',
+    };
     const backend = map[desired] || 'pending';
 
     // Guard rails: Successful requires Approved first, and optionally requires proof
@@ -435,17 +445,23 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       await appointmentsService.updateStatus(selected.id, backend);
       setStatusLocal(selected.id, desired);
       // Ask before sending an email when status change implies an email
-      if (backend === 'approved' || backend === 'successful' || backend === 'declined') {
+      if (backend === 'approved' || backend === 'rescheduled' || backend === 'successful' || backend === 'declined') {
         setConfirmSend({
           open: true,
           title: 'Send email?',
-          message: backend === 'approved' && selected.raw?.RESCHEDULE_INFO?.newDate
+          message: ((backend === 'approved' || backend === 'rescheduled') && selected.raw?.RESCHEDULE_INFO?.newDate)
             ? 'Send an approval email that includes the new rescheduled date/time?'
             : 'Do you want to send an email notification now?',
           onConfirm: async () => {
             try {
+              const last = emailSentAtRef.current[selected.id] || 0;
+              if (Date.now() - last < EMAIL_COOLDOWN_MS) {
+                showPopup({ title: 'Email recently sent', message: 'Please wait a minute before sending another email for this appointment.', type: 'info' });
+                return;
+              }
               const res = await sendAppointmentEmailCallable({
                 apptId: selected.id,
+                // For rescheduled, keep approved subject but template will include reschedule info via RESCHEDULE_INFO
                 status: backend,
                 serviceName: selected.serviceName,
                 serviceType: selected.type,
@@ -456,6 +472,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                 ...(backend === 'declined' && declineReason ? { declineReason } : {}),
               });
               if (res && res.ok) {
+                emailSentAtRef.current[selected.id] = Date.now();
                 showPopup({ title: 'Email sent', message: 'A notification email was sent to the user.', type: 'info' });
                 // No log for email sends per requirement
               }
@@ -609,6 +626,14 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const reschedPendingTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Pending Reschedule'), [filteredRows]);
 
   const sendEmailForRow = async (row) => {
+    // Throttle per appointment id to avoid multiple sends on rapid actions
+    try {
+      const last = emailSentAtRef.current[row.id] || 0;
+      if (Date.now() - last < EMAIL_COOLDOWN_MS) {
+        showPopup({ title: 'Email recently sent', message: 'Please wait a minute before sending another email for this appointment.', type: 'info' });
+        return false;
+      }
+    } catch (_) {}
     try {
       // Prefer latest reschedule details if present
       const newDate = row?.raw?.RESCHEDULE_INFO?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT;
@@ -623,6 +648,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         serviceId: row?.raw?.SERVICE_ID,
         record: { ...row.raw },
       });
+      emailSentAtRef.current[row.id] = Date.now();
       return true;
     } catch (e) {
       console.warn('Email send failed for', row.id, e);
@@ -1243,6 +1269,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               >
                 <option>Approved</option>
                 <option>Pending</option>
+                <option>Pending Reschedule</option>
+                <option>Approved Reschedule</option>
                 <option>Declined</option>
                 <option>Successful</option>
               </select>
@@ -1268,6 +1296,11 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                         message: 'Send an email confirming the rescheduled appointment?',
                         onConfirm: async () => {
                           try {
+                            const last = emailSentAtRef.current[selected.id] || 0;
+                            if (Date.now() - last < EMAIL_COOLDOWN_MS) {
+                              showPopup({ title: 'Email recently sent', message: 'Please wait a minute before sending another email for this appointment.', type: 'info' });
+                              return;
+                            }
                             const res = await sendAppointmentEmailCallable({
                               apptId: selected.id,
                               status: 'approved',
@@ -1278,7 +1311,10 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                               serviceId: selected.raw?.SERVICE_ID,
                               record: { ...selected.raw },
                             });
-                            if (res && res.ok) showPopup({ title: 'Email sent', message: 'Reschedule approval email sent.', type: 'info' });
+                            if (res && res.ok) {
+                              emailSentAtRef.current[selected.id] = Date.now();
+                              showPopup({ title: 'Email sent', message: 'Reschedule approval email sent.', type: 'info' });
+                            }
                           } catch (e) {
                             console.warn('sendAppointmentEmail callable failed', e);
                           } finally {

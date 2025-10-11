@@ -124,6 +124,9 @@ class ServicePackagesService extends BaseFirebaseService {
   }
 
   async remove(id) {
+    // Best-effort fetch to include a human-friendly name in activity log
+    let rec = null;
+    try { rec = await this.getById(id); } catch(_) {}
     await remove(ref(this.database, this.path(id)));
     try {
       await activityLogService.log({
@@ -131,6 +134,7 @@ class ServicePackagesService extends BaseFirebaseService {
         action: 'delete',
         description: `Deleted service package ${id}`,
         targetId: id,
+        targetName: rec?.NAME || '',
       });
     } catch (_) {}
     return true;

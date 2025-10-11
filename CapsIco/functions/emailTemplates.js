@@ -46,9 +46,14 @@ function buildStatusSubject(rec) {
   const status = String(rec.BOOKING_STATUS || '').toLowerCase();
   const svcType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
   const name = rec.SERVICE_NAME || rec.NAME || svcType;
+  const hasRes = !!(rec.RESCHEDULE_INFO || rec.rescheduleInfo);
+  if (status === 'rescheduled' || (status === 'approved' && hasRes)) {
+    return `Reschedule Confirmed • ${name} (${date} ${time})`;
+  }
   if (status === 'approved') return `Appointment Confirmed • ${name} (${date} ${time})`;
   if (status === 'declined') return `Appointment Update • ${name} (${date} ${time})`;
   if (status === 'successful') return `Appointment Completed • ${name} (${date} ${time})`;
+  if (status === 'pending' && hasRes) return `Reschedule Request Received • ${name} (${date} ${time})`;
   return `Appointment Request Received • ${name} (${date} ${time})`;
 }
 
@@ -64,28 +69,40 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
   const serviceType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
   const serviceName = rec.SERVICE_NAME || rec.serviceName || rec.SERVICE || rec.PACKAGE_NAME || rec.NAME || `Selected ${serviceType}`;
   const apptId = rec.APPT_ID || rec.id || '';
-  const statusTitle = toTitle(rec.BOOKING_STATUS || 'Pending');
+  const statusRaw = String(rec.BOOKING_STATUS || 'pending').toLowerCase();
+  const hasRes = !!res;
+  const statusTitle = hasRes && (statusRaw === 'rescheduled' || statusRaw === 'approved')
+    ? 'Reschedule Approved'
+    : (hasRes && statusRaw === 'pending')
+    ? 'Reschedule Requested'
+    : toTitle(rec.BOOKING_STATUS || 'Pending');
   const notes = rec.SPECIAL_INSTRUCTIONS || '';
   const complaint = rec.CHIEF_COMPLAINT || '';
   const proofUrl = rec.PROOF || rec.proof || '';
   const declineReason = rec.DECLINE_REASON || rec.declineReason || '';
   const res = rec.RESCHEDULE_INFO || rec.rescheduleInfo || null;
 
-  const heading = statusTitle === 'Approved'
+  const heading = (statusTitle === 'Reschedule Approved')
+    ? 'Reschedule Confirmed'
+    : statusTitle === 'Approved'
     ? 'Appointment Confirmed'
     : statusTitle === 'Declined'
     ? 'Appointment Update'
     : statusTitle === 'Successful'
     ? 'Appointment Completed'
-    : 'Appointment Request Received';
+    : (statusTitle === 'Reschedule Requested' ? 'Reschedule Request Received' : 'Appointment Request Received');
 
-  const lead = statusTitle === 'Approved'
+  const lead = (statusTitle === 'Reschedule Approved')
+    ? 'Your reschedule has been approved. Here are your updated appointment details:'
+    : statusTitle === 'Approved'
     ? 'Your appointment has been approved. Below are the details:'
     : statusTitle === 'Declined'
     ? 'We’re sorry, your appointment request was declined. Here are the details:'
     : statusTitle === 'Successful'
     ? 'Your appointment was marked as completed. Thank you for visiting. Summary below:'
-    : 'We received your appointment request and will notify you upon approval. Details below:';
+    : (statusTitle === 'Reschedule Requested'
+      ? 'We received your reschedule request and will notify you when it is approved. Details below:'
+      : 'We received your appointment request and will notify you upon approval. Details below:');
 
   return `<!DOCTYPE html>
   <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${heading}</title>
@@ -153,7 +170,7 @@ function buildAppointmentEmailHTML(rec, opts = {}) {
         </div>
       </div>
       ${appPublicUrl ? `<div class="ctaBar"><a class="cta" href="${appPublicUrl}" target="_blank" rel="noopener">View Your Booking</a></div>` : ''}
-      <div class="foot">Please arrive 10 minutes early. If you need to reschedule, reply to this email.</div>
+  <div class="foot">Please arrive 10 minutes early. If you need to reschedule, please use the Reschedule option in your Appointment History on your Profile page.</div>
     </div>
   </div>
   </body></html>`;

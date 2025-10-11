@@ -195,12 +195,28 @@
   padding: 0.45rem 0.55rem;
   border-radius: 999px;
   transition: background 0.2s ease, transform 0.18s ease;
+  position: relative; /* anchor badge inside button */
 }
 
 .btnIcon:hover {
   background: rgba(255,255,255,0.25);
   transform: translateY(-1px);
 }
+
+.avatarBtn {
+  display:inline-block;
+  width: 34px; height: 34px;
+  border-radius: 9999px; overflow:hidden;
+  background: rgba(255,255,255,0.2);
+  box-shadow: 0 0 0 2px rgba(255,255,255,0.45) inset; /* subtle ring */
+}
+.avatarImg { width: 100%; height: 100%; object-fit: cover; display:block; }
+
+/* When avatar photo is present, remove extra padding/border for a tight fit */
+.btnIconAvatar {
+  padding: 0; border: none; background: transparent;
+}
+.btnIconAvatar:hover { background: transparent; transform: translateY(-1px); }
 
 .usernameText {
   color: rgba(255,255,255,0.9);
@@ -212,6 +228,23 @@
   display: inline-flex;
   align-items: center;
   gap: 0.55rem;
+}
+
+.notifBadge {
+  position: absolute;
+  top: -4px;
+  right: -4px; /* anchor to top-right of the button/avatar */
+  background: #ef4444;
+  color: #fff;
+  font-weight: 800;
+  font-size: 10px;
+  line-height: 1;
+  padding: 4px 6px;
+  border-radius: 9999px;
+  border: 2px solid #3b82f6; /* matches nav gradient tones */
+  box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .dropDownMenu {

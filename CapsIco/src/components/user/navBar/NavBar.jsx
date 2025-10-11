@@ -4,13 +4,15 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { auth, usersDB } from '/src/config/firebase-config';
-import { onValue, ref } from 'firebase/database';
+import { onValue, ref, query, orderByChild, equalTo } from 'firebase/database';
 
 export function NavBar() {
   const [isDropDownOpen, setIsDropDownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const [currentUser, setCurrentUser] = useState(null);
   const [profileName, setProfileName] = useState('');
+  const [profilePhoto, setProfilePhoto] = useState('');
+  const [notifCount, setNotifCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
@@ -27,10 +29,13 @@ export function NavBar() {
 
     document.addEventListener('mousedown', handleClickOutside);
     let dbUnsub = () => {};
+    let apptUnsub = () => {};
     const unsub = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
       setProfileName('');
+      setProfilePhoto('');
       setIsAdmin(false);
+      setNotifCount(0);
       if (user) {
         const userRef = ref(usersDB, `users/${user.uid}`);
         dbUnsub();
@@ -39,6 +44,8 @@ export function NavBar() {
           const nameFromDb = v.username || [v.firstName, v.lastName].filter(Boolean).join(' ');
           const fallback = user.displayName || (user.email ? user.email.split('@')[0] : 'User');
           setProfileName(nameFromDb || fallback);
+          const photo = v.photoURL || user.photoURL || '';
+          setProfilePhoto(photo || '');
           const roleIsAdmin = (() => {
             const raw = v.role;
             if (!raw) return false;
@@ -47,8 +54,47 @@ export function NavBar() {
           })();
           setIsAdmin(Boolean(roleIsAdmin));
         });
+
+        // Subscribe to user's appointments and compute notification count
+        const apptQ = query(ref(usersDB, 'appointments'), orderByChild('USER_ID'), equalTo(user.uid));
+        apptUnsub();
+        apptUnsub = onValue(apptQ, (snap) => {
+          if (!snap.exists()) { setNotifCount(0); return; }
+          const obj = snap.val() || {};
+          const now = Date.now();
+          let count = 0;
+          const isCompletedLike = (status) => /complete|completed|success|successful|successfully|done|finished/i.test(String(status||''));
+          const isApprovedLike = (status) => /approved|rescheduled/i.test(String(status||''));
+          const parseDT = (dateStr, timeStr) => {
+            try {
+              const d = String(dateStr||'').trim();
+              const t = String(timeStr||'').trim();
+              if (!d) return null;
+              // Try ISO
+              let s = d;
+              if (t) s += `T${t}`;
+              let dt = new Date(s);
+              if (Number.isNaN(dt.getTime())) {
+                // Fallback: date only
+                dt = new Date(d);
+              }
+              if (Number.isNaN(dt.getTime())) return null;
+              return dt.getTime();
+            } catch { return null; }
+          };
+          for (const appt of Object.values(obj)) {
+            const status = appt?.BOOKING_STATUS || appt?.STATUS || '';
+            const whenMs = parseDT(appt?.DATE_OF_APPOINTMENT, appt?.TIME_SLOT);
+            const hasFeedback = !!appt?.FEEDBACK;
+            const upcomingApproved = isApprovedLike(status) && (whenMs == null ? true : whenMs > now);
+            const completedNoFeedback = isCompletedLike(status) && !hasFeedback;
+            if (upcomingApproved || completedNoFeedback) count += 1;
+          }
+          setNotifCount(count);
+        });
       } else {
         dbUnsub();
+        apptUnsub();
       }
     });
 
@@ -56,6 +102,7 @@ export function NavBar() {
       document.removeEventListener('mousedown', handleClickOutside);
       unsub();
       dbUnsub();
+      apptUnsub();
     };
   }, []);
 
@@ -129,8 +176,22 @@ export function NavBar() {
                 {profileName}
               </span>
             )}
-            <button className={styles.btnIcon} aria-label="User" onClick={toggleDropDown}>
-              <User />
+            <button
+              className={`${styles.btnIcon} ${profilePhoto ? styles.btnIconAvatar : ''}`}
+              aria-label="User"
+              onClick={toggleDropDown}
+              title={notifCount > 0 ? `${notifCount} appointment${notifCount>1?'s':''} need attention` : undefined}
+            >
+              {profilePhoto ? (
+                <span className={styles.avatarBtn}>
+                  <img src={profilePhoto} alt="Me" className={styles.avatarImg} />
+                </span>
+              ) : (
+                <User />
+              )}
+              {notifCount > 0 && (
+                <span className={styles.notifBadge}>{notifCount > 99 ? '99+' : notifCount}</span>
+              )}
             </button>
 
             {isDropDownOpen && (

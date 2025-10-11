@@ -159,7 +159,8 @@ export function RecentActivity({ limit = 0, pageSize: pageSizeProp = 8, path: pr
   const renderItem = (row, idx) => {
     const meta = ICONS[row.type] || ICONS.general;
     const action = ACTION_LABELS[row.action] || row.action || 'did an action on';
-    const title = `${row.actor?.displayName || 'Admin'} ${action} ${row.targetName || row.targetId || ''}`.trim();
+    const showName = row.targetName || '';
+    const title = `${row.actor?.displayName || 'Admin'} ${action} ${showName}`.trim();
     const desc = row.description || '';
     return (
       <div key={row.id || idx} className={styles.activityItem}>

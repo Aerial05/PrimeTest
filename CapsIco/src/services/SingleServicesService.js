@@ -110,6 +110,8 @@ class SingleServicesService extends BaseFirebaseService {
   }
 
   async remove(id) {
+    let rec = null;
+    try { rec = await this.getById(id); } catch(_) {}
     await remove(ref(this.database, this.path(id)));
     try {
       await activityLogService.log({
@@ -117,6 +119,7 @@ class SingleServicesService extends BaseFirebaseService {
         action: 'delete',
         description: `Deleted single service ${id}`,
         targetId: id,
+        targetName: rec?.NAME || '',
       });
     } catch (_) {}
     return true;

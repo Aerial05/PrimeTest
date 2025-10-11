@@ -53,6 +53,8 @@
 /* Details dropdown and wider layout tweaks */
 .table { table-layout: auto; }
 .refCell { display: flex; align-items: center; gap: 6px; }
+.refCell .mono { opacity: 0; transition: opacity .15s ease; }
+.refCell:hover .mono { opacity: 1; }
 .toggleBtn { border: none; background: transparent; cursor: pointer; font-size: 12px; line-height: 1; padding: 4px; border-radius: 6px; transition: background .15s ease; }
 .toggleBtn:hover { background: #f3f4f6; }
 .caret { width: 10px; height: 10px; border-right: 2px solid #6b7280; border-bottom: 2px solid #6b7280; transform: rotate(-45deg); display: inline-block; transition: transform .15s ease; margin: 0 4px; }

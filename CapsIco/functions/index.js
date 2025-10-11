@@ -362,7 +362,7 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     if (overrideDate) payload.DATE_OF_APPOINTMENT = String(overrideDate);
     if (overrideTime) payload.TIME_SLOT = String(overrideTime);
     if (overrideServiceId) payload.SERVICE_ID = String(overrideServiceId);
-    if (overrideStatus) payload.BOOKING_STATUS = String(overrideStatus).toLowerCase();
+  if (overrideStatus) payload.BOOKING_STATUS = String(overrideStatus).toLowerCase();
     if (declineReason && String(payload.BOOKING_STATUS || '').toLowerCase() === 'declined') {
       payload.DECLINE_REASON = String(declineReason);
     }
@@ -401,9 +401,10 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     const subject = buildStatusSubject(payload);
   await enqueueTriggerEmail({ to, subject, html, source: 'callable-sendAppointmentEmail' });
     // Mark flags by status to prevent the RTDB status trigger from double-sending
-    const status = String(payload.BOOKING_STATUS || '').toLowerCase();
+  const status = String(payload.BOOKING_STATUS || '').toLowerCase();
     const flags = {};
     if (status === 'approved') flags.EMAIL_SENT_APPROVED = true;
+  if (status === 'rescheduled') flags.EMAIL_SENT_APPROVED = true; // treat as approved email for dedupe
     if (status === 'successful') flags.EMAIL_SENT_SUCCESSFUL = true;
     if (status === 'declined') flags.EMAIL_SENT_DECLINED = true;
     if (Object.keys(flags).length) {

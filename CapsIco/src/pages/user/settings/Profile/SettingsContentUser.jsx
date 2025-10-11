@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './SettingsContentUser.module.css';
-import { auth, usersDB } from '/src/config/firebase-config';
+import { auth, usersDB, storage } from '/src/config/firebase-config';
 import { onAuthStateChanged, updateProfile, sendEmailVerification, reload, signOut, fetchSignInMethodsForEmail, updateEmail } from 'firebase/auth';
 import authService from '/src/services/AuthService';
 import { get, ref, set, update } from 'firebase/database';
 import { useNavigate } from 'react-router-dom';
 import { formatPHDisplay, toE164PH, isValidE164PH } from '/src/utils/phone';
+import { ref as storageRef, uploadBytesResumable, getDownloadURL, deleteObject } from 'firebase/storage';
 
 export function SettingsContent() {
   const navigate = useNavigate();
@@ -71,6 +72,13 @@ export function SettingsContent() {
   const [showReauthCaptcha, setShowReauthCaptcha] = useState(false);
   const [showNewCaptcha, setShowNewCaptcha] = useState(false);
 
+  // Profile photo state
+  const [photoURL, setPhotoURL] = useState('');
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState('');
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoMsg, setPhotoMsg] = useState('');
+
   useEffect(() => {
     if (resendCooldown <= 0) return;
     const t = setInterval(() => setResendCooldown((s) => (s > 0 ? s - 1 : 0)), 1000);
@@ -134,6 +142,10 @@ export function SettingsContent() {
   setPhoneVerified(!!dbv.phoneVerified);
   if (dbv?.createdAt) try { setCreatedAt(new Date(dbv.createdAt).toISOString()); } catch {}
   if (dbv?.lastLoginAt) try { setLastLoginAt(new Date(dbv.lastLoginAt).toISOString()); } catch {}
+        // photo URL
+        const authPhoto = u.photoURL || '';
+        const dbPhoto = dbv.photoURL || '';
+        setPhotoURL(dbPhoto || authPhoto || '');
       } catch (e) {
         setError('Failed to load profile');
       } finally {
@@ -324,6 +336,93 @@ export function SettingsContent() {
     if (lastIdx >= 0) {
       otpRefs.current[lastIdx]?.current?.focus();
     }
+  };
+
+  // ---- Profile photo helpers ----
+  const todayKey = () => new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const sanitizeName = (name) => (name || 'photo').replace(/[^a-zA-Z0-9._-]/g, '_');
+
+  const onPhotoFileChange = (e) => {
+    setPhotoMsg('');
+    const f = e.target.files && e.target.files[0];
+    if (!f) return;
+    if (!/^image\//i.test(f.type)) { setPhotoMsg('Please select an image file.'); return; }
+    const maxBytes = 5 * 1024 * 1024; // 5MB
+    if (f.size > maxBytes) { setPhotoMsg('Image must be 5MB or smaller.'); return; }
+    setPhotoFile(f);
+    try { setPhotoPreview(URL.createObjectURL(f)); } catch(_) { setPhotoPreview(''); }
+  };
+
+  const incrementDailyLimit = async (uid, reason = 'set') => {
+    const path = `users/${uid}/PROFILE_PHOTO_LIMIT/${todayKey()}`;
+    // Use a light-weight read + write to increment; acceptable for client-side.
+    // If concurrent changes are common, a transaction could be used.
+    const nodeRef = ref(usersDB, path);
+    const snap = await get(nodeRef);
+    const cur = Number(snap.exists() ? snap.val() : 0) || 0;
+    if (cur >= 3) {
+      const err = new Error('Daily limit reached: You can change your profile photo up to 3 times per day.');
+      err.code = 'limit-exceeded';
+      throw err;
+    }
+    await set(nodeRef, cur + 1);
+    // Track last change reason/time (best effort, non-blocking)
+    try {
+      await update(ref(usersDB, `users/${uid}/PROFILE_PHOTO_LIMIT_META`), { lastChangeAt: new Date().toISOString(), lastReason: reason });
+    } catch(_) {}
+  };
+
+  const uploadProfilePhoto = async () => {
+    if (!user) return;
+    if (!photoFile) { setPhotoMsg('Select an image first.'); return; }
+    setPhotoBusy(true); setPhotoMsg('');
+    const uid = user.uid;
+    const name = `${Date.now()}_${sanitizeName(photoFile.name)}`;
+    const path = `profilePhotos/${uid}/${name}`;
+    const sRef = storageRef(storage, path);
+    try {
+      const task = uploadBytesResumable(sRef, photoFile, { contentType: photoFile.type || 'image/jpeg' });
+      await new Promise((resolve, reject) => {
+        task.on('state_changed', undefined, reject, () => resolve());
+      });
+      const url = await getDownloadURL(task.snapshot.ref);
+
+      // Enforce 3/day after upload; if over limit, delete the file and abort
+      try {
+        await incrementDailyLimit(uid, 'set');
+      } catch (limitErr) {
+        try { await deleteObject(sRef); } catch(_) {}
+        throw limitErr;
+      }
+
+      // Persist in Auth and DB
+      try { await updateProfile(user, { photoURL: url }); } catch(_) {}
+      await update(ref(usersDB, `users/${uid}`), { photoURL: url, updatedAt: new Date().toISOString() });
+      setPhotoURL(url);
+      setPhotoFile(null);
+      setPhotoPreview('');
+      setSuccess('Profile photo updated.');
+    } catch (e) {
+      setPhotoMsg(e?.message || 'Failed to upload photo.');
+    } finally { setPhotoBusy(false); }
+  };
+
+  const removeProfilePhoto = async () => {
+    if (!user) return;
+    setPhotoBusy(true); setPhotoMsg('');
+    const uid = user.uid;
+    try {
+      // Enforce limit for removals as well
+      await incrementDailyLimit(uid, 'remove');
+      try { await updateProfile(user, { photoURL: '' }); } catch(_) {}
+      await update(ref(usersDB, `users/${uid}`), { photoURL: '', updatedAt: new Date().toISOString() });
+      setPhotoURL('');
+      setPhotoPreview('');
+      setPhotoFile(null);
+      setSuccess('Profile photo removed.');
+    } catch(e) {
+      setPhotoMsg(e?.message || 'Failed to remove photo.');
+    } finally { setPhotoBusy(false); }
   };
 
   // Finalize new phone number update
@@ -526,6 +625,36 @@ export function SettingsContent() {
       <section className={styles.section}>
         <h3>Personal Information</h3>
         <form onSubmit={handleSubmit}>
+          {/* Avatar upload */}
+          <div className={styles.formRow}>
+            <div className={styles.formGroup}>
+              <label>Profile Photo</label>
+              <div className={styles.avatarRow}>
+                <div className={styles.avatar} aria-label="Profile photo">
+                  {photoPreview || photoURL ? (
+                    <img src={photoPreview || photoURL} alt="Profile" className={styles.avatarImg} />
+                  ) : (
+                    <div className={styles.avatarFallback}>
+                      {(firstName || lastName) ? `${(firstName||'').charAt(0)}${(lastName||'').charAt(0)}`.toUpperCase() : 'U'}
+                    </div>
+                  )}
+                </div>
+                <div className={styles.avatarActions}>
+                  <input type="file" accept="image/*" onChange={onPhotoFileChange} disabled={photoBusy || loading} />
+                  <div className={styles.inlineActions}>
+                    <button type="button" className={styles.btnPrimary} onClick={uploadProfilePhoto} disabled={photoBusy || loading || !photoFile}>
+                      {photoBusy ? 'Uploading…' : 'Save Photo'}
+                    </button>
+                    <button type="button" className={styles.btnSecondary} onClick={removeProfilePhoto} disabled={photoBusy || loading || (!photoURL && !photoPreview)}>
+                      Remove Photo
+                    </button>
+                  </div>
+                  <div className={styles.muted}>You can change your profile photo up to 3 times per day.</div>
+                  {photoMsg && <div className={styles.dangerText} style={{marginTop:6}}>{photoMsg}</div>}
+                </div>
+              </div>
+            </div>
+          </div>
           <div className={styles.formRow}>
             <div className={styles.formGroup}>
               <label htmlFor="firstName">First Name</label>
