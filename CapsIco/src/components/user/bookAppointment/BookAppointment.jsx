@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import styles from "./BookAppointment.module.css";
 import ScheduleCalendar from "./ScheduleCalendar";
 import appointmentsService from "/src/services/AppointmentsService";
@@ -33,8 +33,8 @@ function gmtOffsetLabel(date = new Date()) {
 }
 function toLocalDateStringYYYYMMDD(d) { const y=d.getFullYear(); const m=pad(d.getMonth()+1); const day=pad(d.getDate()); return `${y}-${m}-${day}`; }
 
-// Simple policy: require at least 1 day of age (adjust as needed)
-const minAgeDays = 1;
+// Allow newborns (same-day birthdays are valid)
+const minAgeDays = 0;
 const today = new Date();
 const tomorrow = new Date(today); tomorrow.setDate(today.getDate()+1);
 const tomorrowStr = toLocalDateStringYYYYMMDD(tomorrow);
@@ -43,15 +43,21 @@ const birthdayMaxStr = toLocalDateStringYYYYMMDD(bdayMax);
 
 export function BookAppointment() {
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Notifications modal
-  const [modal, setModal] = useState({ open: false, type: 'info', title: '', message: '' });
-  const showModal = ({ type = 'info', title = '', message = '' } = {}) => setModal({ open: true, type, title, message });
+  const [modal, setModal] = useState({ open: false, type: 'info', title: '', message: '', actionLabel: '', onAction: null });
+  const showModal = ({ type = 'info', title = '', message = '', actionLabel = '', onAction = null } = {}) => setModal({ open: true, type, title, message, actionLabel, onAction });
   const closeModal = () => setModal(m => ({ ...m, open: false }));
 
   // Booking modal and state
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [rulesNext, setRulesNext] = useState(null); // 'proceedBooking' | 'loginOnlySchedule' | null
   const [booking, setBooking] = useState(false);
+  // Policy/cooldown
+  const [policy, setPolicy] = useState({ cancelCountCycle: 0, cooldownUntil: '' });
+  const [penaltyOpen, setPenaltyOpen] = useState(false);
+  const [penaltyReason, setPenaltyReason] = useState('');
 
   // Selection state
   const [activeItem, setActiveItem] = useState(null);
@@ -75,6 +81,8 @@ export function BookAppointment() {
   const complaintRef = useRef(null);
   const notesRef = useRef(null);
   const slotsWrapRef = useRef(null);
+  const [emailVerified, setEmailVerified] = useState(!!authService.currentUser?.emailVerified);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   useEffect(() => {
     const auto = (el) => { if (!el) return; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
@@ -99,9 +107,70 @@ export function BookAppointment() {
           birthday: dbUser.birthday || p.birthday || '',
           gender: dbUser.gender || p.gender || '',
         }));
+        setEmailVerified(!!user.emailVerified);
+        setPhoneVerified(!!dbUser.phoneVerified);
+        // Load policy
+        try {
+          const p = await appointmentsService.getUserPolicy(user.uid);
+          setPolicy(p || { cancelCountCycle: 0, cooldownUntil: '' });
+        } catch (_) {}
       } catch (_) {}
     })();
   }, []);
+
+  // Helper: ensure user is logged in and has at least one verified (email or phone)
+  const ensureAuthenticatedAndVerified = () => {
+    const user = authService.currentUser;
+    if (!user) {
+      showModal({
+        type: 'error',
+        title: 'Login required',
+        message: 'You need to login or register first to book an appointment. After logging in, please verify your email or phone number.',
+        actionLabel: 'Go to Login / Register',
+        onAction: () => navigate('/login')
+      });
+      return false;
+    }
+  // Read email verification from live auth state to avoid race with effect
+  const emailOk = !!(authService.currentUser?.emailVerified || emailVerified);
+  const phoneOk = !!phoneVerified;
+  const ok = emailOk || phoneOk;
+    if (!ok) {
+      showModal({
+        type: 'error',
+        title: 'Verification required',
+        message: 'Please verify at least one contact method (email or phone) before booking. You can verify from your Profile page.',
+        actionLabel: 'Open Profile',
+        onAction: () => navigate('/profile')
+      });
+      return false;
+    }
+    return true;
+  };
+
+  // Non-blocking check used for branching (no popups)
+  const isAuthedVerified = () => {
+    const user = authService.currentUser;
+    if (!user) return false;
+    const emailOk = !!(authService.currentUser?.emailVerified || emailVerified);
+    const phoneOk = !!phoneVerified;
+    return emailOk || phoneOk;
+  };
+
+  // Determine if user is under cooldown (0 chances left)
+  const isUnderCooldown = () => {
+    try {
+      const cdMs = policy.cooldownUntil ? Date.parse(policy.cooldownUntil) : 0;
+      const cdActive = cdMs && cdMs > Date.now();
+      const chancesLeft = Math.max(0, 3 - (Number(policy.cancelCountCycle || 0) || 0));
+      return cdActive || chancesLeft <= 0;
+    } catch { return false; }
+  };
+
+  const openPenaltyPopup = () => {
+    setPenaltyReason('');
+    setPenaltyOpen(true);
+  };
 
   // Catalogs
   const [packagesCatalog, setPackagesCatalog] = useState([]);
@@ -411,6 +480,30 @@ export function BookAppointment() {
 
   // Open fullscreen schedule picker: require service, and ensure date defaults
   const openSchedule = () => {
+    // If user is authenticated and verified but under cooldown, show penalty modal before any rules
+    if (isAuthedVerified() && isUnderCooldown()) {
+      openPenaltyPopup();
+      return;
+    }
+    // For guests/unverified, show rules first, then prompt login
+    if (!isAuthedVerified()) {
+      setRulesNext('loginOnlySchedule');
+      if (!activeItem) {
+        showModal({ type: 'error', title: 'Select a service', message: 'Please choose a service before picking a schedule.' });
+        return;
+      }
+      if (activeItem && activeItem.bookingEnabled === false) {
+        showModal({ type: 'error', title: 'Booking disabled', message: 'Booking is currently disabled for this service. Please choose another service or try again later.' });
+        return;
+      }
+      if (!date) {
+        setDate(tomorrowStr);
+        setTime("");
+      }
+      setTimeOfDay('Morning');
+      setRulesOpen(true);
+      return;
+    }
     if (!activeItem) {
       showModal({ type: 'error', title: 'Select a service', message: 'Please choose a service before picking a schedule.' });
       return;
@@ -432,16 +525,31 @@ export function BookAppointment() {
 
   const onSubmit = (e) => {
     e.preventDefault();
+    // Block if under cooldown before rules
+    if (isAuthedVerified() && isUnderCooldown()) {
+      openPenaltyPopup();
+      return;
+    }
     if (!activeItem || !date || !time) { showModal({ type:'error', title:'Incomplete details', message:'Please select a service, date, and time.' }); return; }
     if (activeItem && activeItem.bookingEnabled === false) { showModal({ type:'error', title:'Booking disabled', message:'Booking is currently disabled for this service.' }); return; }
   if (date < tomorrowStr) { showModal({ type:'error', title:'Date not allowed', message:'Appointments can be booked starting tomorrow and onward.' }); return; }
     if (!patient.birthday) { showModal({ type:'error', title:'Missing birthday', message:'Please enter your birthday.' }); return; }
     const bdayStr = String(patient.birthday);
-    if (!(bdayStr <= birthdayMaxStr)) { showModal({ type:'error', title:'Birthday too recent', message:`Birthday must be at least ${minAgeDays} day(s) before today.` }); return; }
+    if (!(bdayStr <= birthdayMaxStr)) {
+      showModal({
+        type:'error',
+        title:'Invalid birthday',
+        message: minAgeDays > 0 ? `Birthday must be at least ${minAgeDays} day(s) before today.` : 'Birthday cannot be in the future.'
+      });
+      return;
+    }
+    setRulesNext('proceedBooking');
     setRulesOpen(true);
   };
 
   const proceedBooking = async () => {
+    // Defensive gate
+    if (!ensureAuthenticatedAndVerified()) return;
     if (booking) return;
     setBooking(true);
     try {
@@ -559,6 +667,16 @@ export function BookAppointment() {
       </aside>
 
       <section className={styles.mainCard}>
+        {/* Instant checkup / walk-in callout */}
+        <div className={styles.instantCallout}>
+          <p className={styles.instantLine}>
+            Need an instant checkup or urgent service? Call
+            {' '}
+            <a className={styles.callLink} href="tel:+639266386300" aria-label="Call 0926 638 6300">0926-638-6300</a>
+            {' '}or you may <a className={styles.walkinLink} href="/contact">walk in</a>.
+          </p>
+        </div>
+
         <div className={styles.scheduleBlock}>
           <h3>Choose Your Schedule</h3>
           {/* Inline header removed; controls are only inside the fullscreen modal */}
@@ -606,7 +724,9 @@ export function BookAppointment() {
                 max={birthdayMaxStr}
                 required
               />
-              <div className={styles.smallNote}>Must be at least {minAgeDays} day(s) old.</div>
+              <div className={styles.smallNote}>
+                {minAgeDays > 0 ? `Must be at least ${minAgeDays} day(s) old.` : `Newborns allowed (today's date is okay).`}
+              </div>
             </div>
             <div className={styles.formGroup}><label className={styles.label}>Gender</label><select className={styles.input} value={patient.gender} onChange={(e)=>setPatient(p=>({...p,gender:e.target.value}))} required><option value="">Select</option><option>Male</option><option>Female</option><option>Other</option></select></div>
             <div className={`${styles.formGroup} ${styles.fullWidth}`}>
@@ -671,7 +791,13 @@ export function BookAppointment() {
             <div className={styles.modalTop}>
               <div
                 className={styles.modalIconWrap}
-                style={modal.type === 'success' ? { background: '#ecfdf5', color: '#065f46' } : undefined}
+                style={
+                  modal.type === 'success'
+                    ? { background: '#ecfdf5', color: '#065f46' }
+                    : modal.type === 'error'
+                    ? { background: '#fef2f2', color: '#b91c1c' }
+                    : undefined
+                }
                 aria-hidden
               >
                 {modal.type === 'success' ? '✓' : '!'}
@@ -682,6 +808,15 @@ export function BookAppointment() {
               </div>
             </div>
             <div className={styles.modalActions}>
+              {modal.actionLabel ? (
+                <button
+                  type="button"
+                  className={styles.primaryBtn}
+                  onClick={() => { try { modal.onAction && modal.onAction(); } finally { closeModal(); } }}
+                >
+                  {modal.actionLabel}
+                </button>
+              ) : null}
               <button type="button" className={styles.ghostBtn} onClick={closeModal}>Close</button>
             </div>
           </div>
@@ -705,6 +840,9 @@ export function BookAppointment() {
               </div>
             </div>
             <div className={styles.modalBody} style={{ maxHeight: 360, overflow: 'auto' }}>
+              <div className={styles.urgentNote}>
+                Need an instant checkup or urgent service? Call <a href="tel:+639266386300" className={styles.urgentLink}>0926-638-6300</a> or you may <a href="/contact" className={styles.urgentLink}>walk in</a>. We'll assist as soon as we can.
+              </div>
               <div className={styles.modalRuleSection}>
                 <div className={styles.modalRuleTitle}>Service Priority Order</div>
                 <div className={styles.modalRuleSubtitle}>If a walk‑in and a scheduled patient arrive at the same time, we serve patients in this order:</div>
@@ -724,8 +862,94 @@ export function BookAppointment() {
             </div>
             <div className={styles.modalActions}>
               <button type="button" className={styles.ghostBtn} onClick={() => setRulesOpen(false)} disabled={booking}>Cancel</button>
-              <button type="button" className={styles.primaryBtn} onClick={proceedBooking} disabled={booking}>
-                {booking ? 'Submitting…' : 'I Accept & Book'}
+              <button
+                type="button"
+                className={styles.primaryBtn}
+                onClick={() => {
+                  if (rulesNext === 'loginOnlySchedule') {
+                    setRulesOpen(false);
+                    showModal({
+                      type: 'error',
+                      title: 'Login required',
+                      message: 'Please login or register to continue. After logging in, you can pick a schedule.',
+                      actionLabel: 'Go to Login / Register',
+                      onAction: () => navigate('/login'),
+                    });
+                  } else if (rulesNext === 'proceedBooking') {
+                    proceedBooking();
+                  } else {
+                    setRulesOpen(false);
+                  }
+                }}
+                disabled={booking}
+              >
+                {booking ? 'Submitting…' : rulesNext === 'loginOnlySchedule' ? 'I Understand' : 'I Accept & Book'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {penaltyOpen && (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="penaltyModalTitle"
+          onClick={(e) => { if (e.target === e.currentTarget) setPenaltyOpen(false); }}
+        >
+          <div className={styles.modalCard}>
+            <div className={styles.modalTop}>
+              <div className={styles.modalIconWrap} style={{ background: '#fff7ed', color: '#9a3412' }} aria-hidden>!</div>
+              <div>
+                <div id="penaltyModalTitle" className={styles.modalTitle}>Booking temporarily locked</div>
+                <div className={styles.modalSubtitle}>
+                  You have reached the limit for cancellations/reschedules. New bookings are locked for 3 days.
+                  If you have an urgent or valid reason, you may submit it below for early consideration by an admin.
+                </div>
+                {policy.cooldownUntil && (
+                  <div className={styles.smallNote}>Cooldown ends: <strong>{policy.cooldownUntil}</strong></div>
+                )}
+              </div>
+            </div>
+            <div className={styles.modalBody}>
+              <label className={styles.label} htmlFor="penaltyReason">Reason for early consideration (optional)</label>
+              <textarea
+                id="penaltyReason"
+                className={styles.textarea}
+                rows="3"
+                placeholder="Describe your situation briefly (optional)"
+                value={penaltyReason}
+                onChange={(e)=>setPenaltyReason(e.target.value)}
+                maxLength={1000}
+              />
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.ghostBtn} onClick={() => setPenaltyOpen(false)}>Close</button>
+              <button
+                type="button"
+                className={styles.primaryBtn}
+                onClick={async () => {
+                  try {
+                    const user = authService.currentUser;
+                    if (!user) { setPenaltyOpen(false); showModal({ type: 'error', title: 'Login required', message: 'Please login to submit a request.', actionLabel: 'Go to Login / Register', onAction: () => navigate('/login') }); return; }
+                    await appointmentsService.submitPolicyOverrideRequest(user.uid, {
+                      action: 'booking',
+                      reason: penaltyReason,
+                      context: {
+                        serviceId: serviceKey || '',
+                        date: date || '',
+                        time: time || '',
+                      }
+                    });
+                    setPenaltyOpen(false);
+                    showModal({ type: 'success', title: 'Request sent', message: 'Your reason was submitted for review. We will notify you if the lock is lifted early.' });
+                  } catch (err) {
+                    showModal({ type: 'error', title: 'Submission failed', message: err?.message || 'Unable to submit your request right now.' });
+                  }
+                }}
+              >
+                Send for consideration
               </button>
             </div>
           </div>

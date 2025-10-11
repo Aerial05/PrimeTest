@@ -6,6 +6,7 @@ import servicePackagesService from '@/services/ServicePackagesService';
 import singleServicesService from '@/services/SingleServicesService';
 import { useLocation } from 'react-router-dom';
 import activityLogService from '/src/services/ActivityLogService';
+import { useToast } from '/src/components/shared/toast/ToastProvider.jsx';
 
 function to12h(hhmm) {
   if (!hhmm) return '—';
@@ -122,7 +123,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [confirmSend, setConfirmSend] = useState({ open: false, onConfirm: null, title: '', message: '' });
   // Pagination
   const [page, setPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 8;
   // Filters / search
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState(''); // '', Approved, Pending, Declined
@@ -141,6 +142,19 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [proofUploading, setProofUploading] = useState(false);
   const [proofError, setProofError] = useState('');
   const [proofProgress, setProofProgress] = useState(0);
+  // Automation busy flag
+  const [autoBusy, setAutoBusy] = useState(false);
+  // Shared toast
+  const { show: showToast } = (typeof useToast === 'function' ? (useToast() || { show: () => {} }) : { show: () => {} });
+  // Toggle states (persisted per admin)
+  const [autoToggles, setAutoToggles] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('appointments.autoToggles') || '{}'); } catch(_) { return {}; }
+  });
+  const saveToggles = (next) => {
+    setAutoToggles(next);
+    try { localStorage.setItem('appointments.autoToggles', JSON.stringify(next)); } catch(_) {}
+  };
+  const lastRunSigRef = React.useRef({}); // mode -> signature of last processed ids
 
   const openModal = (id) => setModalId(id);
   const closeModal = () => setModalId(null);
@@ -588,6 +602,201 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
     setSearch(''); setFilterStatus(''); setFilterType(''); setDateFrom(''); setDateTo(''); setDatePreset(''); setFilterOverdue(false); setFilterAttention(false);
   };
 
+  // ---------- Automation helpers ----------
+  // Targets based on current filters (visible dataset)
+  const pendingTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Pending'), [filteredRows]);
+  const reschedApprovedTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Approved Reschedule'), [filteredRows]);
+  const reschedPendingTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Pending Reschedule'), [filteredRows]);
+
+  const sendEmailForRow = async (row) => {
+    try {
+      // Prefer latest reschedule details if present
+      const newDate = row?.raw?.RESCHEDULE_INFO?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT;
+      const newTime = row?.raw?.RESCHEDULE_INFO?.newTime || row.time || row.raw?.TIME_SLOT;
+      await sendAppointmentEmailCallable({
+        apptId: row.id,
+        status: 'approved',
+        serviceName: row.serviceName,
+        serviceType: row.type,
+        date: newDate,
+        time: newTime,
+        serviceId: row?.raw?.SERVICE_ID,
+        record: { ...row.raw },
+      });
+      return true;
+    } catch (e) {
+      console.warn('Email send failed for', row.id, e);
+      return false;
+    }
+  };
+
+  const approveRow = async (row, { sendEmail } = { sendEmail: false }) => {
+    try {
+      await appointmentsService.updateStatus(row.id, 'approved');
+      setStatusLocal(row.id, 'Approved');
+      let emailed = false;
+      if (sendEmail) {
+        emailed = await sendEmailForRow(row);
+      }
+      return { ok: true, emailed };
+    } catch (e) {
+      return { ok: false, emailed: false };
+    }
+  };
+
+  const runAutomation = async (mode) => {
+    if (autoBusy) return;
+    // Mode: 'approvePending' | 'approveReschedApproved' | 'approveReschedPending' | 'total'
+    let targets = [];
+    if (mode === 'approvePending') targets = pendingTargets;
+    else if (mode === 'approveReschedApproved') targets = reschedApprovedTargets;
+    else if (mode === 'approveReschedPending') targets = reschedPendingTargets;
+    else if (mode === 'total') targets = [...pendingTargets, ...reschedApprovedTargets, ...reschedPendingTargets];
+
+    if (!targets.length) {
+      showPopup({ title: 'No matching appointments', message: 'Nothing to process for the current filters.', type: 'info' });
+      return;
+    }
+
+    setAutoBusy(true);
+    let done = 0, failed = 0, emailed = 0;
+    try {
+      for (const row of targets) {
+        // Decide email behavior: now send for all approvals including reschedule-from-pending
+        const shouldEmail = (
+          mode === 'approvePending' ||
+          mode === 'approveReschedApproved' ||
+          mode === 'approveReschedPending' ||
+          (mode === 'total' && (row.status === 'Pending' || row.status === 'Approved Reschedule' || row.status === 'Pending Reschedule'))
+        );
+        const res = await approveRow(row, { sendEmail: shouldEmail });
+        if (res.ok) {
+          done += 1; if (res.emailed) emailed += 1;
+        } else {
+          failed += 1;
+        }
+      }
+    } finally {
+      setAutoBusy(false);
+    }
+
+    const parts = [
+      `${done} updated` + (failed ? `, ${failed} failed` : ''),
+      emailed ? `${emailed} email(s) sent` : 'No emails sent',
+    ];
+    showPopup({ title: 'Automation finished', message: parts.join(' • '), type: failed ? 'error' : 'info' });
+  };
+
+  // Show a shared toast confirmation dialog and return a promise<boolean>
+  const confirmAutomation = (title, message, confirmLabel = 'Proceed') => new Promise((resolve) => {
+    try {
+      showToast({
+        type: 'error',
+        title: title || 'Confirm Action',
+        message: message || 'Are you sure?',
+        duration: 0, // persistent until clicked
+        actions: [
+          { label: 'Cancel', kind: 'ghost', onClick: () => resolve(false) },
+          { label: confirmLabel, kind: 'confirm', onClick: async () => { resolve(true); } },
+        ],
+      });
+    } catch (_) { resolve(confirm(message || title)); }
+  });
+
+  const startAutomation = async (mode) => {
+    // Build tailored message per mode
+    const counts = {
+      pending: pendingTargets.length,
+      reschedApproved: reschedApprovedTargets.length,
+      reschedPending: reschedPendingTargets.length,
+    };
+    let title = 'Confirm Automation', msg = '';
+    if (mode === 'approvePending') {
+      title = 'Auto Approve Pending';
+      msg = `This will approve ${counts.pending} pending appointment(s) and send approval emails.\n\nContinue?`;
+    } else if (mode === 'approveReschedApproved') {
+      title = 'Auto Accept Reschedule (Approved)';
+      msg = `This will approve ${counts.reschedApproved} reschedule(s) that originated from Approved appointments and send reschedule approval emails with the new date/time.\n\nContinue?`;
+    } else if (mode === 'approveReschedPending') {
+      title = 'Auto Accept Reschedule (Pending)';
+      msg = `This will approve ${counts.reschedPending} reschedule(s) that originated from Pending appointments and send reschedule approval emails with the new date/time.\n\nContinue?`;
+    } else {
+      title = 'Total Automation';
+      const total = counts.pending + counts.reschedApproved + counts.reschedPending;
+      msg = `This will approve ${total} appointment(s) currently shown by your filters:\n• Pending: ${counts.pending}\n• Reschedule (Approved): ${counts.reschedApproved}\n• Reschedule (Pending): ${counts.reschedPending}\n\nEmails to be sent:\n• Pending approvals: YES\n• Reschedules from Approved: YES (with new date/time)\n• Reschedules from Pending: YES (with new date/time)\n\nProceed?`;
+    }
+    const ok = await confirmAutomation(title, msg, 'Run');
+    if (!ok) return;
+    await runAutomation(mode);
+  };
+
+  // Toggle handler: enable/disable auto mode; on enable, run immediately
+  const toggleMode = async (mode) => {
+    const isOn = !!autoToggles[mode];
+    if (isOn) {
+      const next = { ...autoToggles, [mode]: false };
+      saveToggles(next);
+      return;
+    }
+    // Turning on: if enabling total, turn others off; if enabling specific, turn total off
+    const next = { ...autoToggles, [mode]: true };
+    if (mode === 'total') {
+      next.approvePending = false; next.approveReschedApproved = false; next.approveReschedPending = false;
+    } else {
+      next.total = false;
+    }
+    // Confirm enabling auto behavior
+    let title = 'Enable Auto Mode', msg = 'Automatically process matching appointments as they appear.';
+    if (mode === 'approvePending') {
+      title = 'Enable Auto Approve Pending';
+      msg = 'This will automatically approve pending appointments (current filters) and send approval emails.';
+    } else if (mode === 'approveReschedApproved') {
+      title = 'Enable Auto Accept Reschedule (Approved)';
+      msg = 'This will automatically approve reschedules that came from Approved appointments and send reschedule approval emails with the new date/time.';
+    } else if (mode === 'approveReschedPending') {
+      title = 'Enable Auto Accept Reschedule (Pending)';
+      msg = 'This will automatically approve reschedules that came from Pending appointments and send reschedule approval emails with the new date/time.';
+    } else if (mode === 'total') {
+      title = 'Enable Total Automation';
+      msg = 'This will automatically approve Pending and Rescheduled (Pending/Approved) items as they appear, sending emails only where required.';
+    }
+    const ok = await confirmAutomation(title, msg, 'Enable');
+    if (!ok) return;
+    saveToggles(next);
+    // Run immediately for current items
+    await runAutomation(mode);
+  };
+
+  // Auto-run when toggles are ON and there are matching targets after data/filters change
+  useEffect(() => {
+    if (autoBusy) return; // avoid overlap
+    const modes = ['approvePending','approveReschedApproved','approveReschedPending','total'];
+    const getTargets = (m) => (
+      m === 'approvePending' ? pendingTargets :
+      m === 'approveReschedApproved' ? reschedApprovedTargets :
+      m === 'approveReschedPending' ? reschedPendingTargets :
+      [...pendingTargets, ...reschedApprovedTargets, ...reschedPendingTargets]
+    );
+    const runIfNeeded = async (m) => {
+      if (!autoToggles[m]) return;
+      const targets = getTargets(m);
+      if (!targets.length) return;
+      const sig = targets.map(r => r.id).sort().join(',');
+      if (lastRunSigRef.current[m] === sig) return;
+      lastRunSigRef.current[m] = sig;
+      await runAutomation(m);
+    };
+    // Prefer 'total' when enabled to avoid duplicate processing
+    if (autoToggles.total) {
+      runIfNeeded('total');
+    } else {
+      runIfNeeded('approvePending');
+      runIfNeeded('approveReschedApproved');
+      runIfNeeded('approveReschedPending');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredRows, pendingTargets.length, reschedApprovedTargets.length, reschedPendingTargets.length, autoToggles, autoBusy]);
+
   return (
     <div className={styles.card}>
       <div className={styles.toolbar}>
@@ -662,6 +871,45 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         </div>
         <div className={styles.meta}>{pageRows.length} / {filteredRows.length} shown</div>
       </div>
+      {/* Automation actions */}
+      <div className={styles.autoBar}>
+        <div className={styles.autoGroup}>
+          <button
+            className={`${styles.autoBtn} ${styles.accentGreen}`}
+            disabled={autoBusy}
+            title="Toggle auto-approve pending (sends approval email)"
+            onClick={() => toggleMode('approvePending')}
+          >
+            {autoToggles.approvePending ? 'Auto Approve Pending — On' : 'Auto Approve Pending — Off'} <span className={styles.countBadge}>{pendingTargets.length}</span>
+          </button>
+          <button
+            className={`${styles.autoBtn} ${styles.accentBlue}`}
+            disabled={autoBusy}
+            title="Toggle auto-accept reschedule (from Approved) — sends reschedule approval email"
+            onClick={() => toggleMode('approveReschedApproved')}
+          >
+            {autoToggles.approveReschedApproved ? 'Auto Accept Reschedule (Approved) — On' : 'Auto Accept Reschedule (Approved) — Off'} <span className={styles.countBadge}>{reschedApprovedTargets.length}</span>
+          </button>
+          <button
+            className={`${styles.autoBtn} ${styles.accentAmber}`}
+            disabled={autoBusy}
+            title="Toggle auto-accept reschedule (from Pending) — sends reschedule approval email"
+            onClick={() => toggleMode('approveReschedPending')}
+          >
+            {autoToggles.approveReschedPending ? 'Auto Accept Reschedule (Pending) — On' : 'Auto Accept Reschedule (Pending) — Off'} <span className={styles.countBadge}>{reschedPendingTargets.length}</span>
+          </button>
+        </div>
+        <div className={styles.autoGroup}>
+          <button
+            className={`${styles.autoBtn} ${styles.accentRed}`}
+            disabled={autoBusy}
+            title="Toggle total automation for all matching entries."
+            onClick={() => toggleMode('total')}
+          >
+            {autoToggles.total ? 'Total Automation — On' : 'Total Automation — Off'} <span className={styles.countBadge}>{pendingTargets.length + reschedApprovedTargets.length + reschedPendingTargets.length}</span>
+          </button>
+        </div>
+      </div>
       <div className={styles.tableWrapper}>
         {loading ? (
           <div className={styles.loading}>Loading appointments…</div>
@@ -676,7 +924,6 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               <th className={styles.colPatient}>Patient</th>
               <th className={styles.colAge}>Age</th>
               <th className={styles.colGender}>Gender</th>
-              <th className={styles.colType}>Type</th>
               <th className={styles.colService}>Service</th>
               <th className={styles.colDate}>Date</th>
               <th className={styles.colTime}>Time</th>
@@ -691,7 +938,6 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   <td className={`${styles.cellEllipsis} ${styles.colPatient}`}>{row.patient}</td>
                   <td className={styles.colAge}>{row.age}</td>
                   <td className={styles.colGender}>{row.gender}</td>
-                  <td className={styles.colType}>{row.type}</td>
                   <td className={`${styles.colService}`} title={row.serviceName}>{row.serviceName}</td>
                   <td className={styles.colDate}>{row.dateDisplay || toLongDate(row.date)}</td>
                   <td className={styles.colTime}>{to12h(row.time)}</td>

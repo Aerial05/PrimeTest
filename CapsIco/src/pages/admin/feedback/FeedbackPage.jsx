@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './FeedbackPage.module.css';
 import appointmentsService from '/src/services/AppointmentsService';
 import { useToast } from '/src/components/shared/toast/ToastProvider.jsx';
-import { ref as dbRef, push as dbPush } from 'firebase/database';
+import { ref as dbRef, push as dbPush, update as dbUpdate } from 'firebase/database';
 import activityLogService from '/src/services/ActivityLogService';
 import { usersDB } from '/src/config/firebase-config';
 
@@ -25,6 +25,12 @@ export function FeedbackPage() {
   const [selectedId, setSelectedId] = useState('');
   const [sort, setSort] = useState('Newest'); // Newest | Oldest | Highest Rating
   const [loading, setLoading] = useState(true);
+  // Auto-thank toggle and guards
+  const [autoThank, setAutoThank] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('feedback.autoThank') || 'false'); } catch(_) { return false; }
+  });
+  const autoBusyRef = useRef(false);
+  const lastSigRef = useRef('');
 
   useEffect(() => {
     let mounted = true;
@@ -56,6 +62,8 @@ export function FeedbackPage() {
               message: f.message || '',
               ratings,
               avg,
+              thanked: !!(f.THANKED || f.thanked),
+              thankedAt: f.THANKED_AT || f.thankedAt || '',
             };
           });
         if (mounted) {
@@ -121,14 +129,22 @@ export function FeedbackPage() {
     return parts.join('\n');
   };
 
+  // Helper to enqueue a thank-you email and mark flags
+  const enqueueThankYou = async (row) => {
+    const subject = 'Thank you for your feedback';
+    const text = buildThankYouEmail(row);
+    await dbPush(dbRef(usersDB, 'emailQueue'), { to: row.email, subject, text });
+    const nowIso = new Date().toISOString();
+    try { await dbUpdate(dbRef(usersDB, `appointments/${row.id}/FEEDBACK`), { THANKED: true, THANKED_AT: nowIso }); } catch(_) {}
+    setItems(prev => prev.map(i => i.id === row.id ? { ...i, thanked: true, thankedAt: nowIso } : i));
+  };
+
   const sendThankYou = async (row) => {
     if (!row || !row.email) {
       show({ type: 'error', title: 'No email available', message: 'This feedback has no email address to reply to.' });
       return;
     }
-    const subject = 'Thank you for your feedback';
-    const text = buildThankYouEmail(row);
-    const confirm = () => dbPush(dbRef(usersDB, 'emailQueue'), { to: row.email, subject, text })
+    const confirm = () => enqueueThankYou(row)
       .then(() => {
         show({ type: 'success', title: 'Email queued', message: 'A thank you email has been queued for sending.' });
       })
@@ -160,6 +176,19 @@ export function FeedbackPage() {
                 <option>Oldest</option>
                 <option>Highest Rating</option>
               </select>
+            </div>
+            <div className={styles.headerActions}>
+              <button
+                className={styles.btnGhost}
+                onClick={() => {
+                  const next = !autoThank;
+                  setAutoThank(next);
+                  try { localStorage.setItem('feedback.autoThank', JSON.stringify(next)); } catch(_) {}
+                }}
+                title="Automatically send thank you emails for new feedback"
+              >
+                {autoThank ? 'Auto Thank You — On' : 'Auto Thank You — Off'}
+              </button>
             </div>
           </div>
 

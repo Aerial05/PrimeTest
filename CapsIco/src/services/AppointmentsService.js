@@ -597,6 +597,46 @@ class AppointmentsService extends BaseFirebaseService {
     }
     return fb;
   }
+
+  /**
+   * Submit a policy override request when the user is under cooldown (0 chances left).
+   * Writes a record under both the user's policy node and a central index for admin review.
+   * payload: {
+   *   action: 'booking' | 'cancel' | 'reschedule',
+   *   reason: string,
+   *   context?: object  // optional, e.g., { appointmentId, serviceId, date, time }
+   * }
+   */
+  async submitPolicyOverrideRequest(userId, payload = {}) {
+    if (!userId) throw new Error('Missing user');
+    const now = new Date().toISOString();
+    const clean = {
+      action: String(payload.action || '').toLowerCase(),
+      reason: String(payload.reason || '').slice(0, 1000),
+      at: now,
+      status: 'pending', // pending | approved | denied
+      context: (payload && typeof payload.context === 'object') ? payload.context : {},
+      userId,
+    };
+    const reqRef = push(ref(this.database, `users/${userId}/APPOINTMENT_POLICY/overrideRequests`));
+    const key = reqRef.key;
+    const indexPath = `policyOverrideRequests/${key}`;
+    const record = { id: key, ...clean };
+    const updates = {};
+    updates[`users/${userId}/APPOINTMENT_POLICY/overrideRequests/${key}`] = record;
+    updates[indexPath] = record;
+    await update(ref(this.database), updates);
+    try {
+      await activityLogService.log({
+        type: 'policy',
+        action: 'override_request',
+        description: `User requested override for ${clean.action}`,
+        targetId: key,
+        metadata: { userId, ...clean },
+      });
+    } catch (_) {}
+    return { id: key };
+  }
 }
 
 const appointmentsService = new AppointmentsService();

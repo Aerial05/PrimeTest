@@ -25,6 +25,7 @@ const appBrandName = (cfg.app && cfg.app.brand_name) || 'Prime Medical Laborator
 const appLogoUrl = (cfg.app && cfg.app.logo_url) || '';
 
 const MAIL_COLLECTION = process.env.MAIL_COLLECTION || 'mail';
+const DELAYED_MAIL_COLLECTION = process.env.DELAYED_MAIL_COLLECTION || 'mailDelayed';
 // Deploy functions in asia-east2
 const r = functions.region('asia-east2');
 
@@ -124,8 +125,8 @@ async function resolveServiceName(rec) {
 
 // Email template helpers moved to emailTemplates.js
 
-// Helper: write a document for the Trigger Email extension
-async function enqueueTriggerEmail({ to, subject, html, text, cc, bcc, replyTo, template, data, source }) {
+// Helper: enqueue an email into a delayed queue (1–4 minutes), then a scheduler will move it to MAIL_COLLECTION
+async function enqueueTriggerEmail({ to, subject, html, text, cc, bcc, replyTo, template, data, source, delaySeconds }) {
   const mailDoc = {
     to,
     cc,
@@ -138,8 +139,20 @@ async function enqueueTriggerEmail({ to, subject, html, text, cc, bcc, replyTo, 
     source,
   };
   Object.keys(mailDoc).forEach((k) => mailDoc[k] === undefined && delete mailDoc[k]);
+
+  // Compute a randomized delay between 60s and 240s unless explicitly provided
+  let delay = typeof delaySeconds === 'number' && delaySeconds >= 0 ? Math.floor(delaySeconds) : (60 + Math.floor(Math.random() * 181));
+  const sendAfter = admin.firestore.Timestamp.fromDate(new Date(Date.now() + delay * 1000));
+
   const db = admin.firestore();
-  await db.collection(MAIL_COLLECTION).add(mailDoc);
+  const delayedDoc = {
+    mailDoc,
+    sendAfter,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    delayed: true,
+    originalSource: source || 'unknown',
+  };
+  await db.collection(DELAYED_MAIL_COLLECTION).add(delayedDoc);
 }
 
 // 1) Appointment create -> enqueue Trigger Email (request received or approved)
@@ -296,28 +309,18 @@ exports.enqueueEmailOnRtdbWrite = r.database
       return null;
     }
 
-    const mailDoc = {
+    await enqueueTriggerEmail({
       to,
+      subject,
+      html,
+      text,
       cc,
       bcc,
       replyTo,
       template,
-      message: template
-        ? undefined
-        : {
-            subject,
-            ...(html ? { html } : { text: text || '' }),
-          },
       data,
-      createdAt: admin.firestore.FieldValue.serverTimestamp(),
       source: 'rtdb-enqueueEmailOnRtdbWrite',
-      _rtdbRef: snapshot.ref.toString(),
-    };
-
-    Object.keys(mailDoc).forEach((k) => mailDoc[k] === undefined && delete mailDoc[k]);
-
-    const db = admin.firestore();
-    await db.collection(MAIL_COLLECTION).add(mailDoc);
+    });
 
     await snapshot.ref.update({ processedAt: admin.database.ServerValue.TIMESTAMP });
     return null;
@@ -396,7 +399,7 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
       { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl }
     );
     const subject = buildStatusSubject(payload);
-    await enqueueTriggerEmail({ to, subject, html, source: 'callable-sendAppointmentEmail' });
+  await enqueueTriggerEmail({ to, subject, html, source: 'callable-sendAppointmentEmail' });
     // Mark flags by status to prevent the RTDB status trigger from double-sending
     const status = String(payload.BOOKING_STATUS || '').toLowerCase();
     const flags = {};
@@ -413,3 +416,34 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError('internal', err?.message || 'Unknown error');
   }
 });
+
+// Scheduled processor: move due delayed emails into the extension's mailbox collection
+exports.processDelayedMail = functions.pubsub
+  .schedule('every 1 minutes')
+  .timeZone('Asia/Manila')
+  .onRun(async () => {
+    const db = admin.firestore();
+    const now = admin.firestore.Timestamp.now();
+    const snap = await db
+      .collection(DELAYED_MAIL_COLLECTION)
+      .where('sendAfter', '<=', now)
+      .orderBy('sendAfter', 'asc')
+      .limit(50)
+      .get();
+    if (snap.empty) return null;
+    const batch = db.batch();
+    snap.docs.forEach((doc) => {
+      const data = doc.data() || {};
+      const mailDoc = data.mailDoc || null;
+      if (!mailDoc || typeof mailDoc !== 'object') {
+        // If malformed, just delete to avoid blocking the queue
+        batch.delete(doc.ref);
+        return;
+      }
+      const destRef = db.collection(MAIL_COLLECTION).doc();
+      batch.set(destRef, mailDoc);
+      batch.delete(doc.ref);
+    });
+    await batch.commit();
+    return null;
+  });

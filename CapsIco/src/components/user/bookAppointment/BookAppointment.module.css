@@ -332,6 +332,40 @@
 	gap: 16px;
 }
 
+/* Instant checkup callout */
+.instantCallout {
+	border: 1px solid #e8eefc;
+	background: #f7f9ff;
+	padding: 10px 12px;
+	border-radius: 12px;
+	margin-bottom: 12px;
+}
+.instantLine { color:#0f172a; margin: 0; }
+.callLink {
+	color: var(--primary, #3730a3);
+	font-weight: 800;
+	text-decoration: none;
+	border-bottom: 1px dashed rgba(55, 48, 163, .35);
+}
+.callLink:hover { text-decoration: underline; }
+.walkinLink {
+	color: #0f172a;
+	text-decoration: none;
+	border-bottom: 1px dashed rgba(15, 23, 42, .25);
+}
+.walkinLink:hover { text-decoration: underline; }
+
+/* Urgent note inside rules modal */
+.urgentNote {
+	background:#fff7ed;
+	border:1px solid #fed7aa;
+	color:#7c2d12;
+	padding:8px 10px;
+	border-radius:8px;
+	margin: 0 0 10px 0;
+}
+.urgentLink { color:#7c2d12; font-weight:800; }
+
 /* Make rows denser on shorter screens so more times fit without outside scroll */
 @media (max-height: 820px) {
 	.timeCell { height: 40px; }

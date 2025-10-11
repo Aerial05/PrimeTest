@@ -37,6 +37,10 @@ export function AppointmentsSettingsPage() {
   const [resConfirmOpen, setResConfirmOpen] = useState(false);
   const [resSubmitting, setResSubmitting] = useState(false);
   const [resReason, setResReason] = useState('');
+  // Cooldown enforcement and early consideration
+  const [penaltyOpen, setPenaltyOpen] = useState(false);
+  const [penaltyReason, setPenaltyReason] = useState('');
+  const [penaltyAction, setPenaltyAction] = useState(''); // 'cancel' | 'reschedule'
 
   const formatDate = (isoDate) => {
     if (!isoDate) return '';
@@ -258,6 +262,15 @@ export function AppointmentsSettingsPage() {
   };
 
   const requestCancel = (row) => {
+    // Block when under cooldown
+    const cdActive = policy.cooldownUntil && Date.parse(policy.cooldownUntil) > Date.now();
+    const chancesLeft = Math.max(0, 3 - (Number(policy.cancelCountCycle || 0) || 0));
+    if (cdActive || chancesLeft <= 0) {
+      setPenaltyAction('cancel');
+      setPenaltyReason('');
+      setPenaltyOpen(true);
+      return;
+    }
     setCancelId(row.id);
     setCancelReason('');
   };
@@ -313,6 +326,15 @@ export function AppointmentsSettingsPage() {
   };
 
   const requestReschedule = (row) => {
+    // Block when under cooldown
+    const cdActive = policy.cooldownUntil && Date.parse(policy.cooldownUntil) > Date.now();
+    const chancesLeft = Math.max(0, 3 - (Number(policy.cancelCountCycle || 0) || 0));
+    if (cdActive || chancesLeft <= 0) {
+      setPenaltyAction('reschedule');
+      setPenaltyReason('');
+      setPenaltyOpen(true);
+      return;
+    }
     // Build minimal activeItem shape for ScheduleCalendar
     const active = {
       availability: row.availability || '',
@@ -710,6 +732,52 @@ export function AppointmentsSettingsPage() {
         );
         try { return createPortal(node, document.body); } catch { return node; }
       })()}
+
+      {penaltyOpen && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="penTitle">
+            <h3 id="penTitle">Action temporarily locked</h3>
+            <p>
+              You have reached the limit for cancellations/reschedules. This action is locked for 3 days.
+              If you have an urgent or valid reason, you can submit it below for admin consideration.
+            </p>
+            {policy.cooldownUntil && (
+              <p className={styles.subCell} style={{ marginTop: 4 }}>Cooldown ends: <strong>{policy.cooldownUntil}</strong></p>
+            )}
+            <label className={styles.label} htmlFor="penalReason">Reason (optional)</label>
+            <textarea
+              id="penalReason"
+              className={styles.cancelTextarea}
+              placeholder="Describe briefly why you need this sooner (optional)"
+              value={penaltyReason}
+              onChange={(e) => setPenaltyReason(e.target.value)}
+              maxLength={1000}
+            />
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.btnGhost} onClick={() => setPenaltyOpen(false)}>Close</button>
+              <button
+                type="button"
+                className={styles.btnPrimary}
+                onClick={async () => {
+                  try {
+                    if (!user?.uid) { setPenaltyOpen(false); alert('Please login again.'); return; }
+                    await appointmentsService.submitPolicyOverrideRequest(user.uid, {
+                      action: penaltyAction || 'cancel',
+                      reason: penaltyReason,
+                    });
+                    setPenaltyOpen(false);
+                    try { show({ type: 'success', title: 'Request sent', message: 'Your request was submitted for review.' }); } catch (_) {}
+                  } catch (e) {
+                    alert(e?.message || 'Unable to submit request now.');
+                  }
+                }}
+              >
+                Send for consideration
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

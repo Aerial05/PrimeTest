@@ -78,6 +78,53 @@ td { font-size: 14px; color: #4b5563; }
 .btnDelete { background: linear-gradient(180deg, #fee2e2, #fecaca); color: #991b1b; }
 .btnDelete:hover { background: linear-gradient(180deg, #fbd0d0, #f8b4b4); }
 
+/* Automation bar styles - simplified and modern */
+.autoBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 24px 12px 24px;
+  border-bottom: 1px solid #eef2f7;
+  background: #fff;
+}
+.autoGroup { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.autoBtn {
+  --accent: #2563eb;
+  background: #fff;
+  color: #111827;
+  border: 1.5px solid color-mix(in srgb, var(--accent) 18%, #e5e7eb 82%);
+  border-radius: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: .01em;
+  transition: transform .12s ease, box-shadow .2s ease, border-color .2s ease, opacity .12s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.autoBtn:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(2,6,23,0.06); border-color: var(--accent); }
+.autoBtn:active { transform: translateY(0); opacity: .95; }
+.autoBtn:disabled { opacity: .55; cursor: not-allowed; }
+.autoBtn:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent), white 65%); outline-offset: 2px; }
+
+/* Accent variants */
+.accentGreen { --accent: #16a34a; }
+.accentBlue { --accent: #2563eb; }
+.accentAmber { --accent: #d97706; }
+.accentRed { --accent: #b91c1c; }
+
+.countBadge {
+  background: color-mix(in srgb, var(--accent), white 88%);
+  color: var(--accent);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+}
+
 .cellEllipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 
 /* Time badge style */

@@ -17,6 +17,7 @@
 .badgeGreen{background:#dcfce7;color:#166534}
 .badgeBlue{background:#dbeafe;color:#1e40af}
 .badgeGray{background:#f3f4f6;color:#374151}
+.badgeAmber{background:#fef3c7;color:#92400e}
 .unreadDot{width:8px;height:8px;border-radius:50%;background:#ef4444;margin-left:auto}
 .detailCard{display:flex;flex-direction:column;gap:16px}
 .detailHeader{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
