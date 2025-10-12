@@ -525,7 +525,8 @@ exports.sendAppointmentEmail = r.https.onCall(async (data, context) => {
 });
 
 // Scheduled processor: move due delayed emails into the extension's mailbox collection
-exports.processDelayedMail = functions.pubsub
+// Use the same region as other functions for consistency
+exports.processDelayedMail = r.pubsub
   .schedule('every 1 minutes')
   .timeZone('Asia/Manila')
   .onRun(async () => {
