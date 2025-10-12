@@ -14,9 +14,12 @@ export function Chatbot() {
   const [error, setError] = useState('');
   const [currentUser, setCurrentUser] = useState(null);
   const [hasNewMessage, setHasNewMessage] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const location = useLocation();
 
   // Track current user
@@ -41,19 +44,6 @@ export function Chatbot() {
     }
   }, [isOpen]);
 
-  // Show welcome message on first open
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      const welcomeMsg = {
-        id: Date.now(),
-        text: `Hi, I'm Pulse! What services would you like to have? Just ask away!`,
-        sender: 'bot',
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages([welcomeMsg]);
-    }
-  }, [isOpen]);
-
   // Show notification when chat is closed and bot sends message
   useEffect(() => {
     if (!isOpen && messages.length > 0) {
@@ -70,11 +60,33 @@ export function Chatbot() {
   useEffect(() => {
     const textarea = inputRef.current;
     if (textarea) {
-      textarea.style.height = '44px'; // Reset to min height
+      textarea.style.height = '48px'; // Reset to min height
       const scrollHeight = textarea.scrollHeight;
       textarea.style.height = Math.min(scrollHeight, 120) + 'px';
     }
   }, [inputValue]);
+
+  // Handle chatbot open with auth check
+  const handleChatbotToggle = () => {
+    if (!isOpen && !currentUser) {
+      alert('Please log in to use the chatbot assistant.');
+      return;
+    }
+
+    if (!isOpen && currentUser && !hasSeenDisclaimer) {
+      setShowDisclaimer(true);
+      return;
+    }
+
+    setIsOpen(!isOpen);
+  };
+
+  // Handle disclaimer acceptance
+  const handleAcceptDisclaimer = () => {
+    setShowDisclaimer(false);
+    setHasSeenDisclaimer(true);
+    setIsOpen(true);
+  };
 
   const getCurrentPageContext = () => {
     const path = location.pathname.toLowerCase();
@@ -154,15 +166,6 @@ export function Chatbot() {
       setMessages([]);
       chatbotService.clearHistory();
       setError('');
-      
-      // Add fresh welcome message
-      const welcomeMsg = {
-        id: Date.now(),
-        text: `Chat cleared! How can I help you today?`,
-        sender: 'bot',
-        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-      };
-      setMessages([welcomeMsg]);
     }
   };
 
@@ -177,7 +180,7 @@ export function Chatbot() {
       {/* Floating Button */}
       <button
         className={`${styles.chatbotButton} ${isOpen ? styles.open : ''}`}
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={handleChatbotToggle}
         aria-label={isOpen ? 'Close chat' : 'Open chat'}
         title={isOpen ? 'Close chat' : 'Chat with us'}
       >
@@ -187,14 +190,57 @@ export function Chatbot() {
         {isOpen ? <X /> : <MessageCircle />}
       </button>
 
+      {/* Disclaimer Modal */}
+      {showDisclaimer && (
+        <div className={styles.disclaimerModal}>
+          <div className={styles.disclaimerContent}>
+            <div className={styles.disclaimerHeader}>
+              <AlertCircle />
+              <h3>Chatbot Terms & Conditions</h3>
+            </div>
+            <div className={styles.disclaimerBody}>
+              <p><strong>Purpose & Limitations:</strong></p>
+              <p>The information provided by this chatbot is for appointment scheduling and general service information purposes only. It does not constitute professional medical advice, diagnosis, treatment, or a binding agreement.</p>
+              
+              <p><strong>Privacy & Chat History:</strong></p>
+              <p>Your conversation history is not saved or stored. When you close the chatbot or leave the page, your entire chat history will be permanently cleared. Please save any important information before closing.</p>
+              
+              <p><strong>Human Representative:</strong></p>
+              <p>If you need to speak with a staff member, the chatbot will attempt to connect you. If our staff is currently busy, please contact us directly at <strong>0926-638-6300</strong> for immediate assistance.</p>
+              
+              <p><strong>Important Notice:</strong></p>
+              <p>For official confirmation, urgent concerns, or medical emergencies, please contact the clinic directly through the provided channels.</p>
+            </div>
+            <div className={styles.disclaimerActions}>
+              <button 
+                className={styles.disclaimerCancel}
+                onClick={() => setShowDisclaimer(false)}
+              >
+                Cancel
+              </button>
+              <button 
+                className={styles.disclaimerAccept}
+                onClick={handleAcceptDisclaimer}
+              >
+                I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Chat Window */}
       {isOpen && (
         <div className={styles.chatbotWindow}>
           {/* Header */}
           <div className={styles.chatHeader}>
             <div className={styles.chatHeaderInfo}>
+              <div className={styles.headerAvatar}>
+                <Sparkles />
+              </div>
               <div className={styles.headerText}>
                 <h3>Pulse</h3>
+                <p className={styles.headerSubtitle}>AI Assistant</p>
               </div>
             </div>
             <div className={styles.headerActions}>
@@ -217,9 +263,10 @@ export function Chatbot() {
             </div>
           </div>
 
-          {/* Messages */}
-          <div className={styles.messagesContainer}>
-            {messages.length === 0 && (
+          {/* Messages Container Wrapper */}
+          <div className={styles.messagesWrapper}>
+            <div className={styles.messagesContainer}>
+              {messages.length === 0 && (
               <>
                 {/* Welcome message as bot message */}
                 <div className={`${styles.message} ${styles.bot}`}>
@@ -286,15 +333,16 @@ export function Chatbot() {
                 <div ref={messagesEndRef} />
               </>
             )}
-          </div>
-
-          {/* Error Display */}
-          {error && (
-            <div className={styles.errorMessage}>
-              <AlertCircle />
-              <span>{error}</span>
             </div>
-          )}
+
+            {/* Error Display */}
+            {error && (
+              <div className={styles.errorMessage}>
+                <AlertCircle />
+                <span>{error}</span>
+              </div>
+            )}
+          </div>
 
           {/* Input Area */}
           <div className={styles.inputArea}>
@@ -318,6 +366,11 @@ export function Chatbot() {
             >
               <Send />
             </button>
+          </div>
+
+          {/* Disclaimer */}
+          <div className={styles.disclaimer}>
+            <strong>Disclaimer:</strong> The information provided by this chatbot is intended for appointment assistance and general service guidance purposes only. It does not constitute professional medical advice, diagnosis, or a binding agreement. For official confirmation or urgent concerns, please contact the clinic directly through the provided channels.
           </div>
         </div>
       )}
