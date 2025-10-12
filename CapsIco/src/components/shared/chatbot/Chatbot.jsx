@@ -368,10 +368,7 @@ export function Chatbot() {
             </button>
           </div>
 
-          {/* Disclaimer */}
-          <div className={styles.disclaimer}>
-            <strong>Disclaimer:</strong> The information provided by this chatbot is intended for appointment assistance and general service guidance purposes only. It does not constitute professional medical advice, diagnosis, or a binding agreement. For official confirmation or urgent concerns, please contact the clinic directly through the provided channels.
-          </div>
+          {/* Bottom disclaimer removed per request - modal still shown on first open */}
         </div>
       )}
     </div>
