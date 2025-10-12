@@ -1,4 +1,36 @@
-# React + Vite
+# Prime Medical Laboratory & Clinic - Web Application
+
+A comprehensive healthcare management system built with React, Vite, and Firebase, featuring AI-powered chatbot assistance.
+
+## 🚀 Key Features
+
+- 🏥 **Medical Services Management**: Browse and book laboratory tests, consultations, and health packages
+- 📅 **Online Appointment Booking**: Schedule appointments with real-time availability
+- 🤖 **AI Chatbot Assistant**: Gemini-powered intelligent support across all pages
+- 👤 **User Profiles**: Manage personal information, appointments, and medical history
+- 🔐 **Multi-Authentication**: Email/password, Google, Facebook, and Phone OTP (PH)
+- 📱 **Responsive Design**: Optimized for desktop, tablet, and mobile devices
+- 🎨 **Modern UI/UX**: Smooth animations and intuitive navigation
+
+## 🤖 AI Chatbot Feature (NEW!)
+
+The application includes a floating AI chatbot powered by Google's Gemini API:
+
+- **Persistent Across Pages**: Chat button available on all user-facing pages
+- **Context-Aware**: Provides relevant information based on current page
+- **Smart Assistance**: Answers questions about services, appointments, and clinic info
+- **User-Friendly**: Quick replies, typing indicators, and conversation history
+- **Secure (per your setup)**: API key fetched at runtime from Realtime Database (or from .env in dev)
+
+### Quick Setup:
+1. Get your Gemini API key from [AI Studio](https://aistudio.google.com/)
+2. Add it to Realtime Database at `/config/gemini/apiKey` (restrict reads)
+3. Or in local dev, set `VITE_GEMINI_API_KEY` in `.env.local`
+4. Chat button appears automatically on all user pages!
+
+📖 **Detailed Setup**: See [CHATBOT_QUICKSTART.md](./CHATBOT_QUICKSTART.md) and [CHATBOT_SETUP.md](./CHATBOT_SETUP.md)
+
+## React + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

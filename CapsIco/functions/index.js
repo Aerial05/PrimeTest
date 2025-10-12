@@ -7,6 +7,13 @@
    firebase functions:config:set sendgrid.key="SG.xxxxx" sendgrid.sender="no-reply@yourdomain.com" app.public_url="https://yourapp.web.app"
  You may also set MAIL_COLLECTION via environment if using Trigger Email (defaults to 'mail').
 */
+// Load local environment for emulator/dev only (no-op in production)
+try {
+  // Prefer .env.local next to this file
+  require('dotenv').config({ path: require('path').join(__dirname, '.env.local') });
+  // Also load default .env if present
+  require('dotenv').config();
+} catch (_) {}
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const {
@@ -28,6 +35,105 @@ const MAIL_COLLECTION = process.env.MAIL_COLLECTION || 'mail';
 const DELAYED_MAIL_COLLECTION = process.env.DELAYED_MAIL_COLLECTION || 'mailDelayed';
 // Deploy functions in asia-east2
 const r = functions.region('asia-east2');
+
+// Secure Gemini API proxy: NEVER expose API key to clients.
+// Configure via Functions config or environment secret:
+//   firebase functions:config:set gemini.key="AIza..."
+// Or use Secret Manager (recommended for production) and access via process.env.GEMINI_API_KEY
+exports.chatWithGemini = r.https.onCall(async (data, context) => {
+  try {
+    if (!context.auth) {
+      throw new functions.https.HttpsError('unauthenticated', 'Please sign in to use the chatbot.');
+    }
+
+    const { message, history = [], context: ctx = {} } = data || {};
+    const userMessage = (message || '').toString().trim();
+    if (!userMessage) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing message.');
+    }
+
+    // Load API key from config or env (prefer functions config)
+    const apiKey = (functions.config()?.gemini && functions.config().gemini.key) || process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error('[chatWithGemini] Missing GEMINI API key');
+      throw new functions.https.HttpsError('failed-precondition', 'Chatbot is not configured.');
+    }
+
+    // Build system prompt
+    const systemPrompt = buildSystemPrompt(ctx);
+    // Map prior history to Gemini format (limit to last 10 exchanges)
+    const trimmed = Array.isArray(history) ? history.slice(-10) : [];
+    const mappedHistory = trimmed.map((h) => ({
+      role: h?.sender === 'user' ? 'user' : 'model',
+      parts: [{ text: (h?.text || '').toString() }],
+    }));
+
+    const contents = [
+      { role: 'user', parts: [{ text: systemPrompt }] },
+      ...mappedHistory,
+      { role: 'user', parts: [{ text: userMessage }] },
+    ];
+
+    const payload = {
+      contents,
+      generationConfig: {
+        temperature: 0.7,
+        topK: 40,
+        topP: 0.95,
+        maxOutputTokens: 1024,
+      },
+      safetySettings: [
+        { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+        { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+        { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+        { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_MEDIUM_AND_ABOVE' },
+      ],
+    };
+
+    const endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+    const res = await fetch(`${endpoint}?key=${apiKey}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await safeJson(res);
+      console.error('[chatWithGemini] API error', res.status, err);
+      throw new functions.https.HttpsError('internal', err?.error?.message || 'Gemini API error');
+    }
+    const dataJson = await res.json();
+    const text = dataJson?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    return { text };
+  } catch (e) {
+    if (e instanceof functions.https.HttpsError) throw e;
+    console.error('[chatWithGemini] failed', e);
+    throw new functions.https.HttpsError('internal', e?.message || 'Unknown error');
+  }
+});
+
+function buildSystemPrompt(context) {
+  const userName = (context && context.userName) || 'Guest';
+  const currentPage = (context && context.currentPage) || 'home';
+  return (
+    `You are a helpful AI assistant for Prime Medical Laboratory and Clinic, a healthcare facility in the Philippines.\n\n` +
+    `Your role:\n- Answer questions about medical services, packages, and appointments\n` +
+    `- Provide information about clinic hours and contact details\n- Help users navigate the website\n- Be professional, empathetic, and informative\n` +
+    `- Never provide medical diagnoses or replace professional medical advice\n` +
+    `- Always recommend booking an appointment or consulting with medical staff for health concerns\n\n` +
+    `Clinic Information:\n- Name: Prime Medical Laboratory and Clinic\n- Services: Laboratory tests, medical consultations, health packages, surgical procedures\n` +
+    `- Location: Philippines\n- Booking: Users can book appointments online through the "Make an Appointment" page\n\n` +
+    `Current context:\n- User: ${userName}\n- Current page: ${currentPage}\n\n` +
+    `Guidelines:\n- Be concise and friendly\n- Use simple language\n` +
+    `- If asked about specific medical conditions, recommend consulting with a healthcare professional\n` +
+    `- Encourage users to book appointments for proper medical evaluation\n` +
+    `- Provide helpful navigation tips when users seem lost\n\n` +
+    `Now, please assist the user with their inquiry.`
+  );
+}
+
+async function safeJson(res) {
+  try { return await res.json(); } catch { return null; }
+}
 
 // Helper: resolve service name from RTDB based on SERVICE_TYPE and SERVICE_ID
 async function resolveServiceName(rec) {

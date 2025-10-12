@@ -35,6 +35,7 @@ import { AdminNavBar } from "/src/components/admin/navbar/AdminNavbar";
 import { AdminHeaderInfoBar } from "/src/components/admin/headerInfoBar/AdminHeaderInfoBar";
 import { AdminFooter } from "/src/components/admin/footer/AdminFooter";
 import { BookingCard } from "./components/user/dashboard/bookingCard/BookingCard";
+import { Chatbot } from "./components/shared/chatbot/Chatbot";
 
 import authService from "./services/AuthService";
 import { auth, usersDB } from "./config/firebase-config";
@@ -262,6 +263,11 @@ export default function App() {
           }}>
             <BookingCard align="left" />
           </div>
+        )}
+
+        {/* Floating AI Chatbot - Visible on all user-facing pages */}
+        {!checkingAuth && (!isAdmin || preferUserView) && (
+          <Chatbot />
         )}
       </div>
     </BrowserRouter>
