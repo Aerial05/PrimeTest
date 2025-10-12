@@ -14,6 +14,9 @@ import { Services } from "./pages/user/Services/Services";
 import { Appointment } from "./pages/user/bookAppointment/Appointment";
 import { UserSettingsPage } from "./pages/user/settings/UserSettingsPage";
 import { ProfileWithMeta } from "./pages/user/settings/ProfileWithMeta";
+import { SettingsContent as ProfileSettingsContent } from "/src/pages/user/settings/Profile/SettingsContentUser";
+import { RulesSettingsPage } from "/src/pages/user/settings/Rules/RulesSettingsPage";
+import { AppointmentsSettingsPage } from "/src/pages/user/settings/Appointments/Appointments.SettingsPage";
 
 // Admin pages
 import { AdminDashboard } from "./pages/admin/adminDashboard/AdminDashboard";
@@ -35,6 +38,18 @@ import { BookingCard } from "./components/user/dashboard/bookingCard/BookingCard
 
 import authService from "./services/AuthService";
 import { auth, usersDB } from "./config/firebase-config";
+
+// Legacy /settings redirect helper to keep query params and map to new nested routes
+function SettingsRedirect() {
+  const location = useLocation();
+  const qp = new URLSearchParams(location.search || '');
+  const tab = (qp.get('tab') || '').toLowerCase();
+  let to = '/profile';
+  if (tab === 'history' || tab === 'appointments') to = '/profile/appointments';
+  else if (tab === 'rules') to = '/profile/rules';
+  else if (tab === 'profile') to = '/profile';
+  return <Navigate to={to} replace />;
+}
 
 function AnimatedRoutes({ role, preferUserView, setIsHomePage }) {
   const location = useLocation();
@@ -81,9 +96,16 @@ function AnimatedRoutes({ role, preferUserView, setIsHomePage }) {
             <Route path="/about" element={<AboutUs />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/appointment" element={<Appointment />} />
-            <Route path="/profile" element={<ProfileWithMeta />} />
+            {/* Profile nested routes */}
+            <Route path="/profile" element={<ProfileWithMeta />}>
+              <Route index element={<ProfileSettingsContent />} />
+              <Route path="appointments" element={<AppointmentsSettingsPage />} />
+              <Route path="rules" element={<RulesSettingsPage />} />
+            </Route>
             <Route path="/services" element={<Services />} />
-            <Route path="/settings/*" element={<UserSettingsPage />} />
+            {/* Legacy settings route -> redirect to new /profile routes for known tabs; otherwise keep old page */}
+            <Route path="/settings" element={<SettingsRedirect />} />
+            <Route path="/settings/:rest*" element={<SettingsRedirect />} />
 
             <Route path="/appointment-management" element={guardAdminRoute(<Appointments />)} />
             {/* Back-compat redirect */}

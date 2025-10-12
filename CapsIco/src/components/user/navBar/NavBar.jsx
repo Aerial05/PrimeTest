@@ -187,7 +187,7 @@ export function NavBar() {
           </Link>
 
           {feedbackCount > 0 && (
-            <Link to="/settings?tab=appointments" title={`You have ${feedbackCount} feedback ${feedbackCount>1?'requests':'request'}`}>
+            <Link to="/profile/appointments" title={`You have ${feedbackCount} feedback ${feedbackCount>1?'requests':'request'}`}>
               <button className={styles.btnFeedback} aria-label="Give feedback">
                 <Star size={16} />
                 Give Feedback
@@ -232,7 +232,7 @@ export function NavBar() {
                 {currentUser ? (
                   <>
                     <Link to="/profile">View Profile</Link>
-                    <Link to="/settings?tab=appointments">Appointments</Link>
+                    <Link to="/profile/appointments">Appointments</Link>
                     <a
                       href="#"
                       onClick={(e) => {
