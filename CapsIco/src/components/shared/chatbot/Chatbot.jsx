@@ -5,6 +5,8 @@ import styles from './Chatbot.module.css';
 import chatbotService from '/src/services/ChatbotService';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth } from '/src/config/firebase-config';
+import singleServicesService from '/src/services/SingleServicesService';
+import servicePackagesService from '/src/services/ServicePackagesService';
 
 export function Chatbot() {
   const [isOpen, setIsOpen] = useState(false);
@@ -17,6 +19,164 @@ export function Chatbot() {
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [servicesLoaded, setServicesLoaded] = useState(false);
+  const servicesCacheRef = useRef({ singles: [], packages: [] });
+
+  // Ensure the services/packages are loaded once per session
+  const ensureServicesLoaded = async () => {
+    await ensureServicesLoadedOnce(servicesCacheRef, setServicesLoaded);
+  };
+
+  // Try to match AI-recommended names in the response to our DB items
+  const matchServiceSuggestions = (responseText, userText) => {
+    const txt = String(responseText || '').toLowerCase();
+    const userTxt = String(userText || '').toLowerCase();
+    if (!txt) return [];
+    const singles = servicesCacheRef.current.singles || [];
+    const packages = servicesCacheRef.current.packages || [];
+
+    const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    const includesPhrase = (hay, needle) => hay.includes(needle) || hay.replace(/\s+/g, '')
+      .includes(needle.replace(/\s+/g, ''));
+
+  const hits = [];
+  const mentionedSingles = [];
+
+    // Prefer direct name mentions in the response
+    singles.forEach((s) => {
+      const name = s?.NAME || '';
+      const n = norm(name);
+      if (n && includesPhrase(norm(txt), n)) {
+        const sug = { ...buildSuggestionFromSingle(s, { txt, userTxt }), score: n.length };
+        hits.push(sug);
+        mentionedSingles.push(s);
+      }
+    });
+    packages.forEach((p) => {
+      const name = p?.NAME || '';
+      const n = norm(name);
+      if (n && includesPhrase(norm(txt), n)) {
+        hits.push({ ...buildSuggestionFromPackage(p, { txt, userTxt }), score: n.length });
+      }
+    });
+
+    // Fallback heuristic: look for category keywords (simple)
+    if (hits.length === 0) {
+      const keywords = [
+        { key: 'cbc', match: /\bcbc\b|complete blood count|blood test/ },
+        { key: 'urinalysis', match: /urinalysis|urine test/ },
+        { key: 'x-ray', match: /x[- ]?ray/ },
+        { key: 'lipid', match: /lipid|cholesterol/ },
+        { key: 'glucose', match: /glucose|sugar|fbs/ },
+      ];
+      const k = keywords.find(k => k.match.test(txt));
+      if (k) {
+        const kw = k.key;
+        singles.forEach((s) => {
+          if (String(s?.NAME || '').toLowerCase().includes(kw)) hits.push({ ...buildSuggestionFromSingle(s, { txt, userTxt }), score: 5 });
+        });
+        packages.forEach((p) => {
+          if (String(p?.NAME || '').toLowerCase().includes(kw)) hits.push({ ...buildSuggestionFromPackage(p, { txt, userTxt }), score: 5 });
+        });
+      }
+    }
+
+    // If a mentioned single service is included within any package's features/description, suggest that package too
+    if (mentionedSingles.length > 0) {
+      const txtNorm = norm(txt);
+      for (const s of mentionedSingles) {
+        const sName = String(s?.NAME || '');
+        const sNorm = norm(sName);
+        for (const p of packages) {
+          const featuresText = norm(`${p?.FEATURES || ''} ${p?.DESC || ''} ${p?.SPECIAL_INSTRUCTION || ''}`);
+          if (sNorm && (featuresText.includes(sNorm) || includesPhrase(featuresText, sNorm))) {
+            const pkgSug = buildSuggestionFromPackage(p, { txt, userTxt });
+            pkgSug.reason = pkgSug.reason
+              ? `${pkgSug.reason} Also, "${sName}" is part of this package. I recommend booking this package.`
+              : `"${sName}" is part of this package. I recommend booking this package.`;
+            hits.push({ ...pkgSug, score: (pkgSug.name || '').length + sNorm.length + 10 });
+          }
+        }
+      }
+    }
+
+    // Special case: animal bite keywords → recommend package with 'bite' in name
+    if (/animal\s*bite|dog\s*bite|cat\s*bite/.test(txt) || /tetanus|rabies/.test(txt)) {
+      const bitePkg = packages.find(p => String(p?.NAME || '').toLowerCase().includes('bite'));
+      if (bitePkg) {
+        const pkgSug = buildSuggestionFromPackage(bitePkg, { txt, userTxt });
+        if (!pkgSug.reason) pkgSug.reason = 'This package is designed for animal bite treatment. I recommend booking this package.';
+        hits.push({ ...pkgSug, score: 999 });
+      }
+    }
+
+    // Sort by score/price presence and cap to 3
+    const scored = hits
+      .map(h => ({ ...h, priceScore: h.priceLabel ? 1 : 0 }))
+      .sort((a,b) => (b.score + b.priceScore) - (a.score + a.priceScore));
+    const uniq = [];
+    const seen = new Set();
+    for (const s of scored) {
+      const key = `${s.type}-${s.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniq.push(s);
+      if (uniq.length >= 3) break;
+    }
+    return uniq;
+  };
+
+  const php = (n) => {
+    const num = Number(n);
+    if (!Number.isFinite(num) || num <= 0) return '';
+    try {
+      return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(num);
+    } catch {
+      return `₱${Math.round(num).toLocaleString('en-PH')}`;
+    }
+  };
+
+  const buildSuggestionFromSingle = (s, { txt, userTxt } = {}) => {
+    const price = s.DISCOUNTED_PRICE ?? s.ORIGINAL_PRICE ?? s.PHIL_HEALTH_PROMO_PRICE;
+    const priceLabel = php(price);
+    const reason = computeReason({
+      name: s.NAME,
+      desc: s.DESC,
+      features: s.SPECIAL_INSTRUCTIONS,
+      txt,
+      userTxt,
+    });
+    return {
+      id: s.id,
+      serviceId: s.SERVICE_ID || s.id,
+      type: 'service',
+      name: s.NAME || 'Service',
+      desc: s.DESC || s.SPECIAL_INSTRUCTIONS || '',
+      priceLabel: priceLabel || s.PRICE_NOTE || '',
+      reason,
+    };
+  };
+
+  const buildSuggestionFromPackage = (p, { txt, userTxt } = {}) => {
+    const price = p.DISCOUNTED_PRICE ?? p.ORIGINAL_PRICE ?? p.PHIL_HEALTH_PROMO_PRICE;
+    const priceLabel = php(price);
+    const reason = computeReason({
+      name: p.NAME,
+      desc: p.DESC || p.SPECIAL_INSTRUCTION,
+      features: p.FEATURES,
+      txt,
+      userTxt,
+    });
+    return {
+      id: p.id,
+      serviceId: p.SERVICE_PACKGE_ID || p.SERVICE_PACKAGE_ID || p.id,
+      type: 'package',
+      name: p.NAME || 'Package',
+      desc: p.DESC || p.FEATURES || p.SPECIAL_INSTRUCTION || '',
+      priceLabel: priceLabel || p.PRICE_NOTE || '',
+      reason,
+    };
+  };
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -137,6 +297,25 @@ export function Chatbot() {
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, botMessage]);
+
+      // Try to fetch and display service/package suggestions based on AI text
+      try {
+        await ensureServicesLoaded();
+        const suggestions = matchServiceSuggestions(response, text);
+        if (suggestions.length > 0) {
+          const suggestionsMessage = {
+            id: Date.now() + 2,
+            sender: 'bot',
+            type: 'suggestions',
+            suggestions,
+            timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages(prev => [...prev, suggestionsMessage]);
+        }
+      } catch (e) {
+        // Silent fail for suggestions; keep primary response
+        console.warn('Suggestions fetch failed', e);
+      }
     } catch (err) {
       console.error('Chat error:', err);
       setError(err.message || 'Failed to get response. Please try again.');
@@ -343,20 +522,40 @@ export function Chatbot() {
             {messages.length > 0 && (
               <>
                 {messages.map((message) => (
-                  <div
-                    key={message.id}
-                    className={`${styles.message} ${styles[message.sender]}`}
-                  >
+                  <div key={message.id} className={`${styles.message} ${styles[message.sender]}`}>
                     <div className={styles.messageAvatar}>
                       {message.sender === 'bot' ? <Bot /> : <User />}
                     </div>
                     <div className={styles.messageContent}>
-                      <div className={styles.messageBubble}>
-                        {renderMessageText(message.text)}
-                      </div>
-                      <div className={styles.messageTime}>
-                        {message.timestamp}
-                      </div>
+                      {message.type === 'suggestions' ? (
+                        <div className={styles.messageBubble}>
+                          <div className={styles.suggestionsHeader}>Recommended options</div>
+                          <div className={styles.suggestionsGrid}>
+                            {message.suggestions.map((s) => (
+                              <div key={`${s.type}-${s.id}`} className={styles.suggestionCard}>
+                                <div className={styles.suggestionTop}>
+                                  <div className={styles.suggestionTitle}>{s.name}</div>
+                                  <span className={`${styles.badge} ${s.type === 'package' ? styles.badgePkg : styles.badgeSvc}`}>{s.type === 'package' ? 'Package' : 'Service'}</span>
+                                </div>
+                                {s.priceLabel && <div className={styles.suggestionPrice}>{s.priceLabel}</div>}
+                                {s.desc && <div className={styles.suggestionDesc}>{s.desc}</div>}
+                                {s.reason && <div className={styles.suggestionWhy}><strong>Why:</strong> {s.reason}</div>}
+                                <div className={styles.suggestionActions}>
+                                  <a href={`/appointment?serviceId=${encodeURIComponent(s.serviceId || s.id)}&type=${s.type}`} className={styles.suggestionBook} target="_blank" rel="noopener noreferrer">Book</a>
+                                  <button className={styles.suggestionAsk} onClick={() => handleSendMessage(`Tell me more about ${s.name}`)}>Ask details</button>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <>
+                          <div className={styles.messageBubble}>
+                            {renderMessageText(message.text)}
+                          </div>
+                          <div className={styles.messageTime}>{message.timestamp}</div>
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -448,3 +647,45 @@ function renderMessageText(text) {
       : p
   );
 }
+
+// Load services and packages once into a cache
+async function ensureServicesLoadedOnce(refObj, setLoaded) {
+  if (refObj.current.singles.length > 0 || refObj.current.packages.length > 0) {
+    setLoaded(true);
+    return;
+  }
+  const [singles, packages] = await Promise.all([
+    singleServicesService.list().catch(() => []),
+    servicePackagesService.list().catch(() => []),
+  ]);
+  refObj.current = { singles, packages };
+  setLoaded(true);
+}
+
+// Create a short reason string from item descriptions/features vs user/AI text
+function computeReason({ name, desc, features, txt, userTxt }) {
+  const source = `${String(desc || '')}\n${String(features || '')}`.toLowerCase();
+  const context = `${String(txt || '')} ${String(userTxt || '')}`.toLowerCase();
+  if (!source) return '';
+  const reasons = [];
+  const addIf = (kw, phrase) => {
+    if (source.includes(kw) && context.includes(kw)) reasons.push(phrase || kw);
+  };
+  // Simple keyword mapping
+  addIf('cbc', 'it includes a Complete Blood Count (CBC)');
+  addIf('blood', 'it covers relevant blood tests');
+  addIf('lipid', 'it checks lipid/cholesterol levels');
+  addIf('cholesterol', 'it checks cholesterol levels');
+  addIf('glucose', 'it measures blood sugar');
+  addIf('urinalysis', 'it provides a urinalysis');
+  addIf('x-ray', 'it includes an X-ray');
+  addIf('chest', 'it may include chest-related imaging or tests');
+  addIf('fever', 'it includes tests that can help check infection indicators');
+  addIf('dizzy', 'it offers tests that can help evaluate causes of dizziness');
+
+  if (reasons.length === 0) return '';
+  const uniq = Array.from(new Set(reasons));
+  const because = uniq.slice(0, 2).join(' and ');
+  return `Recommended because ${because}.`;
+}
+

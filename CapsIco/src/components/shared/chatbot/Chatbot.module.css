@@ -412,6 +412,124 @@
   text-align: right;
 }
 
+/* Suggestions (Services/Packages) */
+.suggestionsHeader {
+  font-weight: 800;
+  font-size: 13px;
+  color: #0f172a;
+  margin-bottom: 10px;
+  letter-spacing: 0.02em;
+}
+
+.suggestionsGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+.suggestionCard {
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: #ffffff;
+  border-radius: 14px;
+  padding: 10px 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+.suggestionTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.suggestionTitle {
+  font-weight: 800;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+.badge {
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  border: 1px solid transparent;
+}
+
+.badgeSvc {
+  background: #eef2ff;
+  color: #3730a3;
+  border-color: #c7d2fe;
+}
+
+.badgePkg {
+  background: #ecfeff;
+  color: #155e75;
+  border-color: #a5f3fc;
+}
+
+.suggestionPrice {
+  margin-top: 4px;
+  color: #047857;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.suggestionDesc {
+  margin-top: 6px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+  display: -webkit-box;
+  line-clamp: 3;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.suggestionWhy {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.suggestionActions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.suggestionBook {
+  background: linear-gradient(135deg, #6d28d9 0%, #2563eb 100%);
+  color: #ffffff;
+  border: none;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 13px;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+}
+
+.suggestionBook:hover {
+  filter: brightness(1.05);
+}
+
+.suggestionAsk {
+  background: #ffffff;
+  color: #1e293b;
+  border: 2px solid #cbd5e1;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.suggestionAsk:hover {
+  background: #f8fafc;
+}
+
 /* Typing Indicator */
 .typingIndicator {
   display: flex;
