@@ -436,10 +436,8 @@ export function AppointmentsSettingsPage() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Ref #</th>
               <th>Patient</th>
               <th>Service</th>
-              <th>Price</th>
               <th>Date</th>
               <th>Time</th>
               <th>Status</th>
@@ -450,14 +448,14 @@ export function AppointmentsSettingsPage() {
             {loading ? (
               Array.from({ length: 3 }).map((_, i) => (
                 <tr key={`sk-${i}`}>
-                  <td colSpan="8">
+                  <td colSpan="6">
                     <div className={styles.skeletonRow}></div>
                   </td>
                 </tr>
               ))
             ) : !loading && filtered.length === 0 ? (
               <tr>
-                <td className={styles.empty} colSpan="8">No records found.</td>
+                <td className={styles.empty} colSpan="6">No records found.</td>
               </tr>
             ) : (
               filtered.map((row) => (
@@ -467,28 +465,28 @@ export function AppointmentsSettingsPage() {
                     aria-expanded={expanded[row.id] ? 'true' : 'false'}
                     onClick={() => setExpanded((m) => ({ ...m, [row.id]: !m[row.id] }))}
                   >
-                    <td className={styles.refCell}>
-                      <button
-                        type="button"
-                        className={styles.toggleBtn}
-                        aria-label={expanded[row.id] ? 'Hide details' : 'Show details'}
-                        onClick={(e) => { e.stopPropagation(); setExpanded((m) => ({ ...m, [row.id]: !m[row.id] })); }}
-                      >
-                        <span className={`${styles.caret} ${expanded[row.id] ? styles.caretOpen : ''}`}></span>
-                      </button>
-                      <span className={styles.mono}>{row.id || '—'}</span>
-                    </td>
                     <td>
-                      <div className={styles.mainCell}>{row.userName || '—'}</div>
-                      <div className={styles.subCell}>
-                        {[row.email, row.phone].filter(Boolean).join(' • ') || '—'}
+                      <div className={styles.patientCell}>
+                        <button
+                          type="button"
+                          className={styles.toggleBtn}
+                          aria-label={expanded[row.id] ? 'Hide details' : 'Show details'}
+                          onClick={(e) => { e.stopPropagation(); setExpanded((m) => ({ ...m, [row.id]: !m[row.id] })); }}
+                        >
+                          <span className={`${styles.caret} ${expanded[row.id] ? styles.caretOpen : ''}`}></span>
+                        </button>
+                        <div>
+                          <div className={styles.mainCell}>{row.userName || '—'}</div>
+                          <div className={styles.subCell}>
+                            {[row.email, row.phone].filter(Boolean).join(' • ') || '—'}
+                          </div>
+                        </div>
                       </div>
                     </td>
                     <td className={styles.serviceCell}>
                       <div className={styles.mainCell}>{row.service}</div>
                       {row.note && <div className={styles.subCell}>{row.note}</div>}
                     </td>
-                    <td className={styles.priceCell}>{row.price}</td>
                     <td className={styles.dateCell}>{row.displayDate || row.date}</td>
                     <td className={styles.timeCell}>{row.displayTime || row.time}</td>
                     <td className={styles.statusCell}>
@@ -516,7 +514,7 @@ export function AppointmentsSettingsPage() {
                   </tr>
                   {expanded[row.id] && (
                     <tr className={styles.detailsRow}>
-                      <td colSpan="8">
+                      <td colSpan="6">
                         <div className={styles.details}>
                           <div className={styles.detailsCol}>
                             <div className={styles.detailItem}><span className={styles.label}>Service Type</span><span className={styles.value}>{row.serviceType}</span></div>
@@ -524,6 +522,14 @@ export function AppointmentsSettingsPage() {
                             <div className={styles.detailItem}><span className={styles.label}>Appointment Date</span><span className={styles.value}>{row.date || '—'}</span></div>
                             <div className={styles.detailItem}><span className={styles.label}>Time</span><span className={styles.value}>{row.time || '—'}</span></div>
                             <div className={styles.detailItem}><span className={styles.label}>Status</span><span className={styles.value}>{row.status}</span></div>
+                            {(() => {
+                              const priceStr = String(row.price || '');
+                              const isNumericPrice = priceStr.startsWith('PHP') && /\d/.test(priceStr);
+                              if (isNumericPrice) {
+                                return <div className={styles.detailItem}><span className={styles.label}>Price</span><span className={styles.value}>{row.price}</span></div>;
+                              }
+                              return null;
+                            })()}
                           </div>
                           <div className={styles.detailsCol}>
                             <div className={styles.detailItem}><span className={styles.label}>Patient</span><span className={styles.value}>{row.userName || '—'}</span></div>

@@ -596,7 +596,7 @@ export function BookAppointment() {
       <aside className={styles.infoCard}>
         <h3 className={styles.infoTitle}>Service Center</h3>
         <div className={styles.infoBody}>
-          <div className={styles.label}>Service</div>
+          <div className={styles.label}></div>
           <div className={styles.selectedService}>{activeItem?.title || 'Select a service below'}</div>
           {activeItem && activeItem.bookingEnabled === false && (
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 6 }}>

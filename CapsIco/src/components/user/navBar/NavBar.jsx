@@ -1,5 +1,5 @@
 import styles from './NavBar.module.css';
-import { User, Calendar, Activity } from 'lucide-react';
+import { User, Calendar, Activity, Star } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
@@ -13,6 +13,7 @@ export function NavBar() {
   const [profileName, setProfileName] = useState('');
   const [profilePhoto, setProfilePhoto] = useState('');
   const [notifCount, setNotifCount] = useState(0);
+  const [feedbackCount, setFeedbackCount] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const navigate = useNavigate();
 
@@ -62,9 +63,12 @@ export function NavBar() {
           if (!snap.exists()) { setNotifCount(0); return; }
           const obj = snap.val() || {};
           const now = Date.now();
-          let count = 0;
-          const isCompletedLike = (status) => /complete|completed|success|successful|successfully|done|finished/i.test(String(status||''));
+          let actionCount = 0;
+          let fbCount = 0;
+          const isDoneLike = (status) => /complete|completed|success|successful|successfully|done|finished/i.test(String(status||''));
+          const isCanceledLike = (status) => /cancel|canceled|cancelled|declined|rejected|denied/i.test(String(status||''));
           const isApprovedLike = (status) => /approved|rescheduled/i.test(String(status||''));
+          const isPendingLike = (status) => /pending|waiting|in[\s_-]?review|processing/i.test(String(status||''));
           const parseDT = (dateStr, timeStr) => {
             try {
               const d = String(dateStr||'').trim();
@@ -86,11 +90,23 @@ export function NavBar() {
             const status = appt?.BOOKING_STATUS || appt?.STATUS || '';
             const whenMs = parseDT(appt?.DATE_OF_APPOINTMENT, appt?.TIME_SLOT);
             const hasFeedback = !!appt?.FEEDBACK;
-            const upcomingApproved = isApprovedLike(status) && (whenMs == null ? true : whenMs > now);
-            const completedNoFeedback = isCompletedLike(status) && !hasFeedback;
-            if (upcomingApproved || completedNoFeedback) count += 1;
+            // Only count items that actually need attention:
+            // - Pending-like statuses (regardless of date)
+            // - Approved/Rescheduled but still upcoming
+            // Exclude completed/successful and canceled/declined
+            if (isDoneLike(status)) {
+              if (!hasFeedback) fbCount += 1;
+              continue;
+            }
+            if (isCanceledLike(status)) continue;
+            if (isPendingLike(status)) { actionCount += 1; continue; }
+            if (isApprovedLike(status)) {
+              const upcoming = (whenMs == null) ? true : (whenMs > now);
+              if (upcoming) actionCount += 1;
+            }
           }
-          setNotifCount(count);
+          setNotifCount(actionCount);
+          setFeedbackCount(fbCount);
         });
       } else {
         dbUnsub();
@@ -170,6 +186,16 @@ export function NavBar() {
             </button>
           </Link>
 
+          {feedbackCount > 0 && (
+            <Link to="/settings?tab=appointments" title={`You have ${feedbackCount} feedback ${feedbackCount>1?'requests':'request'}`}>
+              <button className={styles.btnFeedback} aria-label="Give feedback">
+                <Star size={16} />
+                Give Feedback
+                <span className={styles.feedbackCount}>{feedbackCount > 99 ? '99+' : feedbackCount}</span>
+              </button>
+            </Link>
+          )}
+
           <div ref={dropdownRef} className={styles.profileWrapper}>
             {currentUser && (
               <span className={styles.usernameText} title={currentUser.email}>
@@ -180,7 +206,11 @@ export function NavBar() {
               className={`${styles.btnIcon} ${profilePhoto ? styles.btnIconAvatar : ''}`}
               aria-label="User"
               onClick={toggleDropDown}
-              title={notifCount > 0 ? `${notifCount} appointment${notifCount>1?'s':''} need attention` : undefined}
+              title={
+                notifCount > 0
+                  ? `${notifCount} appointment${notifCount>1?'s':''} need attention`
+                  : (feedbackCount > 0 ? `${feedbackCount} feedback ${feedbackCount>1?'requests':'request'} pending` : undefined)
+              }
             >
               {profilePhoto ? (
                 <span className={styles.avatarBtn}>
@@ -191,6 +221,9 @@ export function NavBar() {
               )}
               {notifCount > 0 && (
                 <span className={styles.notifBadge}>{notifCount > 99 ? '99+' : notifCount}</span>
+              )}
+              {feedbackCount > 0 && (
+                <span className={styles.feedbackDot} aria-hidden />
               )}
             </button>
 

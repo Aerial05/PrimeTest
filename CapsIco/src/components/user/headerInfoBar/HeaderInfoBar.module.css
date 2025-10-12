@@ -22,10 +22,12 @@
 }
 
 .headerContent {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   align-items: center;
-  column-gap: 1rem;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .logoLink {
@@ -33,7 +35,7 @@
   align-items: center;
   gap: 0.55rem;
   text-decoration: none;
-  justify-self: start;
+  flex-shrink: 0;
   /* Brand pill styling */
   padding: 0.3rem 0.6rem;
   border-radius: 999px;
@@ -74,14 +76,14 @@
 .textSecondary { color: var(--secondary-light); }
 
 .contactInfo {
-  justify-self: center;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.65rem;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  padding: 0 1rem;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .infoItem {
@@ -95,6 +97,7 @@
   box-shadow: var(--pill-shadow);
   min-height: 40px;
   transition: transform 0.18s ease, box-shadow 0.22s ease;
+  flex-shrink: 0;
 }
 
 .infoItem:hover {
@@ -137,40 +140,35 @@
   text-decoration: none;
 }
 
-@media (max-width: 1024px) {
-  .headerContent {
-    grid-template-columns: 1fr;
-    row-gap: 0.6rem;
-    justify-items: center;
-  }
-
-  .logoLink {
-    justify-self: center;
-  }
-
-  .contactInfo {
-    justify-self: center;
-    flex-wrap: wrap;
-    padding: 0;
+/* Hide location when zooming in or narrow viewport */
+@media (max-width: 1200px) {
+  .infoItem:nth-child(3) {
+    display: none;
   }
 }
 
+/* Hide logo when more zoomed in */
+@media (max-width: 1000px) {
+  .logoLink {
+    display: none;
+  }
+  
+  .contactInfo {
+    justify-content: center;
+  }
+}
+
+/* Hide work hours when heavily zoomed in */
+@media (max-width: 800px) {
+  .infoItem:nth-child(2) {
+    display: none;
+  }
+}
+
+/* Mobile fallback - show emergency only */
 @media (max-width: 640px) {
   .contactInfo {
     gap: 0.5rem;
-  }
-
-  .infoItem {
-    width: calc(50% - 0.4rem);
-    justify-content: space-between;
+    justify-content: center;
   }
 }
-
-@media (any-hover: none) {
-  .contactInfo {
-    -webkit-overflow-scrolling: touch;
-  }
-}
-
-.contactInfo::-webkit-scrollbar { height: 6px; }
-.contactInfo::-webkit-scrollbar-thumb { background: rgba(148, 163, 184, 0.35); border-radius: 999px; }
