@@ -199,7 +199,7 @@
   font-weight: 700;
   font-family: var(--font-headings, 'IBM Plex Sans', sans-serif);
   letter-spacing: -0.02em;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-shadow: 0 2px 4px rgb(248, 247, 247);
   line-height: 1.2;
 }
 

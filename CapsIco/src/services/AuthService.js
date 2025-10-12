@@ -122,10 +122,53 @@ export class AuthService extends BaseFirebaseService {
     if (id.includes('@')) {
       emailToUse = id;
     } else {
-      emailToUse = await this.resolveEmailFromUsername(id);
-      if (!emailToUse) throw new Error('Username not found.');
+      try {
+        emailToUse = await this.resolveEmailFromUsername(id);
+      } catch (e) {
+        // Swallow noisy DB index/rules messages and treat as not found
+        emailToUse = '';
+      }
+      if (!emailToUse) throw new Error('Username not registered. Please create an account.');
     }
-    const user = await this.providers.email.signIn({ email: emailToUse, password, remember });
+    let user;
+    try {
+      user = await this.providers.email.signIn({ email: emailToUse, password, remember });
+    } catch (e) {
+      // Map common Firebase auth errors to friendlier messages
+      const code = e?.code || '';
+      if (code === 'auth/wrong-password') {
+        const err = new Error('Incorrect username or password.');
+        err.code = code;
+        throw err;
+      }
+      if (code === 'auth/invalid-credential' || code === 'auth/invalid-login-credentials') {
+        const err = new Error('Incorrect username or password.');
+        err.code = code;
+        throw err;
+      }
+      if (code === 'auth/user-not-found') {
+        const err = new Error('Account not found for that email.');
+        err.code = code;
+        throw err;
+      }
+      if (code === 'auth/invalid-email') {
+        const err = new Error('Please enter a valid email address.');
+        err.code = code;
+        throw err;
+      }
+      if (code === 'auth/too-many-requests') {
+        const err = new Error('Too many attempts. Try again later or reset your password.');
+        err.code = code;
+        throw err;
+      }
+      if (code === 'auth/network-request-failed') {
+        const err = new Error('Network error. Check your connection and try again.');
+        err.code = code;
+        throw err;
+      }
+      // Fallback
+      throw e;
+    }
     await this.afterSignIn(user);
     return user;
   }
@@ -621,13 +664,19 @@ export class AuthService extends BaseFirebaseService {
         }
       }
 
-      const userQuery = query(
-        ref(this.database, 'users'),
-        orderByChild('username'),
-        equalTo(candidate)
-      );
-      // eslint-disable-next-line no-await-in-loop
-      const resultSnap = await get(userQuery);
+      let resultSnap = null;
+      try {
+        const userQuery = query(
+          ref(this.database, 'users'),
+          orderByChild('username'),
+          equalTo(candidate)
+        );
+        // eslint-disable-next-line no-await-in-loop
+        resultSnap = await get(userQuery);
+      } catch (e) {
+        // If rules are missing index or read permission, don't surface low-level error to UI
+        // We'll fall back to a broader scan below or alternative paths
+      }
       if (resultSnap.exists()) {
         const found = Object.values(resultSnap.val() || {}).find((entry) => {
           if (!entry) return false;

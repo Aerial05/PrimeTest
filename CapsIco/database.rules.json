@@ -3,7 +3,7 @@
     ".read": true,
     ".write": true,
     "users": {
-      ".indexOn": ["phone"]
+      ".indexOn": ["phone", "username", "emailLower"]
     },
     "appointments": {
       ".indexOn": ["USER_ID"]
