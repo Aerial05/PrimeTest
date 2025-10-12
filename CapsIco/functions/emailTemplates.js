@@ -182,3 +182,74 @@ module.exports = {
   buildStatusSubject,
   buildAppointmentEmailHTML,
 };
+
+// --- Appointment reminder (T-1 day) ---
+function buildReminderSubject(rec) {
+  const date = formatEmailDate(rec.DATE_OF_APPOINTMENT || '');
+  const time = formatTimeLabel(rec.TIME_SLOT || '');
+  const serviceType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
+  const name = rec.SERVICE_NAME || rec.NAME || serviceType;
+  return `Appointment Reminder • ${name} (${date} ${time})`;
+}
+
+function buildReminderEmailHTML(rec, opts = {}) {
+  const brandName = opts.brandName || 'Prime Medical Laboratory';
+  const logoUrl = opts.logoUrl || '';
+  const appPublicUrl = opts.appPublicUrl || '';
+
+  const name = `${toTitle(rec.FIRST_NAME)} ${toTitle(rec.LAST_NAME)}`.trim() || 'there';
+  const date = formatEmailDate(rec.DATE_OF_APPOINTMENT || '');
+  const time = formatTimeLabel(rec.TIME_SLOT || '');
+  const serviceType = (rec.SERVICE_TYPE || '').toLowerCase() === 'package' ? 'Package' : 'Service';
+  const serviceName = rec.SERVICE_NAME || rec.serviceName || rec.SERVICE || rec.PACKAGE_NAME || rec.NAME || `Selected ${serviceType}`;
+
+  return `<!DOCTYPE html>
+  <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Appointment Reminder</title>
+  <style>
+    body{margin:0;padding:28px;background:#0b1220;font-family:Segoe UI, Roboto, Arial, sans-serif;color:#0f172a}
+    .wrap{max-width:760px;margin:0 auto}
+    .brand{background:linear-gradient(135deg,#1d4ed8,#7c3aed);border-radius:16px 16px 0 0;padding:18px 20px;color:#fff;display:flex;align-items:center;gap:12px}
+    .brand img{height:40px;width:auto;border-radius:8px;background:#fff}
+    .brandName{font-size:17px;font-weight:800;letter-spacing:.02em}
+    .card{background:#0f172a;border:1px solid #1f2a44;border-top:0;color:#e2e8f0;border-radius:0 0 16px 16px;overflow:hidden}
+    .content{padding:22px}
+    h1{margin:10px 0 4px 0;font-size:24px;color:#fff}
+    p{margin:12px 0;color:#cbd5e1;line-height:1.5}
+    .summary{margin:14px 0 8px 0;padding:14px;border:1px solid #263451;border-radius:12px;background:#0b1327}
+    .summaryTitle{font-weight:800;font-size:16px;color:#e2e8f0;margin:0 0 8px 0}
+    .chips{display:flex;flex-wrap:wrap;gap:8px}
+    .chip{display:inline-block;background:#0f1c38;border:1px solid #253a66;color:#cfe1ff;padding:6px 10px;border-radius:999px;font-size:12px;font-weight:700}
+    .ctaBar{padding:18px 20px;background:#0b1327;border-top:1px solid #1c2944}
+    .cta{display:inline-block;background:#22c55e;color:#0b1327;text-decoration:none;padding:12px 16px;border-radius:10px;font-weight:800}
+    .foot{padding:16px 20px;color:#93a4c8;font-size:12px}
+  </style></head>
+  <body>
+  <div class="wrap">
+    <div class="brand">
+      ${logoUrl ? `<img alt="${brandName} logo" src="${logoUrl}" />` : ''}
+      <div class="brandName">${brandName}</div>
+    </div>
+    <div class="card">
+      <div class="content">
+        <h1>Appointment Reminder</h1>
+        <p>Hello ${name},</p>
+        <p>This is a friendly reminder that you have an approved appointment scheduled for <strong>${date}</strong> at <strong>${time}</strong>.</p>
+        <div class="summary">
+          <div class="summaryTitle">${serviceName}</div>
+          <div class="chips">
+            <span class="chip">${serviceType}</span>
+            <span class="chip">${date}</span>
+            <span class="chip">${time}</span>
+          </div>
+        </div>
+        <p>Please arrive 10 minutes early. If you need to reschedule, you can use the Reschedule option in your Appointment History on your Profile page.</p>
+      </div>
+      ${appPublicUrl ? `<div class="ctaBar"><a class="cta" href="${appPublicUrl}" target="_blank" rel="noopener">View Your Booking</a></div>` : ''}
+      <div class="foot">This is an automated reminder sent the day before your appointment.</div>
+    </div>
+  </div>
+  </body></html>`;
+}
+
+module.exports.buildReminderSubject = buildReminderSubject;
+module.exports.buildReminderEmailHTML = buildReminderEmailHTML;

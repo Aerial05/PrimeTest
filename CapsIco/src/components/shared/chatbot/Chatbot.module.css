@@ -833,6 +833,138 @@
   transform: translateY(0);
 }
 
+/* Delete Confirmation Modal (Clear Chat) */
+.deleteModal {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  padding: 1rem;
+  animation: fadeIn 0.25s ease;
+}
+
+.deleteContent {
+  background: #ffffff;
+  width: 520px;
+  max-width: calc(100vw - 2rem);
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow:
+    0 25px 50px -12px rgba(0,0,0,0.3),
+    0 12px 24px -8px rgba(0,0,0,0.2);
+  animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.deleteHeader {
+  display: flex;
+  gap: 0.875rem;
+  align-items: center;
+  padding: 1.25rem 1.5rem;
+  background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+  border-bottom: 1px solid #fecaca;
+}
+
+.deleteHeader svg {
+  width: 24px;
+  height: 24px;
+  color: #dc2626;
+  flex-shrink: 0;
+}
+
+.deleteHeader h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.deleteSubtitle {
+  margin: 2px 0 0 0;
+  font-size: 13px;
+  color: #7f1d1d;
+}
+
+.deleteBody {
+  padding: 1.25rem 1.5rem 0.5rem;
+}
+
+.deletePreview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.previewItem {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  color: #334155;
+}
+
+.previewDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6d28d9 0%, #2563eb 100%);
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
+}
+
+.deleteActions {
+  padding: 1rem 1.5rem 1.25rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.deleteCancel,
+.deleteConfirm {
+  padding: 0.7rem 1.25rem;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.deleteCancel {
+  background: white;
+  color: #475569;
+  border: 2px solid #cbd5e1;
+}
+
+.deleteCancel:hover {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.deleteConfirm {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);
+}
+
+.deleteConfirm:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(220, 38, 38, 0.35);
+}
+
+.deleteConfirm:active {
+  transform: translateY(0);
+}
+
+.deleteConfirm svg {
+  width: 18px;
+  height: 18px;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .chatbotContainer {

@@ -16,6 +16,7 @@ export function Chatbot() {
   const [hasNewMessage, setHasNewMessage] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [hasSeenDisclaimer, setHasSeenDisclaimer] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -162,11 +163,18 @@ export function Chatbot() {
   };
 
   const handleClearChat = () => {
-    if (window.confirm('Are you sure you want to clear the chat history?')) {
-      setMessages([]);
-      chatbotService.clearHistory();
-      setError('');
-    }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmClearChat = () => {
+    setMessages([]);
+    chatbotService.clearHistory();
+    setError('');
+    setShowDeleteConfirm(false);
+  };
+
+  const cancelClearChat = () => {
+    setShowDeleteConfirm(false);
   };
 
   const quickReplies = [
@@ -223,6 +231,40 @@ export function Chatbot() {
                 onClick={handleAcceptDisclaimer}
               >
                 I Understand
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className={styles.deleteModal} onClick={cancelClearChat}>
+          <div className={styles.deleteContent} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.deleteHeader}>
+              <AlertCircle />
+              <div>
+                <h3>Clear conversation?</h3>
+                <p className={styles.deleteSubtitle}>This action will permanently remove your current chat history.</p>
+              </div>
+            </div>
+            <div className={styles.deleteBody}>
+              <div className={styles.deletePreview}>
+                <div className={styles.previewItem}>
+                  <div className={styles.previewDot} />
+                  <span>All messages in this chat will be deleted.</span>
+                </div>
+                <div className={styles.previewItem}>
+                  <div className={styles.previewDot} />
+                  <span>This cannot be undone.</span>
+                </div>
+              </div>
+            </div>
+            <div className={styles.deleteActions}>
+              <button className={styles.deleteCancel} onClick={cancelClearChat}>Cancel</button>
+              <button className={styles.deleteConfirm} onClick={confirmClearChat} aria-label="Confirm clear chat">
+                <Trash2 />
+                Clear chat
               </button>
             </div>
           </div>

@@ -19,6 +19,8 @@ const admin = require('firebase-admin');
 const {
   buildAppointmentEmailHTML,
   buildStatusSubject,
+  buildReminderSubject,
+  buildReminderEmailHTML,
 } = require('./emailTemplates');
 // Using Firestore Trigger Email extension; no direct SMTP/SendGrid here.
 
@@ -553,5 +555,68 @@ exports.processDelayedMail = r.pubsub
       batch.delete(doc.ref);
     });
     await batch.commit();
+    return null;
+  });
+
+// Scheduled: send reminder emails for tomorrow's approved appointments
+// Runs daily at 17:00 Asia/Manila to notify for next-day appointments
+exports.sendTomorrowAppointmentReminders = r.pubsub
+  .schedule('every day 17:00')
+  .timeZone('Asia/Manila')
+  .onRun(async () => {
+    const db = admin.database();
+    const now = new Date();
+    // Compute tomorrow in Asia/Manila; relying on server time zone may vary but schedule uses Asia/Manila
+    const tomorrow = new Date(now);
+    tomorrow.setDate(now.getDate() + 1);
+
+    const yyyy = tomorrow.getFullYear();
+    const mm = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const dd = String(tomorrow.getDate()).padStart(2, '0');
+    const tomorrowStr = `${yyyy}-${mm}-${dd}`; // matches DATE_OF_APPOINTMENT string format
+
+    // Fetch all appointments; optionally narrowed by a simple query if you keep an index/key
+    const snap = await db.ref('/appointments').get();
+    if (!snap.exists()) return null;
+    const appts = snap.val() || {};
+    const list = Object.entries(appts);
+
+    const emailTasks = [];
+    for (const [apptId, rec] of list) {
+      if (!rec || typeof rec !== 'object') continue;
+      const status = String(rec.BOOKING_STATUS || '').toLowerCase();
+      if (status !== 'approved') continue;
+      const dateStr = String(rec.DATE_OF_APPOINTMENT || '').trim();
+      if (dateStr !== tomorrowStr) continue;
+      const to = String(rec.EMAIL || '').trim();
+      if (!to) continue;
+
+      // Ensure SERVICE_NAME
+      let payload = { ...rec };
+      if (!payload.SERVICE_NAME) {
+        try {
+          const resolved = await resolveServiceName(payload);
+          if (resolved) {
+            payload.SERVICE_NAME = resolved;
+            try { await db.ref(`/appointments/${apptId}`).update({ SERVICE_NAME: resolved }); } catch (_) {}
+          }
+        } catch(_) {}
+      }
+
+      // prevent duplicates: mark EMAIL_SENT_REMINDER_T_MINUS_1
+      if (payload.EMAIL_SENT_REMINDER_T_MINUS_1 === true) continue;
+
+      const subject = buildReminderSubject(payload);
+      const html = buildReminderEmailHTML(payload, { appPublicUrl, brandName: appBrandName, logoUrl: appLogoUrl });
+      const task = enqueueTriggerEmail({ to, subject, html, source: 'scheduler-Tminus1-reminder', delaySeconds: Math.floor(Math.random() * 300) });
+      emailTasks.push(task);
+
+      // set flag
+      emailTasks.push(db.ref(`/appointments/${apptId}`).update({ EMAIL_SENT_REMINDER_T_MINUS_1: true }));
+    }
+
+    if (emailTasks.length) {
+      await Promise.allSettled(emailTasks);
+    }
     return null;
   });
