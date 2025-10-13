@@ -1,4 +1,4 @@
-.container { display: flex; justify-content: center; margin-top: 3rem; }
+.container { display: flex; justify-content: center; margin-top: clamp(2.5rem, 4vh, 3.5rem); }
 
 /* Modifier when we want the card left-aligned inline inside another block */
 .left { justify-content: flex-start; margin-top: 0; }
@@ -6,8 +6,8 @@
 .card {
   display: inline-flex;
   align-items: center;
-  gap: .9rem;
-  padding: 1rem 1.5rem;
+  gap: clamp(0.75rem, 1.1vw, 1.05rem);
+  padding: clamp(0.875rem, 1.3vh, 1.125rem) clamp(1.25rem, 2vw, 1.75rem);
   border-radius: 9999px; /* pill */
   background: linear-gradient(135deg, #7c3aed 0%, #6366f1 100%);
   color: #fff;
@@ -30,8 +30,18 @@
   text-decoration: none;
 }
 
-.icon { width: 20px; height: 20px; }
+.icon { 
+  width: clamp(18px, 2.5vw, 22px); 
+  height: clamp(18px, 2.5vw, 22px); 
+}
 
 .content { display: flex; flex-direction: column; line-height: 1.1; }
-.title { font-weight: 800; font-size: 1rem; letter-spacing: .01em; }
-.subtitle { font-size: .8rem; opacity: .9; }
+.title { 
+  font-weight: 800; 
+  font-size: clamp(0.925rem, 1.25vw, 1.125rem); 
+  letter-spacing: .01em; 
+}
+.subtitle { 
+  font-size: clamp(0.75rem, 1vw, 0.875rem); 
+  opacity: .9; 
+}

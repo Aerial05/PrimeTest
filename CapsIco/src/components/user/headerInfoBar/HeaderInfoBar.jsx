@@ -47,10 +47,7 @@ export function HeaderInfoBar() {
               <Clock className={styles.infoIcon} />
               <div className={styles.infoText}>
                 <span className={styles.infoLabel}>WORK HOUR</span>
-                <span className={styles.infoValue}>07:00 AM - 4:00 PM Monday to Saturday. 
-                 
-                  7:30AM – 11:30 AM Sunday
-                </span>
+                <span className={styles.infoValue}>Mon-Sat: 7:00 AM - 4:00 PM | Sun: 7:30 AM - 11:30 AM</span>
               </div>
             </div>
 
