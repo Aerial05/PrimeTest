@@ -146,7 +146,9 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [autoBusy, setAutoBusy] = useState(false);
   // Email throttle state (per appointment)
   const emailSentAtRef = useRef({});
-  const EMAIL_COOLDOWN_MS = 60_000; // 60 seconds
+  const EMAIL_COOLDOWN_MS = 10_000; // 10 seconds to prevent rapid repeats
+  // Confirm modal sending state to avoid double-clicks
+  const [confirmSending, setConfirmSending] = useState(false);
   // Shared toast
   const { show: showToast } = (typeof useToast === 'function' ? (useToast() || { show: () => {} }) : { show: () => {} });
   // Toggle states (persisted per admin)
@@ -456,7 +458,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
             try {
               const last = emailSentAtRef.current[selected.id] || 0;
               if (Date.now() - last < EMAIL_COOLDOWN_MS) {
-                showPopup({ title: 'Email recently sent', message: 'Please wait a minute before sending another email for this appointment.', type: 'info' });
+                showPopup({ title: 'Email recently sent', message: 'Please wait about 10 seconds before sending another email for this appointment.', type: 'info' });
                 return;
               }
               const res = await sendAppointmentEmailCallable({
@@ -473,7 +475,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               });
               if (res && res.ok) {
                 emailSentAtRef.current[selected.id] = Date.now();
-                showPopup({ title: 'Email sent', message: 'A notification email was sent to the user.', type: 'info' });
+                const label = desired;
+                showPopup({ title: 'Success', message: `Email sent and status updated to “${label}”.`, type: 'info' });
                 // No log for email sends per requirement
               }
             } catch (e) {
@@ -630,11 +633,13 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
     try {
       const last = emailSentAtRef.current[row.id] || 0;
       if (Date.now() - last < EMAIL_COOLDOWN_MS) {
-        showPopup({ title: 'Email recently sent', message: 'Please wait a minute before sending another email for this appointment.', type: 'info' });
+        showPopup({ title: 'Email recently sent', message: 'Please wait about 10 seconds before sending another email for this appointment.', type: 'info' });
         return false;
       }
     } catch (_) {}
     try {
+      // Pre-lock immediately to avoid double-click race
+      emailSentAtRef.current[row.id] = Date.now();
       // Prefer latest reschedule details if present
       const newDate = row?.raw?.RESCHEDULE_INFO?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT;
       const newTime = row?.raw?.RESCHEDULE_INFO?.newTime || row.time || row.raw?.TIME_SLOT;
@@ -652,6 +657,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       return true;
     } catch (e) {
       console.warn('Email send failed for', row.id, e);
+      // Unlock on failure to allow retry
+      try { emailSentAtRef.current[row.id] = 0; } catch(_) {}
       return false;
     }
   };
@@ -1298,7 +1305,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                           try {
                             const last = emailSentAtRef.current[selected.id] || 0;
                             if (Date.now() - last < EMAIL_COOLDOWN_MS) {
-                              showPopup({ title: 'Email recently sent', message: 'Please wait a minute before sending another email for this appointment.', type: 'info' });
+                              showPopup({ title: 'Email recently sent', message: 'Please wait about 10 seconds before sending another email for this appointment.', type: 'info' });
                               return;
                             }
                             const res = await sendAppointmentEmailCallable({
@@ -1313,7 +1320,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                             });
                             if (res && res.ok) {
                               emailSentAtRef.current[selected.id] = Date.now();
-                              showPopup({ title: 'Email sent', message: 'Reschedule approval email sent.', type: 'info' });
+                              showPopup({ title: 'Success', message: 'Reschedule approval email sent and status updated to “Approved”.', type: 'info' });
                             }
                           } catch (e) {
                             console.warn('sendAppointmentEmail callable failed', e);
@@ -1372,8 +1379,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               <button type="button" className={styles.toastClose} onClick={() => setConfirmSend({ open:false, onConfirm:null, title:'', message:'' })} title="Close">✕</button>
             </div>
             <div style={{ display:'flex', gap:8, justifyContent:'flex-end', padding:'0 16px 14px' }}>
-              <button className={`${styles.btn} ${styles.btnDecline}`} onClick={() => setConfirmSend({ open:false, onConfirm:null, title:'', message:'' })}>Cancel</button>
-              <button className={`${styles.btn} ${styles.btnApprove}`} onClick={() => confirmSend.onConfirm && confirmSend.onConfirm()}>Send</button>
+              <button className={`${styles.btn} ${styles.btnDecline}`} onClick={() => { if (!confirmSending) setConfirmSend({ open:false, onConfirm:null, title:'', message:'' }); }} disabled={confirmSending}>Cancel</button>
+              <button className={`${styles.btn} ${styles.btnApprove}`} onClick={async () => { if (confirmSending) return; try { setConfirmSending(true); await (confirmSend.onConfirm && confirmSend.onConfirm()); } finally { setConfirmSending(false); } }} disabled={confirmSending}>{confirmSending ? 'Sending…' : 'Send'}</button>
             </div>
           </div>
         </div>
