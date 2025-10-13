@@ -131,10 +131,10 @@ export function BookAppointment() {
       });
       return false;
     }
-  // Read email verification from live auth state to avoid race with effect
-  const emailOk = !!(authService.currentUser?.emailVerified || emailVerified);
-  const phoneOk = !!phoneVerified;
-  const ok = emailOk || phoneOk;
+    // Read email/phone verification from live state to avoid race with effect
+    const emailOk = !!(authService.currentUser?.emailVerified || emailVerified);
+    const phoneOk = !!phoneVerified;
+    const ok = emailOk || phoneOk;
     if (!ok) {
       showModal({
         type: 'error',
@@ -480,28 +480,35 @@ export function BookAppointment() {
 
   // Open fullscreen schedule picker: require service, and ensure date defaults
   const openSchedule = () => {
-    // If user is authenticated and verified but under cooldown, show penalty modal before any rules
-    if (isAuthedVerified() && isUnderCooldown()) {
-      openPenaltyPopup();
+    // 1) Auth gate — must be logged in
+    const user = authService.currentUser;
+    if (!user) {
+      showModal({
+        type: 'error',
+        title: 'Login required',
+        message: 'Please login or register to continue. After logging in, you can pick a schedule.',
+        actionLabel: 'Go to Login / Register',
+        onAction: () => navigate('/login'),
+      });
       return;
     }
-    // For guests/unverified, show rules first, then prompt login
-    if (!isAuthedVerified()) {
-      setRulesNext('loginOnlySchedule');
-      if (!activeItem) {
-        showModal({ type: 'error', title: 'Select a service', message: 'Please choose a service before picking a schedule.' });
-        return;
-      }
-      if (activeItem && activeItem.bookingEnabled === false) {
-        showModal({ type: 'error', title: 'Booking disabled', message: 'Booking is currently disabled for this service. Please choose another service or try again later.' });
-        return;
-      }
-      if (!date) {
-        setDate(tomorrowStr);
-        setTime("");
-      }
-      setTimeOfDay('Morning');
-      setRulesOpen(true);
+
+    // 2) Verification gate — must have email OR phone verified
+    const verified = isAuthedVerified();
+    if (!verified) {
+      showModal({
+        type: 'error',
+        title: 'Verification required',
+        message: 'Please verify at least one contact method (email or phone) before picking a schedule.',
+        actionLabel: 'Open Profile',
+        onAction: () => navigate('/profile'),
+      });
+      return;
+    }
+
+    // 3) Policy gate — if verified but under cooldown, show penalty modal
+    if (isUnderCooldown()) {
+      openPenaltyPopup();
       return;
     }
     if (!activeItem) {
@@ -866,16 +873,7 @@ export function BookAppointment() {
                 type="button"
                 className={styles.primaryBtn}
                 onClick={() => {
-                  if (rulesNext === 'loginOnlySchedule') {
-                    setRulesOpen(false);
-                    showModal({
-                      type: 'error',
-                      title: 'Login required',
-                      message: 'Please login or register to continue. After logging in, you can pick a schedule.',
-                      actionLabel: 'Go to Login / Register',
-                      onAction: () => navigate('/login'),
-                    });
-                  } else if (rulesNext === 'proceedBooking') {
+                  if (rulesNext === 'proceedBooking') {
                     proceedBooking();
                   } else {
                     setRulesOpen(false);
@@ -883,7 +881,7 @@ export function BookAppointment() {
                 }}
                 disabled={booking}
               >
-                {booking ? 'Submitting…' : rulesNext === 'loginOnlySchedule' ? 'I Understand' : 'I Accept & Book'}
+                {booking ? 'Submitting…' : 'I Accept & Book'}
               </button>
             </div>
           </div>
