@@ -19,6 +19,7 @@ const EMPTY_COUNTS = Object.freeze({
   cancelled: 0,
   reschedPending: 0,
   reschedApproved: 0,
+  overlapPendingOverdue: 0, // pending (non-res) that are also overdue
 });
 
 function normalizeStatus(raw) {
@@ -111,6 +112,7 @@ export function AdminHeaderInfoBar({
   let cancelled = 0;
   let reschedPending = 0;
   let reschedApproved = 0;
+  let overlapPendingOverdue = 0; // union adjuster
 
         const parseTimeSlot = (raw) => {
           if (!raw) return null;
@@ -124,7 +126,11 @@ export function AdminHeaderInfoBar({
         };
 
         for (const appt of rows) {
-          const status = normalizeStatus(appt.BOOKING_STATUS);
+          let status = normalizeStatus(appt.BOOKING_STATUS);
+          // Normalize any custom mapped frontend labels if they leaked into DB
+          // e.g. 'pending-reschedule' (used in UI routing) should still be treated as pending for base metrics
+          const isPendingRescheduleLabel = (status === 'pending-reschedule' || status === 'pending reschedule');
+          if (isPendingRescheduleLabel) status = 'pending';
           const appointmentDate = parseAppointmentDate(appt.DATE_OF_APPOINTMENT);
           const timeSlot = parseTimeSlot(appt.TIME_SLOT || appt.TIME || appt.TIME_SLOT_24H); // attempt multiple fields
           const isCancelled =
@@ -144,7 +150,9 @@ export function AdminHeaderInfoBar({
           const hasRes = Boolean(appt?.RESCHEDULE_INFO || appt?.rescheduleInfo || appt?.RESCHEDULED_AT);
           const labelIsApprovedLike = (status === 'approved' || status === 'successful' || status === 'success' || status === 'successfull');
           const rawIsRescheduled = String(appt?.BOOKING_STATUS || '').trim().toLowerCase() === 'rescheduled';
-          if (hasRes && status === 'pending') reschedPending += 1;
+          // Count reschedule pending explicitly either by reschedule info + pending status
+          // OR by explicit pending-reschedule label form
+          if ((hasRes && status === 'pending') || isPendingRescheduleLabel) reschedPending += 1;
           if ((hasRes && labelIsApprovedLike) || (rawIsRescheduled && status !== 'pending')) reschedApproved += 1;
 
           if (!appointmentDate || !isScheduled) continue;
@@ -174,12 +182,16 @@ export function AdminHeaderInfoBar({
           if (appointmentDate >= startOfToday && appointmentDate <= endOfToday) today += 1;
 
             // Overdue: past the scheduled date & time and not successful & not cancelled
-          if (apptDateTime < now && !isSuccessful && !isCancelled) {
+          const becameOverdue = (apptDateTime < now && !isSuccessful && !isCancelled);
+          if (becameOverdue) {
             overdue += 1;
+            // Track overlap: pending non-rescheduled and overdue
+            const isPendingNonRes = (status === 'pending' && !(hasRes));
+            if (isPendingNonRes) overlapPendingOverdue += 1;
           }
         }
 
-  setAuto({ pending, upcoming, today, overdue, cancelled, reschedPending, reschedApproved });
+  setAuto({ pending, upcoming, today, overdue, cancelled, reschedPending, reschedApproved, overlapPendingOverdue });
       } catch (_err) {
         if (!active) return;
         setAuto(EMPTY_COUNTS);
@@ -223,8 +235,10 @@ export function AdminHeaderInfoBar({
   const cancelledVal = pickCount(cancelledCount, auto.cancelled);
   const reschedPendingVal = auto.reschedPending;
   const reschedApprovedVal = auto.reschedApproved;
+  const overlap = Number(auto.overlapPendingOverdue || 0);
   // Needs Attention = Pending (non-rescheduled) + Overdue
-  const alertsVal = pickCount(notificationsCount, pendingNonRes + overdueVal);
+  // Use union logic (subtract overlap so items that are both pending & overdue counted once)
+  const alertsVal = pickCount(notificationsCount, pendingNonRes + overdueVal - overlap);
 
   const items = useMemo(() => [
     {
@@ -306,7 +320,7 @@ export function AdminHeaderInfoBar({
         navigate(`/appointment-management?from=${today}&to=${today}`);
         break;
       case 'upcoming':
-        // Use new preset range for Next 7 days
+        // Use preset range for Next 7 days
         navigate(`/appointment-management?range=next7`);
         break;
       case 'overdue':

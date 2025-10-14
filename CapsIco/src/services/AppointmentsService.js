@@ -120,12 +120,13 @@ class AppointmentsService extends BaseFirebaseService {
     }
   }
 
-  async updateStatus(id, status) {
+  async updateStatus(id, status, extra = {}) {
     const now = new Date().toISOString();
     // Best-effort fetch to include targetName in activity log
     let appt = null;
     try { appt = await this.getById(id); } catch(_) {}
-    await update(ref(this.database, this.path(id)), { BOOKING_STATUS: String(status || '').toLowerCase(), UPDATED_AT: now });
+    const payload = { BOOKING_STATUS: String(status || '').toLowerCase(), UPDATED_AT: now, ...extra };
+    await update(ref(this.database, this.path(id)), payload);
     try {
       const fullName = appt ? [appt.FIRST_NAME, appt.LAST_NAME].filter(Boolean).join(' ').trim() : '';
       const tName = fullName || appt?.SERVICE_NAME || appt?.EMAIL || '';
@@ -135,6 +136,7 @@ class AppointmentsService extends BaseFirebaseService {
         description: `Updated status to ${String(status || '').toLowerCase()}`,
         targetId: id,
         targetName: tName,
+        metadata: extra && Object.keys(extra).length ? { extraKeys: Object.keys(extra) } : undefined,
       });
     } catch (_) {}
   }

@@ -320,3 +320,23 @@ td { font-size: 14px; color: #4b5563; }
 .toastMsg { font-size: 13px; color: #475569; margin-top: 2px; }
 .toastText { display: flex; flex-direction: column; gap: 2px; }
 .toastClose { margin-left: auto; background: transparent; border: 0; font-size: 18px; cursor: pointer; color: #334155; }
+
+/* Status flow stepper */
+.statusFlow { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+.flowStep { position:relative; display:inline-flex; align-items:center; gap:6px; padding:8px 14px; border-radius:999px; font-size:12px; font-weight:700; cursor:pointer; user-select:none; background:#f1f5f9; color:#334155; border:1px solid #e2e8f0; transition:all .18s ease; }
+.flowStep:hover { background:#e2e8f0; }
+.flowStep:active { transform:translateY(1px); }
+.flowStep.done { background:#ecfdf5; color:#065f46; border-color:#a7f3d0; }
+.flowStep.active { background:linear-gradient(135deg,#2563eb,#7c3aed); color:#fff; border-color:#2563eb; box-shadow:0 4px 12px rgba(37,99,235,0.35); }
+.flowStep.disabled { background:#f8fafc; color:#94a3b8; border-color:#e2e8f0; cursor:not-allowed; opacity:.6; }
+.flowConnector { width:36px; height:4px; border-radius:2px; background:linear-gradient(90deg,#e2e8f0,#f1f5f9); flex:0 0 auto; position:relative; }
+.flowConnector.done { background:linear-gradient(90deg,#10b981,#34d399); }
+.flowConnector.active { background:linear-gradient(90deg,#2563eb,#7c3aed); }
+.flowNote { font-size:11px; font-weight:600; color:#64748b; margin-top:6px; }
+.pulseDot { width:8px; height:8px; border-radius:50%; background:currentColor; box-shadow:0 0 0 4px rgba(255,255,255,0.6); }
+.flowStep .sub { font-weight:600; font-size:10px; letter-spacing:.5px; text-transform:uppercase; opacity:.85; }
+
+/* Email queued badge */
+.emailBadge { padding:4px 8px; border-radius:999px; font-size:10px; font-weight:800; background:#dcfce7; color:#166534; border:1px solid #bbf7d0; letter-spacing:.5px; display:inline-flex; align-items:center; gap:4px; }
+.emailBadge.pending { background:#fef9c3; color:#713f12; border-color:#fde68a; }
+.emailBadge.cooldown { background:#e0f2fe; color:#075985; border-color:#bae6fd; }

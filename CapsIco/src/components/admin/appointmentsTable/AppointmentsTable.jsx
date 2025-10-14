@@ -2,7 +2,9 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
 import styles from './AppointmentsTable.module.css';
 import appointmentsService from '@/services/AppointmentsService';
-import { sendAppointmentEmailCallable } from '/src/config/firebase-config';
+import { usersDB } from '/src/config/firebase-config';
+import { ref as dbRef, push as dbPush, update as dbUpdate, get as dbGet } from 'firebase/database';
+import { buildAppointmentEmail } from '@/utils/appointmentEmailTemplate.js';
 import servicePackagesService from '@/services/ServicePackagesService';
 import singleServicesService from '@/services/SingleServicesService';
 import { useLocation } from 'react-router-dom';
@@ -124,6 +126,8 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [modalSaving, setModalSaving] = useState(false);
   // Decline reason (optional)
   const [declineReason, setDeclineReason] = useState('');
+  const [showDeclineModal, setShowDeclineModal] = useState(false);
+  const [pendingDeclineStage, setPendingDeclineStage] = useState(null);
   // (Removed legacy confirm overlay state)
   // Pagination
   const [page, setPage] = useState(1);
@@ -253,10 +257,18 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   useEffect(() => {
     const onInitDates = (e) => {
       try {
-        const { from, to, overdue, attention, excludeResched: exr } = e.detail || {};
-        setDateFrom(from ?? '');
-        setDateTo(to ?? '');
-        setDatePreset('');
+        const { from, to, range, overdue, attention, excludeResched: exr } = e.detail || {};
+        const preset = typeof range === 'string' ? range.toLowerCase() : '';
+        if (preset === 'next7' || preset === 'thismonth') {
+          setDatePreset(preset);
+          // Clear explicit dates; preset effect will populate them
+          setDateFrom('');
+          setDateTo('');
+        } else {
+          setDatePreset('');
+          setDateFrom(from ?? '');
+          setDateTo(to ?? '');
+        }
         setFilterOverdue(Boolean(overdue));
         setFilterAttention(Boolean(attention));
         setExcludeResched(Boolean(exr));
@@ -370,15 +382,19 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const buildEmailPayload = (row, backend, declineReasonParam) => {
     if (!row) return null;
     const resched = row.raw?.RESCHEDULE_INFO;
+    const statusRaw = backend;
+    const effectiveStatus = statusRaw === 'rescheduled' ? 'approved' : statusRaw; // for template wording
+    const date = (resched?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT);
+    const time = (resched?.newTime || row.time || row.raw?.TIME_SLOT);
     return {
       apptId: row.id,
-      status: backend,
+      status: effectiveStatus,
       serviceName: row.serviceName,
       serviceType: row.type,
-      date: (resched?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT),
-      time: (resched?.newTime || row.time || row.raw?.TIME_SLOT),
-      serviceId: row.raw?.SERVICE_ID,
-      ...(backend === 'declined' && declineReasonParam ? { declineReason: declineReasonParam } : {}),
+      date,
+      time,
+      declineReason: (statusRaw === 'declined' && declineReasonParam) ? declineReasonParam : undefined,
+      rawStatus: statusRaw,
       record: { ...row.raw },
     };
   };
@@ -403,18 +419,31 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       showPopup({ title: 'Please wait', message: `Email was just sent. Try again in ${fmtSeconds(remaining)}s.`, type: 'info' });
       return { ok: false, error: 'cooldown' };
     }
+    const payload = buildEmailPayload(row, backend, declineReasonParam);
+    if (!payload) return { ok: false, error: 'payload' };
     try {
-      const payload = buildEmailPayload(row, backend, declineReasonParam);
-      const res = await sendAppointmentEmailCallable(payload);
-      if (res && res.ok) {
-        emailSentAtRef.current[row.id] = Date.now();
-        showPopup({ title: 'Success', message: `Email sent and status updated to “${labelStatus}”.`, type: 'info' });
-        return { ok: true };
-      }
-      return { ok: false, error: 'callable-failed' };
+      // Fetch fresh snapshot to ensure we have service name etc.
+      let snap = null;
+      try { snap = await dbGet(dbRef(usersDB, `appointments/${row.id}`)); } catch(_) {}
+      const rec = snap && snap.exists() ? (snap.val() || {}) : (payload.record || {});
+      // Build branded template (frontend mirror of backend) using fresh record merged with overrides
+      const merged = {
+        ...rec,
+        SERVICE_NAME: payload.serviceName || rec.SERVICE_NAME,
+        SERVICE_TYPE: (payload.serviceType || rec.SERVICE_TYPE),
+        DATE_OF_APPOINTMENT: payload.date || rec.DATE_OF_APPOINTMENT,
+        TIME_SLOT: payload.time || rec.TIME_SLOT,
+        BOOKING_STATUS: payload.rawStatus || payload.status || rec.BOOKING_STATUS,
+      };
+      if (payload.declineReason) merged.DECLINE_REASON = payload.declineReason;
+      const { subject, html, text } = buildAppointmentEmail({ record: merged, effectiveStatus: payload.rawStatus || payload.status });
+      await dbPush(dbRef(usersDB, 'emailQueue'), { to: rec.EMAIL || row.email, subject, html, text });
+      emailSentAtRef.current[row.id] = Date.now();
+      showPopup({ title: 'Email queued', message: `Notification queued before status change to “${labelStatus}”.`, type: 'info' });
+      return { ok: true };
     } catch (e) {
-      console.warn('sendStatusEmail failed', e);
-      showPopup({ title: 'Email failed', message: 'Unable to send email notification.', type: 'error' });
+      console.warn('[sendStatusEmail] enqueue failed', e);
+      showPopup({ title: 'Email failed', message: 'Failed to queue email notification.', type: 'error' });
       return { ok: false, error: e?.message || 'error' };
     }
   };
@@ -432,56 +461,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   };
 
   const onSubmitModalStatus = async () => {
-    if (!selected) return;
-    const desired = modalStatus || 'Pending';
-    const map = {
-      'Approved': 'approved',
-      'Pending': 'pending',
-      'Declined': 'declined',
-      'Successful': 'successful',
-      'Pending Reschedule': 'pending',
-      'Approved Reschedule': 'rescheduled',
-    };
-    const backend = map[desired] || 'pending';
-
-    // Guard rails: Successful requires Approved first, and optionally requires proof
-    if (desired === 'Successful') {
-      const isApproved = String(selected.status || '').toLowerCase() === 'approved';
-      const hasProof = !!(selected.raw?.PROOF || selected.raw?.proof);
-      if (!isApproved) {
-        alert('To mark as Successful, approve the appointment first.');
-        return;
-      }
-      if (requireProofForSuccess && !hasProof) {
-        alert('Please upload a proof image before marking this appointment as Successful.');
-        return;
-      }
-    }
-    try {
-      setModalSaving(true);
-      await appointmentsService.updateStatus(selected.id, backend);
-      setStatusLocal(selected.id, desired);
-      // Ask before sending an email when status change implies an email
-      if (backend === 'approved' || backend === 'rescheduled' || backend === 'successful' || backend === 'declined') {
-        const msg = ((backend === 'approved' || backend === 'rescheduled') && selected.raw?.RESCHEDULE_INFO?.newDate)
-          ? 'Send an approval email that includes the new rescheduled date/time?'
-          : 'Do you want to send an email notification now?';
-        showToast({
-          type: 'success',
-          title: 'Send email?',
-          message: msg,
-          duration: 0,
-          actions: [
-            { label: 'Cancel', kind: 'ghost', onClick: () => {} },
-            { label: 'Send', kind: 'confirm', onClick: async () => { await sendStatusEmail({ row: selected, backend, labelStatus: desired, declineReasonParam: declineReason }); } }
-          ]
-        });
-      }
-    } catch (e) {
-      showPopup({ title: 'Update failed', message: 'Failed to update status.', type: 'error' });
-    } finally {
-      setModalSaving(false);
-    }
+    // Legacy handler no longer used (replaced by flow stepper). Kept for fallback.
   };
 
   // Upload proof image and optionally mark as Successful if already Approved
@@ -667,7 +647,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
             title="Quick date filters"
           >
             <option value="">Custom dates</option>
-            <option value="next7">Next 7 days</option>
+            <option value="next7">Next 7 Days</option>
             <option value="thismonth">This month (upcoming)</option>
           </select>
           <input
@@ -818,6 +798,15 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <span className={`${styles.status} ${selected.status === 'Approved' ? styles.approved : selected.status === 'Declined' ? styles.declined : selected.status === 'Successful' ? styles.successful : styles.pending}`}>{selected.status}</span>
+                {(() => {
+                  const raw = selected.raw || {};
+                  const flags = raw.EMAIL_SENT_APPROVED || raw.EMAIL_SENT_DECLINED || raw.EMAIL_SENT_SUCCESSFUL;
+                  const recently = getCooldownRemainingMs(selected.id) > 0;
+                  if (!flags && !recently) return null;
+                  const cls = recently ? styles.emailBadge + ' ' + styles.cooldown : styles.emailBadge;
+                  const label = recently ? `Email queued (${Math.ceil(getCooldownRemainingMs(selected.id)/1000)}s)` : 'Email Sent';
+                  return <span className={cls} title={recently ? 'Email just queued; waiting before another send' : 'An email was already sent for this status'}>✉ {label}</span>;
+                })()}
                 {(['Pending','Approved'].includes(selected.status) && isRowOverdue(selected)) ? (
                   <span className={styles.overdueBadge} title="This appointment is past its scheduled date/time">Overdue</span>
                 ) : null}
@@ -857,7 +846,11 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                       <div><span>Reschedule From</span><strong>{toLongDate(selected.raw?.RESCHEDULE_INFO?.oldDate || selected.raw?.DATE_OF_APPOINTMENT)} • {to12h(selected.raw?.RESCHEDULE_INFO?.oldTime || selected.raw?.TIME_SLOT)}</strong></div>
                       <div><span>Reschedule To</span><strong>{toLongDate(selected.raw?.RESCHEDULE_INFO?.newDate || selected.raw?.DATE_OF_APPOINTMENT)} • {to12h(selected.raw?.RESCHEDULE_INFO?.newTime || selected.raw?.TIME_SLOT)}</strong></div>
                       {selected.raw?.RESCHEDULE_INFO?.reason && (
-                        <div><span>Reason</span><strong style={{ fontSize: '13px', lineHeight: '1.5' }}>{selected.raw?.RESCHEDULE_INFO?.reason}</strong></div>
+                        <div>
+                          <span>Reschedule Reason</span>
+                          <strong style={{ fontSize: '13px', lineHeight: '1.5', display: 'block' }}>{selected.raw?.RESCHEDULE_INFO?.reason}</strong>
+                          <em style={{ fontSize: '11px', color: '#6b7280', display: 'block', marginTop: '2px' }}>Why the user requested the change</em>
+                        </div>
                       )}
                     </div>
                   )}
@@ -997,74 +990,238 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
               </div>
             </div>
             <div className={styles.modalFooter}>
-              <span style={{ fontSize: '13px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                Change status:
-                {isCancelled && (
-                  <span style={{
-                    fontSize: 12,
-                    fontWeight: 800,
-                    color: '#b91c1c',
-                    background: '#fee2e2',
-                    border: '1px solid #fecaca',
-                    borderRadius: 999,
-                    padding: '4px 8px'
-                  }} title="This appointment is cancelled and cannot be edited">
-                    Cancelled — view only
-                  </span>
-                )}
-              </span>
-              <select
-                className={styles.select}
-                value={isCancelled ? selected.status : modalStatus}
-                onChange={(e) => setModalStatus(e.target.value)}
-                disabled={modalSaving || isCancelled}
-                style={{ padding: '8px 10px', fontSize: '13px' }}
-              >
-                <option>Approved</option>
-                <option>Pending</option>
-                <option>Pending Reschedule</option>
-                <option>Approved Reschedule</option>
-                <option>Declined</option>
-                <option>Successful</option>
-              </select>
-              <button
-                className={`${styles.btn} ${styles.btnApprove}`}
-                onClick={onSubmitModalStatus}
-                disabled={modalSaving || isCancelled}
-                style={{ padding: '8px 14px', fontSize: '13px' }}
-              >
-                {modalSaving ? 'Submitting…' : 'Submit & Email'}
-              </button>
-              {selected.raw?.RESCHEDULE_INFO && String(selected.status || '').toLowerCase() === 'pending' && (
-                <button
-                  className={`${styles.btn} ${styles.btnApprove}`}
-                  onClick={async () => {
+              <div style={{ display:'flex', flexDirection:'column', flex:1, gap:6 }}>
+                <div style={{ fontSize: '13px', fontWeight:700, display:'flex', alignItems:'center', gap:8 }}>
+                  Status Flow
+                  {isCancelled && (
+                    <span style={{
+                      fontSize: 12,
+                      fontWeight: 800,
+                      color: '#b91c1c',
+                      background: '#fee2e2',
+                      border: '1px solid #fecaca',
+                      borderRadius: 999,
+                      padding: '4px 8px'
+                    }} title="This appointment is cancelled and cannot be edited">Cancelled — view only</span>
+                  )}
+                </div>
+                {(() => {
+                  const current = selected.status; // Friendly label already
+                  const rawStatusLower = String(selected.raw?.BOOKING_STATUS || '').toLowerCase();
+                  const hasRes = Boolean(selected.raw?.RESCHEDULE_INFO || selected.raw?.rescheduleInfo || selected.raw?.RESCHEDULED_AT);
+                  const proofProvided = !!(selected.raw?.PROOF || selected.raw?.proof);
+                  // Define phases dynamically (some branches insert reschedule stages)
+                  // New simplified flow (reschedule path):
+                  // Pending -> Pending Reschedule -> Approve Reschedule -> Successful
+                  // Decline allowed only from Pending or Pending Reschedule.
+                  // Non-reschedule (straight) path: Pending -> Approved -> Successful (legacy; kept if no reschedule request info yet)
+                  const stages = [];
+                  const push = (key,label,opts={}) => stages.push({ key, label, ...opts });
+                  // Always start with Pending conceptual stage
+                  push('pending','Pending');
+                  const inReschedulePath = (current === 'Pending Reschedule') || (current === 'Approved Reschedule') || (hasRes && (current === 'Pending' || current === 'Approved'));
+                  if (inReschedulePath) {
+                    push('pending-res','Pending Reschedule', { requiresEmail:true, emailType:'pending-reschedule' });
+                    // Renamed label per latest request
+                    push('approved-res','Approve Reschedule', { requiresEmail:true, emailType:'approved-reschedule' });
+                  }
+                  // Standard approval stage only if NOT in reschedule path (legacy straight path)
+                  if (!inReschedulePath) {
+                    push('approved','Approved', { requiresEmail:true, emailType:'approved' });
+                  }
+                  // Decline branch (only valid directly from Pending or Pending Reschedule and only if not already approved)
+                  if (['Pending','Pending Reschedule'].includes(current)) {
+                    push('declined','Declined', { requiresEmail:true, emailType:'declined' });
+                  }
+                  // Successful stage (needs proof & must have been approved)
+                  push('successful','Successful', { requiresProof:true, requiresEmail:true, emailType:'successful' });
+
+                  const labelToKey = (lbl) => lbl.toLowerCase().replace(/\s+/g,'-');
+                  const currentKey = labelToKey(current);
+                  const completedIndex = stages.findIndex(s => s.label === current);
+                  const canTransition = (target, idx) => {
+                    if (isCancelled) return false;
+                    if (completedIndex === -1) return false;
+                    // Only allow forward (idx > completedIndex)
+                    if (idx <= completedIndex) return false;
+                    // Enforce order: skip rules: cannot jump more than one ahead unless skipping decline branch
+                    if (target.key === 'declined') {
+                      // allowed only if current is Pending or Pending Reschedule and not yet approved
+                      if (!['Pending','Pending Reschedule'].includes(current)) return false;
+                    }
+                    // successful requires prior Approved (not Approved Reschedule only; must have approved final) and proof
+                    if (target.key === 'successful') {
+                      const approvedLike = ['Approved','Successful'].includes(current) || (current === 'Approved Reschedule') || (current === 'Approve Reschedule');
+                      if (!approvedLike) return false;
+                      if (requireProofForSuccess && !proofProvided) return false;
+                    }
+                    return true;
+                  };
+
+                  const handleTransition = async (stage, idx) => {
+                    if (!canTransition(stage, idx) || modalSaving) return;
+                    if (stage.key === 'declined') {
+                      setPendingDeclineStage({ stage, idx });
+                      setShowDeclineModal(true);
+                      return;
+                    }
+                    // Map stage keys to backend
+                    const backendMap = {
+                      'pending':'pending',
+                      'pending-res':'pending', // DB status remains pending; RESCHEDULE_INFO marks intent
+                      'approved-res':'rescheduled', // treat this as "rescheduled/approved"
+                      'approved':'approved',
+                      'declined':'declined',
+                      'successful':'successful'
+                    };
+                    const backend = backendMap[stage.key];
+                    // Email required? send first; only update status after success
+                    const needsEmail = stage.requiresEmail;
+                    const declineReasonParam = stage.key === 'declined' ? declineReason : undefined;
                     try {
                       setModalSaving(true);
-                      await appointmentsService.updateStatus(selected.id, 'approved');
-                      setStatusLocal(selected.id, 'Approved');
-                      showToast({
-                        type: 'success',
-                        title: 'Send reschedule email?',
-                        message: 'Send an email confirming the rescheduled appointment?',
-                        duration: 0,
-                        actions: [
-                          { label: 'Cancel', kind: 'ghost', onClick: () => { setModalSaving(false); } },
-                          { label: 'Send', kind: 'confirm', onClick: async () => { await sendStatusEmail({ row: selected, backend: 'approved', labelStatus: 'Approved' }); setModalSaving(false); } }
-                        ]
-                      });
+                      if (needsEmail) {
+                        const emailRes = await sendStatusEmail({ row: selected, backend, labelStatus: stage.label, declineReasonParam });
+                        if (!emailRes.ok) {
+                          setModalSaving(false);
+                          return;
+                        }
+                      }
+                      // For successful also ensure proof
+                      if (stage.key === 'successful' && requireProofForSuccess && !proofProvided) {
+                        showPopup({ title:'Proof required', message:'Upload proof before marking Successful.', type:'error' });
+                        setModalSaving(false);
+                        return;
+                      }
+                      // Update status + set email sent flags (mimic callable side-effects) to avoid duplicate trigger emails
+                      const emailFlag = (() => {
+                        if (backend === 'approved' || backend === 'rescheduled') return { EMAIL_SENT_APPROVED: true };
+                        if (backend === 'successful') return { EMAIL_SENT_SUCCESSFUL: true };
+                        if (backend === 'declined') return { EMAIL_SENT_DECLINED: true };
+                        return {};
+                      })();
+                      await appointmentsService.updateStatus(selected.id, backend, emailFlag);
+                      setStatusLocal(selected.id, stage.label);
                     } catch (e) {
-                      showPopup({ title: 'Update failed', message: 'Failed to approve rescheduled appointment.', type: 'error' });
+                      showPopup({ title:'Update failed', message:'Failed to update status.', type:'error' });
+                    } finally {
                       setModalSaving(false);
                     }
-                  }}
-                  style={{ padding: '8px 14px', fontSize: '13px' }}
-                >
-                  Approve Reschedule
-                </button>
-              )}
-              <button 
-                className={`${styles.btn} ${styles.btnDelete}`} 
+                  };
+
+                  return (
+                    <div>
+                      {showDeclineModal && pendingDeclineStage && (
+                        <div className={styles.backdrop} style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.55)', backdropFilter:'blur(2px)', display:'flex', alignItems:'center', justifyContent:'center', zIndex: 4000 }}>
+                          <div style={{ background:'#ffffff', width:'100%', maxWidth:480, borderRadius:16, boxShadow:'0 10px 40px -5px rgba(0,0,0,0.25)', padding:'22px 26px', display:'flex', flexDirection:'column', gap:16 }}>
+                            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                              <h2 style={{ margin:0, fontSize:18, fontWeight:800, color:'#0f172a' }}>Decline Appointment</h2>
+                              <button onClick={()=>{ setShowDeclineModal(false); setPendingDeclineStage(null); }} style={{ background:'transparent', border:0, fontSize:18, cursor:'pointer', lineHeight:1 }}>✕</button>
+                            </div>
+                            <p style={{ margin:0, fontSize:13, lineHeight:1.5, color:'#334155' }}>You are about to decline this appointment. An email notification will be sent to the user. Optionally provide a reason below (included in the email).</p>
+                            <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                              <label htmlFor="declineReasonInput" style={{ fontSize:11, fontWeight:700, letterSpacing:'.05em', textTransform:'uppercase', color:'#64748b' }}>Reason (optional)</label>
+                              <textarea
+                                id="declineReasonInput"
+                                value={declineReason}
+                                onChange={(e)=>setDeclineReason(e.target.value)}
+                                placeholder="e.g. Incomplete information, schedule conflict, etc."
+                                style={{ resize:'vertical', minHeight:90, padding:'10px 12px', fontSize:13, border:'1px solid #cbd5e1', borderRadius:8, outline:'none', boxShadow:'0 0 0 1px rgba(0,0,0,0.02)'}}
+                              />
+                            </div>
+                            <div style={{ display:'flex', justifyContent:'flex-end', gap:12, marginTop:4 }}>
+                              <button
+                                onClick={()=>{ setShowDeclineModal(false); setPendingDeclineStage(null); }}
+                                style={{ background:'#f1f5f9', color:'#475569', fontWeight:600, border:'1px solid #cbd5e1', padding:'8px 14px', borderRadius:8, fontSize:13, cursor:'pointer' }}
+                                disabled={modalSaving}
+                              >Cancel</button>
+                              <button
+                                onClick={async ()=>{
+                                  if (!pendingDeclineStage) return;
+                                  const { stage, idx } = pendingDeclineStage;
+                                  setShowDeclineModal(false);
+                                  setPendingDeclineStage(null);
+                                  // Continue decline flow now
+                                  const backendMap = {
+                                    'pending':'pending',
+                                    'pending-res':'pending',
+                                    'approved-res':'rescheduled',
+                                    'approved':'approved',
+                                    'declined':'declined',
+                                    'successful':'successful'
+                                  };
+                                  const backend = backendMap[stage.key];
+                                  const needsEmail = stage.requiresEmail;
+                                  const declineReasonParam = declineReason || undefined;
+                                  try {
+                                    setModalSaving(true);
+                                    if (needsEmail) {
+                                      const emailRes = await sendStatusEmail({ row: selected, backend, labelStatus: stage.label, declineReasonParam });
+                                      if (!emailRes.ok) { setModalSaving(false); return; }
+                                    }
+                                    const emailFlag = (() => {
+                                      if (backend === 'approved' || backend === 'rescheduled') return { EMAIL_SENT_APPROVED: true };
+                                      if (backend === 'successful') return { EMAIL_SENT_SUCCESSFUL: true };
+                                      if (backend === 'declined') return { EMAIL_SENT_DECLINED: true };
+                                      return {};
+                                    })();
+                                    await appointmentsService.updateStatus(selected.id, backend, emailFlag);
+                                    setStatusLocal(selected.id, stage.label);
+                                  } catch (e) {
+                                    showPopup({ title:'Update failed', message:'Failed to update status.', type:'error' });
+                                  } finally {
+                                    setModalSaving(false);
+                                  }
+                                }}
+                                className={styles.btn}
+                                style={{ background:'#dc2626', color:'#fff', fontWeight:700, border:'1px solid #b91c1c', padding:'8px 16px', borderRadius:8, fontSize:13, cursor:'pointer', boxShadow:'0 2px 6px rgba(220,38,38,0.35)' }}
+                                disabled={modalSaving}
+                              >Confirm Decline</button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      <div className={styles.statusFlow}>
+                        {stages.map((s, idx) => {
+                          const done = completedIndex > idx;
+                          const active = s.label === current;
+                          const disabled = !active && !canTransition(s, idx);
+                          return (
+                            <React.Fragment key={s.key}>
+                              <div
+                                className={[
+                                  styles.flowStep,
+                                  done ? styles.done : '',
+                                  active ? styles.active : '',
+                                  disabled ? styles.disabled : ''
+                                ].filter(Boolean).join(' ')}
+                                onClick={() => handleTransition(s, idx)}
+                                title={disabled ? 'Not available' : (active ? 'Current status' : 'Advance to ' + s.label)}
+                              >
+                                {active ? <span className={styles.pulseDot} /> : done ? '✓' : idx + 1}
+                                <span>{s.label}</span>
+                                {s.requiresProof && !proofProvided && s.label === 'Successful' && <span className={styles.sub}>Needs Proof</span>}
+                              </div>
+                              {idx < stages.length - 1 && (
+                                <div className={[
+                                  styles.flowConnector,
+                                  (completedIndex >= idx) ? styles.done : '',
+                                  active ? styles.active : ''
+                                ].filter(Boolean).join(' ')} />
+                              )}
+                            </React.Fragment>
+                          );
+                        })}
+                      </div>
+                      <div className={styles.flowNote}>
+                        Forward-only. Email is sent before advancing when required; Successful requires proof.
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+              <button
+                className={`${styles.btn} ${styles.btnDelete}`}
                 onClick={() => onDelete(selected.id)}
                 style={{ padding: '8px 14px', fontSize: '13px', marginLeft: 'auto' }}
               >Delete</button>

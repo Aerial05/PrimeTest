@@ -31,6 +31,13 @@ export function Appointments() {
       return [from, to];
     } catch(_) { return ['', '']; }
   }, [location.search]);
+  const rangePreset = useMemo(()=>{
+    try {
+      const params = new URLSearchParams(location.search || '');
+      const r = String(params.get('range') || '').toLowerCase();
+      return (r === 'next7' || r === 'thismonth') ? r : '';
+    } catch { return ''; }
+  }, [location.search]);
   const overdueFlag = useMemo(()=>{
     try {
       const params = new URLSearchParams(location.search || '');
@@ -52,9 +59,9 @@ export function Appointments() {
 
   // Broadcast initial date filters to the AppointmentsTable via custom event
   useEffect(() => {
-    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo, overdue: overdueFlag, attention: attentionFlag, excludeResched: excludeResFlag } });
+    const ev = new CustomEvent('appointments:set-initial-dates', { detail: { from: initialDateFrom, to: initialDateTo, range: rangePreset, overdue: overdueFlag, attention: attentionFlag, excludeResched: excludeResFlag } });
     window.dispatchEvent(ev);
-  }, [initialDateFrom, initialDateTo, overdueFlag, attentionFlag, excludeResFlag]);
+  }, [initialDateFrom, initialDateTo, rangePreset, overdueFlag, attentionFlag, excludeResFlag]);
   return (
     <main className={styles.main}>
       <div className={styles.card}>
