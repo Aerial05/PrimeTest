@@ -1,12 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useToast } from '@/components/shared/toast/ToastProvider.jsx';
 import styles from './AppointmentsTable.module.css';
 import appointmentsService from '@/services/AppointmentsService';
 import { sendAppointmentEmailCallable } from '/src/config/firebase-config';
 import servicePackagesService from '@/services/ServicePackagesService';
 import singleServicesService from '@/services/SingleServicesService';
 import { useLocation } from 'react-router-dom';
-import activityLogService from '/src/services/ActivityLogService';
-import { useToast } from '/src/components/shared/toast/ToastProvider.jsx';
 
 function to12h(hhmm) {
   if (!hhmm) return '—';
@@ -108,10 +107,16 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   // Toggle whether proof is required to mark an appointment as Successful
   const requireProofForSuccess = true;
   const [rows, setRows] = useState([]);
-  // Inline popup for alerts (replaces window.alert)
-  const [popup, setPopup] = useState({ open: false, title: '', message: '', type: 'info' });
-  const showPopup = ({ title = 'Notice', message = '', type = 'info' } = {}) => setPopup({ open: true, title, message, type });
-  const closePopup = () => setPopup((p) => ({ ...p, open: false }));
+  // Toast notifications (replace inline overlay popups)
+  const { show: showToast } = useToast();
+  const showPopup = ({ title = 'Notice', message = '', type = 'info', duration = 3500 } = {}) => {
+    showToast({
+      type: type === 'error' ? 'error' : 'success',
+      title,
+      message,
+      duration
+    });
+  };
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalId, setModalId] = useState(null);
@@ -119,8 +124,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [modalSaving, setModalSaving] = useState(false);
   // Decline reason (optional)
   const [declineReason, setDeclineReason] = useState('');
-  // Confirm toast for sending email
-  const [confirmSend, setConfirmSend] = useState({ open: false, onConfirm: null, title: '', message: '' });
+  // (Removed legacy confirm overlay state)
   // Pagination
   const [page, setPage] = useState(1);
   const pageSize = 8;
@@ -142,24 +146,11 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const [proofUploading, setProofUploading] = useState(false);
   const [proofError, setProofError] = useState('');
   const [proofProgress, setProofProgress] = useState(0);
-  // Automation busy flag
-  const [autoBusy, setAutoBusy] = useState(false);
   // Email throttle state (per appointment)
   const emailSentAtRef = useRef({});
   const EMAIL_COOLDOWN_MS = 10_000; // 10 seconds to prevent rapid repeats
-  // Confirm modal sending state to avoid double-clicks
-  const [confirmSending, setConfirmSending] = useState(false);
-  // Shared toast
-  const { show: showToast } = (typeof useToast === 'function' ? (useToast() || { show: () => {} }) : { show: () => {} });
-  // Toggle states (persisted per admin)
-  const [autoToggles, setAutoToggles] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('appointments.autoToggles') || '{}'); } catch(_) { return {}; }
-  });
-  const saveToggles = (next) => {
-    setAutoToggles(next);
-    try { localStorage.setItem('appointments.autoToggles', JSON.stringify(next)); } catch(_) {}
-  };
-  const lastRunSigRef = React.useRef({}); // mode -> signature of last processed ids
+  // (Removed confirmSending; handled by toast action async state inside provider)
+  // (Automation removed: no auto toggles / background processing)
 
   const openModal = (id) => setModalId(id);
   const closeModal = () => setModalId(null);
@@ -374,33 +365,57 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
   const setStatusLocal = (id, status) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
 
-  const onApprove = async (id) => {
-    const newStatus = 'approved';
-    try {
-      await appointmentsService.updateStatus(id, newStatus);
-      setStatusLocal(id, 'Approved');
-    } catch (e) {
-      showPopup({ title: 'Update failed', message: 'Failed to approve appointment.', type: 'error' });
-    }
+  // --- Email helper abstraction & cooldown support ---
+  // Build payload for callable based on current selection & backend status
+  const buildEmailPayload = (row, backend, declineReasonParam) => {
+    if (!row) return null;
+    const resched = row.raw?.RESCHEDULE_INFO;
+    return {
+      apptId: row.id,
+      status: backend,
+      serviceName: row.serviceName,
+      serviceType: row.type,
+      date: (resched?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT),
+      time: (resched?.newTime || row.time || row.raw?.TIME_SLOT),
+      serviceId: row.raw?.SERVICE_ID,
+      ...(backend === 'declined' && declineReasonParam ? { declineReason: declineReasonParam } : {}),
+      record: { ...row.raw },
+    };
   };
 
-  const onDecline = async (id) => {
-    const newStatus = 'declined';
-    try {
-      await appointmentsService.updateStatus(id, newStatus);
-      setStatusLocal(id, 'Declined');
-    } catch (e) {
-      showPopup({ title: 'Update failed', message: 'Failed to decline appointment.', type: 'error' });
-    }
+  const [cooldownTick, setCooldownTick] = useState(0); // periodic update driver
+  useEffect(() => {
+    if (!modalId) return; // only tick when a modal is open
+    const id = setInterval(() => setCooldownTick(t => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [modalId]);
+  const getCooldownRemainingMs = (rowId) => {
+    const last = emailSentAtRef.current[rowId] || 0;
+    const rem = EMAIL_COOLDOWN_MS - (Date.now() - last);
+    return rem > 0 ? rem : 0;
   };
+  const fmtSeconds = (ms) => Math.ceil(ms / 1000);
 
-  const onPending = async (id) => {
-    const newStatus = 'pending';
+  const sendStatusEmail = async ({ row, backend, labelStatus, declineReasonParam }) => {
+    if (!row) return { ok: false, error: 'No row selected' };
+    const remaining = getCooldownRemainingMs(row.id);
+    if (remaining > 0) {
+      showPopup({ title: 'Please wait', message: `Email was just sent. Try again in ${fmtSeconds(remaining)}s.`, type: 'info' });
+      return { ok: false, error: 'cooldown' };
+    }
     try {
-      await appointmentsService.updateStatus(id, newStatus);
-      setStatusLocal(id, 'Pending');
+      const payload = buildEmailPayload(row, backend, declineReasonParam);
+      const res = await sendAppointmentEmailCallable(payload);
+      if (res && res.ok) {
+        emailSentAtRef.current[row.id] = Date.now();
+        showPopup({ title: 'Success', message: `Email sent and status updated to “${labelStatus}”.`, type: 'info' });
+        return { ok: true };
+      }
+      return { ok: false, error: 'callable-failed' };
     } catch (e) {
-      showPopup({ title: 'Update failed', message: 'Failed to set status to pending.', type: 'error' });
+      console.warn('sendStatusEmail failed', e);
+      showPopup({ title: 'Email failed', message: 'Unable to send email notification.', type: 'error' });
+      return { ok: false, error: e?.message || 'error' };
     }
   };
 
@@ -448,43 +463,18 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       setStatusLocal(selected.id, desired);
       // Ask before sending an email when status change implies an email
       if (backend === 'approved' || backend === 'rescheduled' || backend === 'successful' || backend === 'declined') {
-        setConfirmSend({
-          open: true,
+        const msg = ((backend === 'approved' || backend === 'rescheduled') && selected.raw?.RESCHEDULE_INFO?.newDate)
+          ? 'Send an approval email that includes the new rescheduled date/time?'
+          : 'Do you want to send an email notification now?';
+        showToast({
+          type: 'success',
           title: 'Send email?',
-          message: ((backend === 'approved' || backend === 'rescheduled') && selected.raw?.RESCHEDULE_INFO?.newDate)
-            ? 'Send an approval email that includes the new rescheduled date/time?'
-            : 'Do you want to send an email notification now?',
-          onConfirm: async () => {
-            try {
-              const last = emailSentAtRef.current[selected.id] || 0;
-              if (Date.now() - last < EMAIL_COOLDOWN_MS) {
-                showPopup({ title: 'Email recently sent', message: 'Please wait about 10 seconds before sending another email for this appointment.', type: 'info' });
-                return;
-              }
-              const res = await sendAppointmentEmailCallable({
-                apptId: selected.id,
-                // For rescheduled, keep approved subject but template will include reschedule info via RESCHEDULE_INFO
-                status: backend,
-                serviceName: selected.serviceName,
-                serviceType: selected.type,
-                // If rescheduled, send the latest scheduled values
-                date: (selected.raw?.RESCHEDULE_INFO?.newDate || selected.date || selected.raw?.DATE_OF_APPOINTMENT),
-                time: (selected.raw?.RESCHEDULE_INFO?.newTime || selected.time || selected.raw?.TIME_SLOT),
-                serviceId: selected.raw?.SERVICE_ID,
-                ...(backend === 'declined' && declineReason ? { declineReason } : {}),
-              });
-              if (res && res.ok) {
-                emailSentAtRef.current[selected.id] = Date.now();
-                const label = desired;
-                showPopup({ title: 'Success', message: `Email sent and status updated to “${label}”.`, type: 'info' });
-                // No log for email sends per requirement
-              }
-            } catch (e) {
-              console.warn('sendAppointmentEmail callable failed', e);
-            } finally {
-              setConfirmSend({ open: false, onConfirm: null, title: '', message: '' });
-            }
-          }
+          message: msg,
+          duration: 0,
+          actions: [
+            { label: 'Cancel', kind: 'ghost', onClick: () => {} },
+            { label: 'Send', kind: 'confirm', onClick: async () => { await sendStatusEmail({ row: selected, backend, labelStatus: desired, declineReasonParam: declineReason }); } }
+          ]
         });
       }
     } catch (e) {
@@ -622,213 +612,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
     setSearch(''); setFilterStatus(''); setFilterType(''); setDateFrom(''); setDateTo(''); setDatePreset(''); setFilterOverdue(false); setFilterAttention(false);
   };
 
-  // ---------- Automation helpers ----------
-  // Targets based on current filters (visible dataset)
-  const pendingTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Pending'), [filteredRows]);
-  const reschedApprovedTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Approved Reschedule'), [filteredRows]);
-  const reschedPendingTargets = useMemo(() => filteredRows.filter(r => String(r.status) === 'Pending Reschedule'), [filteredRows]);
-
-  const sendEmailForRow = async (row) => {
-    // Throttle per appointment id to avoid multiple sends on rapid actions
-    try {
-      const last = emailSentAtRef.current[row.id] || 0;
-      if (Date.now() - last < EMAIL_COOLDOWN_MS) {
-        showPopup({ title: 'Email recently sent', message: 'Please wait about 10 seconds before sending another email for this appointment.', type: 'info' });
-        return false;
-      }
-    } catch (_) {}
-    try {
-      // Pre-lock immediately to avoid double-click race
-      emailSentAtRef.current[row.id] = Date.now();
-      // Prefer latest reschedule details if present
-      const newDate = row?.raw?.RESCHEDULE_INFO?.newDate || row.date || row.raw?.DATE_OF_APPOINTMENT;
-      const newTime = row?.raw?.RESCHEDULE_INFO?.newTime || row.time || row.raw?.TIME_SLOT;
-      await sendAppointmentEmailCallable({
-        apptId: row.id,
-        status: 'approved',
-        serviceName: row.serviceName,
-        serviceType: row.type,
-        date: newDate,
-        time: newTime,
-        serviceId: row?.raw?.SERVICE_ID,
-        record: { ...row.raw },
-      });
-      emailSentAtRef.current[row.id] = Date.now();
-      return true;
-    } catch (e) {
-      console.warn('Email send failed for', row.id, e);
-      // Unlock on failure to allow retry
-      try { emailSentAtRef.current[row.id] = 0; } catch(_) {}
-      return false;
-    }
-  };
-
-  const approveRow = async (row, { sendEmail } = { sendEmail: false }) => {
-    try {
-      await appointmentsService.updateStatus(row.id, 'approved');
-      setStatusLocal(row.id, 'Approved');
-      let emailed = false;
-      if (sendEmail) {
-        emailed = await sendEmailForRow(row);
-      }
-      return { ok: true, emailed };
-    } catch (e) {
-      return { ok: false, emailed: false };
-    }
-  };
-
-  const runAutomation = async (mode) => {
-    if (autoBusy) return;
-    // Mode: 'approvePending' | 'approveReschedApproved' | 'approveReschedPending' | 'total'
-    let targets = [];
-    if (mode === 'approvePending') targets = pendingTargets;
-    else if (mode === 'approveReschedApproved') targets = reschedApprovedTargets;
-    else if (mode === 'approveReschedPending') targets = reschedPendingTargets;
-    else if (mode === 'total') targets = [...pendingTargets, ...reschedApprovedTargets, ...reschedPendingTargets];
-
-    if (!targets.length) {
-      showPopup({ title: 'No matching appointments', message: 'Nothing to process for the current filters.', type: 'info' });
-      return;
-    }
-
-    setAutoBusy(true);
-    let done = 0, failed = 0, emailed = 0;
-    try {
-      for (const row of targets) {
-        // Decide email behavior: now send for all approvals including reschedule-from-pending
-        const shouldEmail = (
-          mode === 'approvePending' ||
-          mode === 'approveReschedApproved' ||
-          mode === 'approveReschedPending' ||
-          (mode === 'total' && (row.status === 'Pending' || row.status === 'Approved Reschedule' || row.status === 'Pending Reschedule'))
-        );
-        const res = await approveRow(row, { sendEmail: shouldEmail });
-        if (res.ok) {
-          done += 1; if (res.emailed) emailed += 1;
-        } else {
-          failed += 1;
-        }
-      }
-    } finally {
-      setAutoBusy(false);
-    }
-
-    const parts = [
-      `${done} updated` + (failed ? `, ${failed} failed` : ''),
-      emailed ? `${emailed} email(s) sent` : 'No emails sent',
-    ];
-    showPopup({ title: 'Automation finished', message: parts.join(' • '), type: failed ? 'error' : 'info' });
-  };
-
-  // Show a shared toast confirmation dialog and return a promise<boolean>
-  const confirmAutomation = (title, message, confirmLabel = 'Proceed') => new Promise((resolve) => {
-    try {
-      showToast({
-        type: 'error',
-        title: title || 'Confirm Action',
-        message: message || 'Are you sure?',
-        duration: 0, // persistent until clicked
-        actions: [
-          { label: 'Cancel', kind: 'ghost', onClick: () => resolve(false) },
-          { label: confirmLabel, kind: 'confirm', onClick: async () => { resolve(true); } },
-        ],
-      });
-    } catch (_) { resolve(confirm(message || title)); }
-  });
-
-  const startAutomation = async (mode) => {
-    // Build tailored message per mode
-    const counts = {
-      pending: pendingTargets.length,
-      reschedApproved: reschedApprovedTargets.length,
-      reschedPending: reschedPendingTargets.length,
-    };
-    let title = 'Confirm Automation', msg = '';
-    if (mode === 'approvePending') {
-      title = 'Auto Approve Pending';
-      msg = `This will approve ${counts.pending} pending appointment(s) and send approval emails.\n\nContinue?`;
-    } else if (mode === 'approveReschedApproved') {
-      title = 'Auto Accept Reschedule (Approved)';
-      msg = `This will approve ${counts.reschedApproved} reschedule(s) that originated from Approved appointments and send reschedule approval emails with the new date/time.\n\nContinue?`;
-    } else if (mode === 'approveReschedPending') {
-      title = 'Auto Accept Reschedule (Pending)';
-      msg = `This will approve ${counts.reschedPending} reschedule(s) that originated from Pending appointments and send reschedule approval emails with the new date/time.\n\nContinue?`;
-    } else {
-      title = 'Total Automation';
-      const total = counts.pending + counts.reschedApproved + counts.reschedPending;
-      msg = `This will approve ${total} appointment(s) currently shown by your filters:\n• Pending: ${counts.pending}\n• Reschedule (Approved): ${counts.reschedApproved}\n• Reschedule (Pending): ${counts.reschedPending}\n\nEmails to be sent:\n• Pending approvals: YES\n• Reschedules from Approved: YES (with new date/time)\n• Reschedules from Pending: YES (with new date/time)\n\nProceed?`;
-    }
-    const ok = await confirmAutomation(title, msg, 'Run');
-    if (!ok) return;
-    await runAutomation(mode);
-  };
-
-  // Toggle handler: enable/disable auto mode; on enable, run immediately
-  const toggleMode = async (mode) => {
-    const isOn = !!autoToggles[mode];
-    if (isOn) {
-      const next = { ...autoToggles, [mode]: false };
-      saveToggles(next);
-      return;
-    }
-    // Turning on: if enabling total, turn others off; if enabling specific, turn total off
-    const next = { ...autoToggles, [mode]: true };
-    if (mode === 'total') {
-      next.approvePending = false; next.approveReschedApproved = false; next.approveReschedPending = false;
-    } else {
-      next.total = false;
-    }
-    // Confirm enabling auto behavior
-    let title = 'Enable Auto Mode', msg = 'Automatically process matching appointments as they appear.';
-    if (mode === 'approvePending') {
-      title = 'Enable Auto Approve Pending';
-      msg = 'This will automatically approve pending appointments (current filters) and send approval emails.';
-    } else if (mode === 'approveReschedApproved') {
-      title = 'Enable Auto Accept Reschedule (Approved)';
-      msg = 'This will automatically approve reschedules that came from Approved appointments and send reschedule approval emails with the new date/time.';
-    } else if (mode === 'approveReschedPending') {
-      title = 'Enable Auto Accept Reschedule (Pending)';
-      msg = 'This will automatically approve reschedules that came from Pending appointments and send reschedule approval emails with the new date/time.';
-    } else if (mode === 'total') {
-      title = 'Enable Total Automation';
-      msg = 'This will automatically approve Pending and Rescheduled (Pending/Approved) items as they appear, sending emails only where required.';
-    }
-    const ok = await confirmAutomation(title, msg, 'Enable');
-    if (!ok) return;
-    saveToggles(next);
-    // Run immediately for current items
-    await runAutomation(mode);
-  };
-
-  // Auto-run when toggles are ON and there are matching targets after data/filters change
-  useEffect(() => {
-    if (autoBusy) return; // avoid overlap
-    const modes = ['approvePending','approveReschedApproved','approveReschedPending','total'];
-    const getTargets = (m) => (
-      m === 'approvePending' ? pendingTargets :
-      m === 'approveReschedApproved' ? reschedApprovedTargets :
-      m === 'approveReschedPending' ? reschedPendingTargets :
-      [...pendingTargets, ...reschedApprovedTargets, ...reschedPendingTargets]
-    );
-    const runIfNeeded = async (m) => {
-      if (!autoToggles[m]) return;
-      const targets = getTargets(m);
-      if (!targets.length) return;
-      const sig = targets.map(r => r.id).sort().join(',');
-      if (lastRunSigRef.current[m] === sig) return;
-      lastRunSigRef.current[m] = sig;
-      await runAutomation(m);
-    };
-    // Prefer 'total' when enabled to avoid duplicate processing
-    if (autoToggles.total) {
-      runIfNeeded('total');
-    } else {
-      runIfNeeded('approvePending');
-      runIfNeeded('approveReschedApproved');
-      runIfNeeded('approveReschedPending');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredRows, pendingTargets.length, reschedApprovedTargets.length, reschedPendingTargets.length, autoToggles, autoBusy]);
+  // (Automation helpers removed)
 
   return (
     <div className={styles.card}>
@@ -904,45 +688,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         </div>
         <div className={styles.meta}>{pageRows.length} / {filteredRows.length} shown</div>
       </div>
-      {/* Automation actions */}
-      <div className={styles.autoBar}>
-        <div className={styles.autoGroup}>
-          <button
-            className={`${styles.autoBtn} ${styles.accentGreen}`}
-            disabled={autoBusy}
-            title="Toggle auto-approve pending (sends approval email)"
-            onClick={() => toggleMode('approvePending')}
-          >
-            {autoToggles.approvePending ? 'Auto Approve Pending — On' : 'Auto Approve Pending — Off'} <span className={styles.countBadge}>{pendingTargets.length}</span>
-          </button>
-          <button
-            className={`${styles.autoBtn} ${styles.accentBlue}`}
-            disabled={autoBusy}
-            title="Toggle auto-accept reschedule (from Approved) — sends reschedule approval email"
-            onClick={() => toggleMode('approveReschedApproved')}
-          >
-            {autoToggles.approveReschedApproved ? 'Auto Accept Reschedule (Approved) — On' : 'Auto Accept Reschedule (Approved) — Off'} <span className={styles.countBadge}>{reschedApprovedTargets.length}</span>
-          </button>
-          <button
-            className={`${styles.autoBtn} ${styles.accentAmber}`}
-            disabled={autoBusy}
-            title="Toggle auto-accept reschedule (from Pending) — sends reschedule approval email"
-            onClick={() => toggleMode('approveReschedPending')}
-          >
-            {autoToggles.approveReschedPending ? 'Auto Accept Reschedule (Pending) — On' : 'Auto Accept Reschedule (Pending) — Off'} <span className={styles.countBadge}>{reschedPendingTargets.length}</span>
-          </button>
-        </div>
-        <div className={styles.autoGroup}>
-          <button
-            className={`${styles.autoBtn} ${styles.accentRed}`}
-            disabled={autoBusy}
-            title="Toggle total automation for all matching entries."
-            onClick={() => toggleMode('total')}
-          >
-            {autoToggles.total ? 'Total Automation — On' : 'Total Automation — Off'} <span className={styles.countBadge}>{pendingTargets.length + reschedApprovedTargets.length + reschedPendingTargets.length}</span>
-          </button>
-        </div>
-      </div>
+      {/* Automation removed */}
       <div className={styles.tableWrapper}>
         {loading ? (
           <div className={styles.loading}>Loading appointments…</div>
@@ -1297,38 +1043,15 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                       setModalSaving(true);
                       await appointmentsService.updateStatus(selected.id, 'approved');
                       setStatusLocal(selected.id, 'Approved');
-                      setConfirmSend({
-                        open: true,
-                        title: 'Send reschedule approval email?',
+                      showToast({
+                        type: 'success',
+                        title: 'Send reschedule email?',
                         message: 'Send an email confirming the rescheduled appointment?',
-                        onConfirm: async () => {
-                          try {
-                            const last = emailSentAtRef.current[selected.id] || 0;
-                            if (Date.now() - last < EMAIL_COOLDOWN_MS) {
-                              showPopup({ title: 'Email recently sent', message: 'Please wait about 10 seconds before sending another email for this appointment.', type: 'info' });
-                              return;
-                            }
-                            const res = await sendAppointmentEmailCallable({
-                              apptId: selected.id,
-                              status: 'approved',
-                              serviceName: selected.serviceName,
-                              serviceType: selected.type,
-                              date: (selected.raw?.RESCHEDULE_INFO?.newDate || selected.date || selected.raw?.DATE_OF_APPOINTMENT),
-                              time: (selected.raw?.RESCHEDULE_INFO?.newTime || selected.time || selected.raw?.TIME_SLOT),
-                              serviceId: selected.raw?.SERVICE_ID,
-                              record: { ...selected.raw },
-                            });
-                            if (res && res.ok) {
-                              emailSentAtRef.current[selected.id] = Date.now();
-                              showPopup({ title: 'Success', message: 'Reschedule approval email sent and status updated to “Approved”.', type: 'info' });
-                            }
-                          } catch (e) {
-                            console.warn('sendAppointmentEmail callable failed', e);
-                          } finally {
-                            setConfirmSend({ open: false, onConfirm: null, title: '', message: '' });
-                            setModalSaving(false);
-                          }
-                        }
+                        duration: 0,
+                        actions: [
+                          { label: 'Cancel', kind: 'ghost', onClick: () => { setModalSaving(false); } },
+                          { label: 'Send', kind: 'confirm', onClick: async () => { await sendStatusEmail({ row: selected, backend: 'approved', labelStatus: 'Approved' }); setModalSaving(false); } }
+                        ]
                       });
                     } catch (e) {
                       showPopup({ title: 'Update failed', message: 'Failed to approve rescheduled appointment.', type: 'error' });
@@ -1350,41 +1073,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         </div>
       )}
 
-      {popup.open && (
-        <div className={styles.toastOverlay} role="dialog" aria-modal="true" aria-labelledby="toastTitle" onClick={(e)=>{ if (e.target === e.currentTarget) closePopup(); }}>
-          <div className={styles.toastCard}>
-            <div className={styles.toastHeader}>
-              <div className={styles.toastIcon} aria-hidden>
-                {popup.type === 'error' ? '!' : 'ℹ'}
-              </div>
-              <div className={styles.toastText}>
-                <div id="toastTitle" className={styles.toastTitle}>{popup.title || 'Notice'}</div>
-                {popup.message && (<div className={styles.toastMsg}>{popup.message}</div>)}
-              </div>
-              <button type="button" className={styles.toastClose} onClick={closePopup} title="Close">✕</button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {confirmSend.open && (
-        <div className={styles.toastOverlay} role="dialog" aria-modal="true" aria-labelledby="confirmTitle" onClick={(e)=>{ if (e.target === e.currentTarget) setConfirmSend({ open:false, onConfirm:null, title:'', message:'' }); }}>
-          <div className={styles.toastCard}>
-            <div className={styles.toastHeader}>
-              <div className={styles.toastIcon} aria-hidden>ℹ</div>
-              <div className={styles.toastText}>
-                <div id="confirmTitle" className={styles.toastTitle}>{confirmSend.title || 'Send email?'}</div>
-                <div className={styles.toastMsg}>{confirmSend.message || 'Do you want to send an email notification now?'}</div>
-              </div>
-              <button type="button" className={styles.toastClose} onClick={() => setConfirmSend({ open:false, onConfirm:null, title:'', message:'' })} title="Close">✕</button>
-            </div>
-            <div style={{ display:'flex', gap:8, justifyContent:'flex-end', padding:'0 16px 14px' }}>
-              <button className={`${styles.btn} ${styles.btnDecline}`} onClick={() => { if (!confirmSending) setConfirmSend({ open:false, onConfirm:null, title:'', message:'' }); }} disabled={confirmSending}>Cancel</button>
-              <button className={`${styles.btn} ${styles.btnApprove}`} onClick={async () => { if (confirmSending) return; try { setConfirmSending(true); await (confirmSend.onConfirm && confirmSend.onConfirm()); } finally { setConfirmSending(false); } }} disabled={confirmSending}>{confirmSending ? 'Sending…' : 'Send'}</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Toasts rendered globally via ToastProvider */}
     </div>
   );
 }

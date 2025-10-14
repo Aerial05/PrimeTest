@@ -26,7 +26,7 @@ export function FeedbackPage() {
   const [loading, setLoading] = useState(true);
   // Pagination
   const [page, setPage] = useState(1);
-  const pageSize = 12; // show 12 feedback items per page (adjust as needed)
+  const pageSize = 3; // show 3 feedback items per page per request
   const [sendingId, setSendingId] = useState(''); // row currently sending thank you
   const [errorMsg, setErrorMsg] = useState('');
 
