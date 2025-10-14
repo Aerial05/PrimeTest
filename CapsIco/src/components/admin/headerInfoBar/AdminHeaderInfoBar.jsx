@@ -346,11 +346,6 @@ export function AdminHeaderInfoBar({
     <header className={styles.siteHeader} ref={headerRef}>
       <div className={styles.container}>
         <div className={styles.headerContent}>
-          <Link to="/admin-dashboard" className={styles.logoLink}>
-            <Activity className={styles.logoIcon} />
-            <span className={styles.brandName}>Prime Medical Laboratory</span>
-          </Link>
-
           <div className={styles.infoRow}>
             {items.map((item) => {
               const Icon = item.icon;

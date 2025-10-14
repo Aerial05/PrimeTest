@@ -265,8 +265,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Floating AI Chatbot - Visible on all user-facing pages */}
-        {!checkingAuth && (!isAdmin || preferUserView) && (
+        {/* Floating AI Chatbot - Only visible on user home page */}
+        {!checkingAuth && (!isAdmin || preferUserView) && (window.location.pathname === '/' || window.location.pathname === '/dashboard') && (
           <Chatbot />
         )}
       </div>

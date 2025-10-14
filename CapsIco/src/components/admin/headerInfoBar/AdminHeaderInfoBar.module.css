@@ -21,10 +21,9 @@
 }
 
 .headerContent {
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   align-items: center;
-  column-gap: 0.75rem;
+  justify-content: center;
 }
 
 .logoLink {
@@ -56,10 +55,10 @@
 .textSecondary { color: var(--secondary-light); }
 
 .infoRow {
-  justify-self: start;
+  justify-self: center;
   display: inline-flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 0.65rem;
   flex-wrap: nowrap;
   overflow-x: auto;
