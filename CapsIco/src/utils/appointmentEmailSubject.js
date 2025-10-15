@@ -19,8 +19,9 @@ export function buildStatusSubject(rec){
   const hasRes=!!(rec.RESCHEDULE_INFO||rec.rescheduleInfo);
   const serviceType=(rec.SERVICE_TYPE||'').toLowerCase()==='package'?'Package':'Service';
   const name= rec.SERVICE_NAME || rec.serviceName || rec.SERVICE || rec.PACKAGE_NAME || serviceType;
-  if(status==='rescheduled' || (status==='approved' && hasRes)) return `Reschedule Confirmed • ${name} (${date} ${time})`;
+  if(status==='rescheduled' || (status==='approved' && hasRes)) return `Reschedule Approved • ${name} (${date} ${time})`;
   if(status==='approved') return `Appointment Confirmed • ${name} (${date} ${time})`;
+  if(status==='declined' && hasRes) return `Reschedule Declined • ${name} (${date} ${time})`;
   if(status==='declined') return `Appointment Update • ${name} (${date} ${time})`;
   if(status==='successful') return `Appointment Completed • ${name} (${date} ${time})`;
   if(status==='pending' && hasRes) return `Reschedule Request Received • ${name} (${date} ${time})`;

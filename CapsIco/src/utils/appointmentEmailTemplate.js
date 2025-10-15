@@ -35,7 +35,7 @@ export function buildAppointmentEmail({record={}, effectiveStatus}){
     : statusRaw==='declined' ? 'Declined'
     : statusRaw==='successful' ? 'Successful'
     : 'Pending';
-  const heading = statusTitle==='Reschedule Approved' ? 'Reschedule Confirmed'
+  const heading = statusTitle==='Reschedule Approved' ? 'Reschedule Approved'
     : statusTitle==='Approved' ? 'Appointment Confirmed'
     : statusTitle==='Declined' ? 'Appointment Update'
     : statusTitle==='Successful' ? 'Appointment Completed'
@@ -44,7 +44,7 @@ export function buildAppointmentEmail({record={}, effectiveStatus}){
   const lead = statusTitle==='Reschedule Approved' ? 'Your reschedule has been approved. Here are your updated appointment details:'
     : statusTitle==='Approved' ? 'Your appointment has been approved. Below are the details:'
     : statusTitle==='Declined' ? 'We’re sorry, your appointment request was declined. Here are the details:'
-    : statusTitle==='Successful' ? 'Your appointment was marked as completed. Summary below:'
+  : statusTitle==='Successful' ? 'Your appointment was marked as completed. Summary below:'
     : statusTitle==='Reschedule Requested' ? 'We received your reschedule request and will notify you when it is approved. Details below:'
     : 'We received your appointment request and will notify you upon approval. Details below:';
   const date=formatDate(rec.DATE_OF_APPOINTMENT||'');

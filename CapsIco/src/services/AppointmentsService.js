@@ -381,11 +381,27 @@ class AppointmentsService extends BaseFirebaseService {
     if (!formData || typeof formData.get !== 'function') throw new Error('FormData is required');
     const file = formData.get('proof');
     if (!file) throw new Error('No file provided in field "proof"');
+    // Basic validations to align with Storage Rules
+    const maxBytes = 10 * 1024 * 1024;
+    const size = typeof file.size === 'number' ? file.size : 0;
+    if (size && size > maxBytes) throw new Error('File too large (max 10MB)');
+    const inferTypeFromName = (name='') => {
+      const n = String(name || '').toLowerCase();
+      if (n.endsWith('.jpg') || n.endsWith('.jpeg') || n.endsWith('.jpe')) return 'image/jpeg';
+      if (n.endsWith('.png')) return 'image/png';
+      if (n.endsWith('.gif')) return 'image/gif';
+      if (n.endsWith('.webp')) return 'image/webp';
+      if (n.endsWith('.bmp')) return 'image/bmp';
+      if (n.endsWith('.heic')) return 'image/heic';
+      if (n.endsWith('.heif')) return 'image/heif';
+      return 'image/jpeg';
+    };
     // Build a deterministic storage path
     const fileName = (file.name || 'proof').replace(/[^a-zA-Z0-9._-]/g, '_');
     const path = `proofs/${id}/${Date.now()}_${fileName}`;
     const sRef = storageRef(storage, path);
-  const metadata = file.type ? { contentType: file.type } : {};
+    const contentType = (typeof file.type === 'string' && /^image\//.test(file.type)) ? file.type : inferTypeFromName(fileName);
+    const metadata = { contentType };
   const task = uploadBytesResumable(sRef, file, metadata);
     await new Promise((resolve, reject) => {
       task.on('state_changed', (snapshot) => {

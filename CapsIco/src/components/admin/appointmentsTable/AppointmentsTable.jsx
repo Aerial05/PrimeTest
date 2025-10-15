@@ -213,7 +213,10 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
         const rawStatusLower = String(r.BOOKING_STATUS || '').trim().toLowerCase();
         if (hasResUI) {
           if (baseStatus === 'Pending') baseStatus = 'Pending Reschedule';
-          if (baseStatus === 'Approved' || baseStatus === 'Successful' || rawStatusLower === 'rescheduled') baseStatus = 'Approved Reschedule';
+          // When an appointment has a reschedule request and was previously approved or
+          // the raw status is 'rescheduled', show the actionable 'Approve Reschedule'
+          // stage so that after approval the UI reflects the completed action.
+          if (baseStatus === 'Approved' || baseStatus === 'Successful' || rawStatusLower === 'rescheduled') baseStatus = 'Approve Reschedule';
         }
         return {
           id,
@@ -496,21 +499,30 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       }) : r));
       // Do not auto-change status; keep it as-is and inform the admin
       showPopup({ title: 'Proof uploaded', message: 'Image uploaded successfully. Status was not changed.', type: 'info' });
-      // If not approved yet, give a hint about the next step
-      const isApproved = String(selected.status || '').toLowerCase() === 'approved';
-      if (!isApproved) {
-        setProofError('Proof uploaded. Approve the appointment to mark as Successful.');
+      // If not yet at an approved-like stage, show a hint; otherwise no warning
+      const statusNow = String(selected.status || '');
+      const approvedLikeNow = (
+        statusNow === 'Approved' ||
+        statusNow === 'Approve Reschedule' ||
+        statusNow === 'Approved Reschedule' ||
+        statusNow === 'Successful'
+      );
+      if (!approvedLikeNow) {
+        setProofError('Proof uploaded. Approve or Approve Reschedule to mark as Successful.');
       }
       setProofFile(null);
     } catch (e) {
       console.error(e);
-      const msg = String(e && e.code ? e.code : e?.message || e);
-      if (msg.includes('storage/unauthorized')) {
-        setProofError('Upload blocked by Storage Rules. Ensure you are signed in and have permission.');
-      } else if (msg.includes('contentType') || msg.includes('image/')) {
-        setProofError('Upload failed: only image files under 10MB are allowed.');
+      const code = String(e?.code || '').toLowerCase();
+      const message = String(e?.message || e || '').toLowerCase();
+      if (code.includes('storage/unauthorized') || code.includes('unauthorized')) {
+        setProofError('Upload blocked by Storage Rules. Please sign in and try again.');
+      } else if (message.includes('max 10mb') || message.includes('larg') || message.includes('size')) {
+        setProofError('Upload failed: file too large. Max 10MB.');
+      } else if (message.includes('image') || message.includes('contenttype')) {
+        setProofError('Upload failed: only image files (JPG/PNG/WEBP) are allowed.');
       } else {
-        setProofError('Failed to upload proof.');
+        setProofError('Failed to upload proof. Please try again.');
       }
     } finally {
       setProofUploading(false);
@@ -526,13 +538,13 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
       const hasRes = Boolean(r.raw?.RESCHEDULE_INFO || r.raw?.rescheduleInfo || r.raw?.RESCHEDULED_AT);
       const statusLower = String(r.status || '').toLowerCase();
       const rawStatusLower = String(r.raw?.BOOKING_STATUS || '').trim().toLowerCase();
+      const isPendingRaw = rawStatusLower === 'pending';
       // Special handling for reschedule-focused filters
       if (filterStatus === 'Pending Reschedule') {
         const labelIsPendingRes = statusLower === 'pending reschedule';
-        const isPendingRaw = rawStatusLower === 'pending';
         if (!((labelIsPendingRes) || (isPendingRaw && hasRes))) return false;
       } else if (filterStatus === 'Approved Reschedule') {
-        const labelIsApprovedRes = statusLower === 'approved reschedule';
+  const labelIsApprovedRes = statusLower === 'approved reschedule' || statusLower === 'approve reschedule';
         const isApprovedLike = (statusLower === 'approved' || statusLower === 'successful');
         const isRescheduledRaw = rawStatusLower === 'rescheduled';
         // Ensure it's not pending when counting raw rescheduled (avoid overlap)
@@ -1010,27 +1022,38 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                   const rawStatusLower = String(selected.raw?.BOOKING_STATUS || '').toLowerCase();
                   const hasRes = Boolean(selected.raw?.RESCHEDULE_INFO || selected.raw?.rescheduleInfo || selected.raw?.RESCHEDULED_AT);
                   const proofProvided = !!(selected.raw?.PROOF || selected.raw?.proof);
-                  // Define phases dynamically (some branches insert reschedule stages)
-                  // New simplified flow (reschedule path):
-                  // Pending -> Pending Reschedule -> Approve Reschedule -> Successful
-                  // Decline allowed only from Pending or Pending Reschedule.
-                  // Non-reschedule (straight) path: Pending -> Approved -> Successful (legacy; kept if no reschedule request info yet)
+                  // Define phases dynamically per requested flows:
+                  // 1) Pending -> Approved (email) / Decline (email) -> Successful (needs proof, email)
+                  // 2) Pending -> Approved (email) -> Approved Reschedule (user) -> Approve Reschedule (email) / Decline (email) -> Successful (needs proof, email)
+                  // 3) Pending -> Pending Reschedule (user) -> Approve Reschedule (email) / Decline (email) -> Successful (needs proof, email)
                   const stages = [];
                   const push = (key,label,opts={}) => stages.push({ key, label, ...opts });
                   // Always start with Pending conceptual stage
                   push('pending','Pending');
-                  const inReschedulePath = (current === 'Pending Reschedule') || (current === 'Approved Reschedule') || (hasRes && (current === 'Pending' || current === 'Approved'));
-                  if (inReschedulePath) {
-                    push('pending-res','Pending Reschedule', { requiresEmail:true, emailType:'pending-reschedule' });
-                    // Renamed label per latest request
-                    push('approved-res','Approve Reschedule', { requiresEmail:true, emailType:'approved-reschedule' });
-                  }
-                  // Standard approval stage only if NOT in reschedule path (legacy straight path)
-                  if (!inReschedulePath) {
+                  const priorApproved = Boolean(selected.raw?.EMAIL_SENT_APPROVED || selected.raw?.RESCHEDULED_AT);
+                  const scenarioHasRes = hasRes;
+                  if (scenarioHasRes) {
+                    if (current === 'Pending Reschedule') {
+                      // Ensure current stage exists when user rescheduled while pending
+                      push('pending-res','Pending Reschedule', { requiresEmail:false });
+                      push('approved-res','Approve Reschedule', { requiresEmail:true, emailType:'approved-reschedule' });
+                    } else if (priorApproved) {
+                      // Reschedule on an approved appointment
+                      push('approved','Approved', { requiresEmail:true, emailType:'approved' });
+                      // Show review step distinctly, then actionable Approve Reschedule
+                      push('approved-res-review','Approved Reschedule', { requiresEmail:false });
+                      push('approved-res','Approve Reschedule', { requiresEmail:true, emailType:'approved-reschedule' });
+                    } else {
+                      // Fallback: treat as pending-reschedule path
+                      push('pending-res','Pending Reschedule', { requiresEmail:false });
+                      push('approved-res','Approve Reschedule', { requiresEmail:true, emailType:'approved-reschedule' });
+                    }
+                  } else {
+                    // Flow 1: straight path
                     push('approved','Approved', { requiresEmail:true, emailType:'approved' });
                   }
-                  // Decline branch (only valid directly from Pending or Pending Reschedule and only if not already approved)
-                  if (['Pending','Pending Reschedule'].includes(current)) {
+                  // Decline allowed from Pending, Pending Reschedule, and Approve Reschedule (but not after final approval/success)
+                  if (['Pending','Pending Reschedule','Approved Reschedule','Approve Reschedule'].includes(current)) {
                     push('declined','Declined', { requiresEmail:true, emailType:'declined' });
                   }
                   // Successful stage (needs proof & must have been approved)
@@ -1038,7 +1061,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
 
                   const labelToKey = (lbl) => lbl.toLowerCase().replace(/\s+/g,'-');
                   const currentKey = labelToKey(current);
-                  const completedIndex = stages.findIndex(s => s.label === current);
+                  const completedIndex = stages.findIndex(s => labelToKey(s.label) === currentKey);
                   const canTransition = (target, idx) => {
                     if (isCancelled) return false;
                     if (completedIndex === -1) return false;
@@ -1046,12 +1069,19 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                     if (idx <= completedIndex) return false;
                     // Enforce order: skip rules: cannot jump more than one ahead unless skipping decline branch
                     if (target.key === 'declined') {
-                      // allowed only if current is Pending or Pending Reschedule and not yet approved
-                      if (!['Pending','Pending Reschedule'].includes(current)) return false;
+                      // allowed only if at Pending, Pending Reschedule, or Approve Reschedule stage
+                      if (!['Pending','Pending Reschedule','Approved Reschedule','Approve Reschedule'].includes(current)) return false;
                     }
-                    // successful requires prior Approved (not Approved Reschedule only; must have approved final) and proof
+                    // Prevent manual advancement to Pending Reschedule (user-driven)
+                    if (target.key === 'pending-res') return false;
+                    // successful requires prior Approved (or Approve Reschedule) and proof
                     if (target.key === 'successful') {
-                      const approvedLike = ['Approved','Successful'].includes(current) || (current === 'Approved Reschedule') || (current === 'Approve Reschedule');
+                      const approvedLike = (
+                        current === 'Approved' ||
+                        current === 'Approve Reschedule' ||
+                        current === 'Approved Reschedule' ||
+                        current === 'Successful'
+                      );
                       if (!approvedLike) return false;
                       if (requireProofForSuccess && !proofProvided) return false;
                     }
@@ -1069,12 +1099,18 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                     const backendMap = {
                       'pending':'pending',
                       'pending-res':'pending', // DB status remains pending; RESCHEDULE_INFO marks intent
+                      'approved-res-review': null, // review step only, no backend status change
                       'approved-res':'rescheduled', // treat this as "rescheduled/approved"
                       'approved':'approved',
                       'declined':'declined',
                       'successful':'successful'
                     };
                     const backend = backendMap[stage.key];
+                    if (stage.key === 'approved-res-review') {
+                      // purely a UI step, no email/status change
+                      setStatusLocal(selected.id, stage.label);
+                      return;
+                    }
                     // Email required? send first; only update status after success
                     const needsEmail = stage.requiresEmail;
                     const declineReasonParam = stage.key === 'declined' ? declineReason : undefined;
@@ -1184,7 +1220,7 @@ export function AppointmentsTable({ refreshKey = 0, initialFilterStatus = '', in
                       <div className={styles.statusFlow}>
                         {stages.map((s, idx) => {
                           const done = completedIndex > idx;
-                          const active = s.label === current;
+                          const active = labelToKey(s.label) === currentKey;
                           const disabled = !active && !canTransition(s, idx);
                           return (
                             <React.Fragment key={s.key}>
