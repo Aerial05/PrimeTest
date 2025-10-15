@@ -246,15 +246,24 @@ export default function ServicesContent() {
                   )}
                   {(item.philhealthPrice || item.discountedPrice || item.originalPrice) ? (
                     <div className={styles.priceGroup}>
-                      {item.philhealthPrice && (
-                        <span className={styles.philhealth}>PhilHealth/Promo: <b>{item.philhealthPrice}</b></span>
-                      )}
-                      {item.discountedPrice && (
-                        <span className={styles.discounted}>Rate/Discounted: <b>{item.discountedPrice}</b></span>
-                      )}
-                      {item.originalPrice && (
-                        <span className={styles.original}>Original: <s>{item.originalPrice}</s></span>
-                      )}
+                      {/* Build ordered list (discounted, philhealth, original) and remove duplicates */}
+                      {(() => {
+                        const ordered = [item.discountedPrice, item.philhealthPrice, item.originalPrice];
+                        const seen = new Set();
+                        const rows = [];
+                        for (const val of ordered) {
+                          if (!val) continue;
+                          if (seen.has(val)) continue;
+                          seen.add(val);
+                          rows.push(val);
+                          if (rows.length >= 3) break;
+                        }
+                        return rows.map((val, i) => {
+                          if (val === item.discountedPrice) return (<span key={i} className={styles.discounted}>Rate/Discounted: <b>{val}</b></span>);
+                          if (val === item.philhealthPrice) return (<span key={i} className={styles.philhealth}>PhilHealth/Promo: <b>{val}</b></span>);
+                          return (<span key={i} className={styles.original}>Original: {val}</span>);
+                        });
+                      })()}
                     </div>
                   ) : (
                     <p className={styles.priceNote}>

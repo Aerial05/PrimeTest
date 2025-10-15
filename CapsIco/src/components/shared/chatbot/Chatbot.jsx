@@ -23,6 +23,7 @@ export function Chatbot() {
   const servicesCacheRef = useRef({ singles: [], packages: [] });
   const [pageSummary, setPageSummary] = useState('');
   const [hoveringSummary, setHoveringSummary] = useState(false);
+  const [bookingToast, setBookingToast] = useState('');
 
   // Ensure the services/packages are loaded once per session
   const ensureServicesLoaded = async () => {
@@ -140,7 +141,8 @@ export function Chatbot() {
 
   const buildSuggestionFromSingle = (s, { txt, userTxt } = {}) => {
     const price = s.DISCOUNTED_PRICE ?? s.ORIGINAL_PRICE ?? s.PHIL_HEALTH_PROMO_PRICE;
-    const priceLabel = php(price);
+    const priceLabel = php(price); // will be '' if price is missing or non-numeric
+    const philPriceLabel = php(s.PHIL_HEALTH_PROMO_PRICE);
     const reason = computeReason({
       name: s.NAME,
       desc: s.DESC,
@@ -154,7 +156,10 @@ export function Chatbot() {
       type: 'service',
       name: s.NAME || 'Service',
       desc: s.DESC || s.SPECIAL_INSTRUCTIONS || '',
-      priceLabel: priceLabel || s.PRICE_NOTE || '',
+      // Only surface a formatted numeric price. Keep any PRICE_NOTE available separately if needed.
+      priceLabel: priceLabel || '',
+      priceNote: s.PRICE_NOTE || '',
+      philPriceLabel: philPriceLabel || '',
       reason,
     };
   };
@@ -162,6 +167,7 @@ export function Chatbot() {
   const buildSuggestionFromPackage = (p, { txt, userTxt } = {}) => {
     const price = p.DISCOUNTED_PRICE ?? p.ORIGINAL_PRICE ?? p.PHIL_HEALTH_PROMO_PRICE;
     const priceLabel = php(price);
+    const philPriceLabel = php(p.PHIL_HEALTH_PROMO_PRICE);
     const reason = computeReason({
       name: p.NAME,
       desc: p.DESC || p.SPECIAL_INSTRUCTION,
@@ -175,7 +181,10 @@ export function Chatbot() {
       type: 'package',
       name: p.NAME || 'Package',
       desc: p.DESC || p.FEATURES || p.SPECIAL_INSTRUCTION || '',
-      priceLabel: priceLabel || p.PRICE_NOTE || '',
+      // Only show formatted numeric price; price notes aren't displayed per requirement
+      priceLabel: priceLabel || '',
+      priceNote: p.PRICE_NOTE || '',
+      philPriceLabel: philPriceLabel || '',
       reason,
     };
   };
@@ -295,6 +304,29 @@ export function Chatbot() {
     };
     setMessages(prev => [...prev, userMessage]);
 
+    // UI-level context-aware booking intent check
+    try {
+      const quick = String(text || '').toLowerCase();
+      const bookingPhrases = ['step-by-step', 'step by step', 'how to book', 'how do i book', 'guide to book', 'booking guide', 'step by step guide', 'book this', 'i want step-by-step', 'i want a step-by-step', 'to book', 'book', 'book now'];
+      const affirmativeReplies = ['yes', 'yeah', 'yep', 'sure', 'please', 'ok', 'okay', "let's book", 'let us book', 'do it', 'yes please'];
+
+      const looksLikeBooking = bookingPhrases.some(p => quick.includes(p));
+      const isShortBook = ['to book', 'book', 'book now'].some(p => quick === p || quick === `${p}.` || quick === `${p}?` || quick === `${p}!`);
+      const isAffirmative = affirmativeReplies.some(a => quick === a || quick.startsWith(a + ' ') || quick.endsWith(' ' + a) || quick === `${a}.`);
+
+      // Inspect last bot message in the UI message list for an explicit offer to show booking steps
+      const rev = Array.isArray(messages) ? [...messages].reverse() : [];
+      const lastBotMsg = rev.find(m => m && m.sender === 'bot' && typeof m.text === 'string');
+      const lastBotText = (lastBotMsg && String(lastBotMsg.text || '').toLowerCase()) || '';
+      const lastOfferedBooking = /would you like( a)?( step[\- ]by[\- ]step)? guide|step[\- ]by[\- ]step|show steps to book|would you like a step/i.test(lastBotText);
+
+      if (looksLikeBooking || isShortBook || (isAffirmative && lastOfferedBooking)) {
+        // Use the UI helper to send booking steps (keeps UX consistent)
+        await sendStepsBotMessage();
+        return;
+      }
+    } catch (_) {}
+
     // Show typing indicator
     setIsTyping(true);
 
@@ -405,6 +437,9 @@ export function Chatbot() {
     setIsTyping(true);
     try {
       await minTypingDelay(serviceName || '');
+      // show a subtle toast to highlight auto-responded booking steps
+      const toastText = serviceName ? `Showing booking steps for ${serviceName}` : 'Showing booking steps';
+      setBookingToast(toastText);
       const botMessage = {
         id: Date.now() + 1,
         text: getBookingStepsMessage(serviceName),
@@ -412,8 +447,60 @@ export function Chatbot() {
         timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, botMessage]);
+      // auto-dismiss toast after 3s
+      setTimeout(() => setBookingToast(''), 3000);
     } finally {
       setIsTyping(false);
+    }
+  };
+
+  // Show full local details for a suggested service/package without calling the AI
+  const showLocalDetails = (suggestion) => {
+    try {
+      const { type, id, name } = suggestion || {};
+      const singles = servicesCacheRef.current.singles || [];
+      const packages = servicesCacheRef.current.packages || [];
+      const list = type === 'package' ? packages : singles;
+      // Try to match by id first, then by case-insensitive name
+      const found = list.find((x) => (x.id === id) || (String(x.SERVICE_ID || x.SERVICE_PACKGE_ID || x.SERVICE_PACKAGE_ID || x.NAME || '').toLowerCase() === String(name || '').toLowerCase()));
+
+      const title = (found && (found.NAME || found.name)) || suggestion?.name || 'Service';
+      const desc = (found && (found.DESC || found.SPECIAL_INSTRUCTIONS || found.desc)) || suggestion?.desc || '';
+      const featuresText = (found && (found.FEATURES || found.SPECIAL_INSTRUCTIONS)) || '';
+      const discounted = found?.DISCOUNTED_PRICE ?? found?.DISCOUNTED_PRICE ?? found?.DISCOUNTED ?? '';
+      const phil = found?.PHIL_HEALTH_PROMO_PRICE || '';
+      const original = found?.ORIGINAL_PRICE || '';
+
+      const parts = [];
+      if (desc) parts.push(desc);
+      if (featuresText) parts.push(String(featuresText));
+
+      const priceLines = [];
+      if (discounted) priceLines.push(`Rate/Discounted: ${php(discounted)}`);
+      if (phil) priceLines.push(`PhilHealth/Promo: ${php(phil)}`);
+      if (original) priceLines.push(`Original: ${php(original)}`);
+      if (priceLines.length) parts.push(priceLines.join('\n'));
+
+      const botMsg = {
+        id: Date.now() + 5,
+        sender: 'bot',
+        type: 'details',
+        details: {
+          id: id || (found && found.id),
+          itemType: type || (found && (found.SERVICE_PACKGE_ID || found.SERVICE_PACKAGE_ID ? 'package' : 'service')) || 'service',
+          name: title,
+          desc: desc,
+          features: featuresText,
+          priceLines,
+        },
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, botMsg]);
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 60);
+    } catch (e) {
+      console.warn('showLocalDetails failed', e);
+      // fallback to asking the model
+      handleSendMessage(`Tell me more about ${suggestion?.name || suggestion?.title || ''}`);
     }
   };
 
@@ -561,7 +648,13 @@ export function Chatbot() {
                   </div>
                   <div className={styles.messageContent}>
                     <div className={styles.messageBubble}>
-                      Hi, I'm Pulse! What services would you like to have? Just ask away!
+                      Hi — I’m Pulse, your friendly AI assistant for Prime Medical Laboratory. I can help you:
+                      
+                      - find and recommend the right service or package
+                      - guide you step-by-step to book an appointment
+                      - provide clinic contact details and directions
+
+                      How can I help you today? Would you like to book an appointment, ask about services, or get directions?
                     </div>
                     <div className={styles.messageTime}>
                       {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
@@ -602,15 +695,52 @@ export function Chatbot() {
                                   <div className={styles.suggestionTitle}>{s.name}</div>
                                   <span className={`${styles.badge} ${s.type === 'package' ? styles.badgePkg : styles.badgeSvc}`}>{s.type === 'package' ? 'Package' : 'Service'}</span>
                                 </div>
-                                {s.priceLabel && <div className={styles.suggestionPrice}>{s.priceLabel}</div>}
+                                {/* Build ordered, unique price lines: primary numeric price, fallback priceNote, then philhealth if different */}
+                                {(() => {
+                                  const rows = [];
+                                  const add = (key, val) => { if (val && !rows.find(r => r.val === val)) rows.push({ key, val }); };
+                                  // Primary numeric price
+                                  add('priceLabel', s.priceLabel);
+                                  // If no numeric price, show price note as primary
+                                  if (!s.priceLabel) add('priceNote', s.priceNote);
+                                  // PhilHealth price shown only if distinct
+                                  add('phil', s.philPriceLabel);
+                                  return rows.map((r, i) => {
+                                    if (r.key === 'priceLabel') return <div key={`p-${i}`} className={styles.suggestionPrice}>{r.val}</div>;
+                                    if (r.key === 'priceNote') return <div key={`pn-${i}`} className={styles.suggestionPriceNote}>{r.val}</div>;
+                                    return <div key={`phil-${i}`} className={styles.suggestionPhilPrice}>PhilHealth price: {r.val}</div>;
+                                  });
+                                })()}
                                 {s.desc && <div className={styles.suggestionDesc}>{s.desc}</div>}
                                 {s.reason && <div className={styles.suggestionWhy}><strong>Why:</strong> {s.reason}</div>}
                                 <div className={styles.suggestionActions}>
                                   <button className={styles.suggestionBook} onClick={() => sendStepsBotMessage(s.name)}>Show steps to book</button>
-                                  <button className={styles.suggestionAsk} onClick={() => handleSendMessage(`Tell me more about ${s.name}`)}>Ask details</button>
+                                  <button className={styles.suggestionAsk} onClick={() => showLocalDetails(s)}>Ask details</button>
                                 </div>
                               </div>
                             ))}
+                          </div>
+                        </div>
+                      ) : message.type === 'details' ? (
+                        <div className={styles.messageBubble}>
+                          <div className={styles.suggestionsGrid}>
+                            <div className={`${styles.suggestionCard} ${styles.detailsCard}`}>
+                              <div className={styles.suggestionTop}>
+                                <div className={styles.suggestionTitle}>{message.details?.name}</div>
+                                {message.details?.priceLines && message.details.priceLines.length > 0 && (
+                                  <div className={styles.suggestionPriceGroup}>
+                                    {message.details.priceLines.map((pl, idx) => (
+                                      <div key={idx} className={idx === 0 ? styles.suggestionPrice : styles.suggestionPhilPrice}>{pl}</div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              {message.details?.desc && <div className={styles.suggestionDescFull}>{message.details.desc}</div>}
+                              {message.details?.features && <div className={styles.suggestionWhy}>{String(message.details.features)}</div>}
+                              <div className={styles.suggestionActions}>
+                                <button className={styles.suggestionBook} onClick={() => sendStepsBotMessage(message.details?.name)}>Show steps to book</button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ) : (

@@ -351,7 +351,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  max-width: 75%;
+  /* Allow bot messages to use most of the container width for suggestion cards */
+  max-width: 92%;
 }
 
 .messageBubble {
@@ -465,6 +466,8 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
+  /* ensure cards stretch to fill available width */
+  align-items: start;
 }
 
 .suggestionCard {
@@ -492,10 +495,11 @@
 .suggestionTitle {
   flex: 1 1 auto;
   margin-right: 8px;
+  /* allow wrapping for long titles */
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
-  line-height: 1.05;
+  white-space: normal;
+  line-height: 1.15;
   padding-top: 2px; /* nudge slightly down so badge sits visually higher */
 }
 
@@ -530,6 +534,39 @@
   color: #047857;
   font-weight: 800;
   font-size: 13px;
+  text-align: right;
+  display: block;
+}
+
+.suggestionPriceNote {
+  margin-top: 6px;
+  color: #64748b;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: right;
+}
+
+.suggestionPhilPrice {
+  margin-top: 4px;
+  color: #065f46;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-align: right;
+}
+
+/* Details card tweaks */
+.detailsCard {
+  padding: 16px 18px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+}
+
+.suggestionPriceGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-left: 12px;
 }
 
 .suggestionDesc {
@@ -544,6 +581,14 @@
   overflow: hidden;
 }
 
+.suggestionDescFull {
+  margin-top: 6px;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
 .suggestionWhy {
   margin-top: 8px;
   font-size: 12.5px;
@@ -554,6 +599,7 @@
   margin-top: 10px;
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
 }
 .suggestionBook {
   background: linear-gradient(135deg, #6d28d9 0%, #2563eb 100%);
@@ -565,7 +611,8 @@
   font-weight: 800;
   font-size: 14px;
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
-  min-width: 140px;
+  min-width: 110px;
+  flex: 0 0 auto;
 }
 
 .suggestionBook:hover {
@@ -1005,6 +1052,30 @@
 
 .disclaimerAccept:active {
   transform: translateY(0);
+}
+
+/* Booking toast (subtle) */
+.bookingToast {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 100%;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, rgba(109,40,217,0.95), rgba(37,99,235,0.95));
+  color: white;
+  padding: 8px 14px;
+  border-radius: 999px;
+  box-shadow: 0 8px 24px rgba(37,99,235,0.18);
+  font-weight: 700;
+  font-size: 13px;
+  opacity: 0;
+  animation: bookingToastIn 0.28s ease forwards;
+  z-index: 3000;
+}
+
+@keyframes bookingToastIn {
+  from { transform: translateX(-50%) translateY(6px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
 }
 
 /* Delete Confirmation Modal (Clear Chat) */

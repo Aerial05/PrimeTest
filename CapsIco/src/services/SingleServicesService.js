@@ -46,6 +46,7 @@ class SingleServicesService extends BaseFirebaseService {
       SERVICE_ID: ui.serviceId || '',
       NAME: ui.name || '',
       DESC: ui.description || '',
+      KEYWORDS: ui.keywords || ui.KEYWORDS || '',
       SPECIAL_INSTRUCTIONS: ui.specialInstructions || '',
       AVAILABILITY: ui.availability || '',
       SLOT: ui.slot === undefined || ui.slot === '' ? undefined : Number(ui.slot),

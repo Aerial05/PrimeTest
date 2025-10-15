@@ -55,6 +55,7 @@ class ServicePackagesService extends BaseFirebaseService {
       NAME: ui.name || '',
       DESC: ui.description || '',
       FEATURES: ui.features || '',
+      KEYWORDS: ui.keywords || ui.KEYWORDS || '',
       SPECIAL_INSTRUCTION: ui.specialInstruction || '',
       AVAILABILITY: ui.availability || '',
       SLOT: ui.slot === undefined || ui.slot === '' ? undefined : Number(ui.slot),
