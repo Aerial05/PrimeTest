@@ -401,6 +401,46 @@
   color: #2563eb;
 }
 
+/* AI-generated button (rendered from model HTML) */
+.aiButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: linear-gradient(135deg, #6d28d9 0%, #2563eb 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  box-shadow: 0 6px 14px rgba(37, 99, 235, 0.25);
+  transition: transform 0.18s ease, box-shadow 0.18s ease, opacity 0.18s ease;
+}
+
+.aiButton:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.30);
+}
+
+.aiButton:active {
+  transform: translateY(0);
+}
+
+/* Ensure bot/user message variants look good */
+.message.bot .aiButton {
+  background: white;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  box-shadow: none;
+}
+
+.message.user .aiButton {
+  background: linear-gradient(135deg, #6d28d9 0%, #2563eb 100%);
+  color: #ffffff;
+}
+
 .messageTime {
   font-size: 11px;
   color: #94a3b8;
@@ -428,16 +468,17 @@
 }
 
 .suggestionCard {
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid rgba(226, 232, 240, 0.95);
   background: #ffffff;
   border-radius: 14px;
-  padding: 10px 12px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  padding: 12px 14px; /* slightly larger padding */
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06); /* stronger, softer shadow */
+  position: relative;
 }
 
 .suggestionTop {
   display: flex;
-  align-items: flex-start;
+  align-items: flex-start; /* align the badge near the top */
   justify-content: space-between;
   gap: 8px;
 }
@@ -448,13 +489,28 @@
   font-size: 14px;
 }
 
+.suggestionTitle {
+  flex: 1 1 auto;
+  margin-right: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.05;
+  padding-top: 2px; /* nudge slightly down so badge sits visually higher */
+}
+
 .badge {
   border-radius: 999px;
-  padding: 4px 8px;
+  padding: 4px 10px;
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.02em;
   border: 1px solid transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap; /* prevent wrapping like 'Packa ge' */
+  margin-top: -4px; /* pull badge slightly upward */
 }
 
 .badgeSvc {
@@ -470,7 +526,7 @@
 }
 
 .suggestionPrice {
-  margin-top: 4px;
+  margin-top: 6px;
   color: #047857;
   font-weight: 800;
   font-size: 13px;
@@ -499,21 +555,21 @@
   display: flex;
   gap: 8px;
 }
-
 .suggestionBook {
   background: linear-gradient(135deg, #6d28d9 0%, #2563eb 100%);
   color: #ffffff;
   border: none;
   text-decoration: none;
-  padding: 8px 12px;
-  border-radius: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
   font-weight: 800;
-  font-size: 13px;
-  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+  font-size: 14px;
+  box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+  min-width: 140px;
 }
 
 .suggestionBook:hover {
-  filter: brightness(1.05);
+  transform: translateY(-2px);
 }
 
 .suggestionAsk {

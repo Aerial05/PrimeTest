@@ -265,9 +265,12 @@ export default function App() {
           </div>
         )}
 
-        {/* Floating AI Chatbot - Only visible on user home page */}
-        {!checkingAuth && (!isAdmin || preferUserView) && (window.location.pathname === '/' || window.location.pathname === '/dashboard') && (
-          <Chatbot />
+        {/* Floating AI Chatbot - Visible on main user-facing pages */}
+        {!checkingAuth && (!isAdmin || preferUserView) && (
+          // Show on home, services, about, contact and appointment pages
+          ['/','/dashboard','/services','/about','/contact','/appointment'].includes(window.location.pathname.toLowerCase()) && (
+            <Chatbot />
+          )
         )}
       </div>
     </BrowserRouter>

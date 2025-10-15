@@ -21,6 +21,8 @@ export function Chatbot() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [servicesLoaded, setServicesLoaded] = useState(false);
   const servicesCacheRef = useRef({ singles: [], packages: [] });
+  const [pageSummary, setPageSummary] = useState('');
+  const [hoveringSummary, setHoveringSummary] = useState(false);
 
   // Ensure the services/packages are loaded once per session
   const ensureServicesLoaded = async () => {
@@ -260,6 +262,23 @@ export function Chatbot() {
     return 'general';
   };
 
+  // Prefetch page summary on hover (cached in service)
+  const handleSummaryHover = async (enter) => {
+    setHoveringSummary(enter);
+    if (enter) {
+      const key = getCurrentPageContext();
+      try {
+        const s = await chatbotService.getPageSummary(key);
+        setPageSummary(s || 'No summary available for this page.');
+      } catch (e) {
+        setPageSummary('Failed to load summary.');
+      }
+    } else {
+      // hide after a short delay so tooltip feel is natural
+      setTimeout(() => setPageSummary(''), 250);
+    }
+  };
+
   const handleSendMessage = async (messageText) => {
     const text = messageText || inputValue.trim();
     if (!text) return;
@@ -280,6 +299,25 @@ export function Chatbot() {
     setIsTyping(true);
 
     try {
+      // Ensure services cache is loaded for local matching
+      await ensureServicesLoaded();
+
+      // Simple local match: check if user query matches any service/package names or descriptions
+      const localMatch = findLocalServiceMatch(text, servicesCacheRef.current);
+      if (localMatch) {
+        // short thinking delay to feel natural
+        await minTypingDelay(localMatch.name || text);
+        const botMsg = {
+          id: Date.now() + 1,
+          text: `We offer ${localMatch.name}. ${localMatch.desc ? localMatch.desc + ' ' : ''}Would you like a step-by-step guide to book this?`,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        };
+        setMessages(prev => [...prev, botMsg]);
+        setIsTyping(false);
+        return;
+      }
+
       // Get context
       const context = {
         currentPage: getCurrentPageContext(),
@@ -361,6 +399,23 @@ export function Chatbot() {
     'Can I get directions to your clinic?',
     "What's your emergency number?",
   ];
+
+  // Send a bot message containing booking steps (with typing delay)
+  const sendStepsBotMessage = async (serviceName) => {
+    setIsTyping(true);
+    try {
+      await minTypingDelay(serviceName || '');
+      const botMessage = {
+        id: Date.now() + 1,
+        text: getBookingStepsMessage(serviceName),
+        sender: 'bot',
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, botMessage]);
+    } finally {
+      setIsTyping(false);
+    }
+  };
 
   return (
     <div className={styles.chatbotContainer}>
@@ -461,7 +516,17 @@ export function Chatbot() {
               </div>
               <div className={styles.headerText}>
                 <h3>Pulse</h3>
-                <p className={styles.headerSubtitle}>AI Assistant</p>
+                  <p className={styles.headerSubtitle} onMouseEnter={()=>handleSummaryHover(true)} onMouseLeave={()=>handleSummaryHover(false)} style={{cursor:'help'}}>AI Assistant</p>
+                  {hoveringSummary && pageSummary && (
+                    <div className={styles.pageSummary} role="tooltip">
+                      <div style={{ fontWeight:700, marginBottom:6 }}>Page summary</div>
+                      <div style={{ fontSize:13, lineHeight:1.4 }}>{pageSummary}</div>
+                      <div style={{ display:'flex', gap:8, marginTop:8 }}>
+                        <button className={styles.summaryInsert} onClick={()=>{ setInputValue(prev=> (prev ? prev + '\n' : '') + pageSummary); setIsOpen(true); }}>Insert summary</button>
+                        <button className={styles.summaryCopy} onClick={()=>{ navigator.clipboard && navigator.clipboard.writeText(pageSummary); }}>Copy</button>
+                      </div>
+                    </div>
+                  )}
               </div>
             </div>
             <div className={styles.headerActions}>
@@ -541,7 +606,7 @@ export function Chatbot() {
                                 {s.desc && <div className={styles.suggestionDesc}>{s.desc}</div>}
                                 {s.reason && <div className={styles.suggestionWhy}><strong>Why:</strong> {s.reason}</div>}
                                 <div className={styles.suggestionActions}>
-                                  <a href={`/appointment?serviceId=${encodeURIComponent(s.serviceId || s.id)}&type=${s.type}`} className={styles.suggestionBook} target="_blank" rel="noopener noreferrer">Book</a>
+                                  <button className={styles.suggestionBook} onClick={() => sendStepsBotMessage(s.name)}>Show steps to book</button>
                                   <button className={styles.suggestionAsk} onClick={() => handleSendMessage(`Tell me more about ${s.name}`)}>Ask details</button>
                                 </div>
                               </div>
@@ -616,18 +681,98 @@ export function Chatbot() {
   );
 }
 
+// Heuristic local matcher: match query against service/package name and description
+function findLocalServiceMatch(query, cache) {
+  if (!query || !cache) return null;
+  const q = query.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (!q) return null;
+  const candidates = [];
+  const pushIf = (item, type) => {
+    const name = String(item?.NAME || item?.name || '').toLowerCase();
+    const desc = String(item?.DESC || item?.desc || item?.SPECIAL_INSTRUCTIONS || '').toLowerCase();
+    const text = `${name} ${desc}`;
+    if (!text) return;
+    // exact phrase
+    if (text.includes(q)) {
+      candidates.push({ id: item.id, name: item.NAME || item.name || '', desc: item.DESC || item.desc || '', type });
+      return;
+    }
+    // token intersection heuristic
+    const qTokens = q.split(' ');
+    let hits = 0;
+    for (const t of qTokens) {
+      if (t.length < 3) continue;
+      if (text.includes(t)) hits++;
+    }
+    if (hits >= Math.max(1, Math.floor(qTokens.length / 2))) {
+      candidates.push({ id: item.id, name: item.NAME || item.name || '', desc: item.DESC || item.desc || '', type, score: hits });
+    }
+  };
+
+  (cache.singles || []).forEach(s => pushIf(s, 'service'));
+  (cache.packages || []).forEach(p => pushIf(p, 'package'));
+
+  if (candidates.length === 0) return null;
+  // Prefer exact includes and longer name matches
+  candidates.sort((a,b) => (b.score || 0) - (a.score || 0));
+  return candidates[0];
+}
+
 // Turn urls into clickable links and preserve line breaks
 function renderMessageText(text) {
   if (!text) return null;
   const parts = [];
-  const urlRegex = /(https?:\/\/[^\s)]+|www\.[^\s)]+)/gi;
-  let lastIndex = 0;
-  let match;
   const src = String(text);
-  while ((match = urlRegex.exec(src)) !== null) {
+
+  // First handle raw HTML button tags produced by the AI and convert them to real buttons
+  // Match patterns like: <button ... onclick="window.location.href='https://...'">Label</button>
+  const buttonRegex = /<button[^>]*onclick=["']?([^"'>]+)["']?[^>]*>([\s\S]*?)<\/button>/gi;
+  let lastIndex = 0;
+  let bmatch;
+  while ((bmatch = buttonRegex.exec(src)) !== null) {
+    const full = bmatch[0];
+    const onclick = bmatch[1] || '';
+    const label = (bmatch[2] || '').replace(/<[^>]+>/g, '').trim() || 'Open';
+    const idx = bmatch.index;
+    if (idx > lastIndex) parts.push(src.slice(lastIndex, idx));
+    // try to extract URL from onclick like window.location.href='...'
+    let href = '';
+    const hrefMatch = onclick.match(/window\.location\.href\s*=\s*['"]([^'"]+)['"]/i);
+    if (hrefMatch) href = hrefMatch[1];
+    // fallback: look for location.assign or a bare url in onclick
+    if (!href) {
+      const assignMatch = onclick.match(/location\.assign\(['"]([^'"]+)['"]\)/i);
+      if (assignMatch) href = assignMatch[1];
+    }
+    // If we couldn't parse, look inside the full tag for an anchor href
+    if (!href) {
+      const aMatch = full.match(/href=["']([^"']+)["']/i);
+      if (aMatch) href = aMatch[1];
+    }
+    // Render a real button that navigates same tab
+    parts.push(
+      <button
+        key={`ai-btn-${idx}`}
+        className={styles.aiButton}
+        onClick={() => { if (href) window.location.href = href; }}
+        type="button"
+      >
+        {label}
+      </button>
+    );
+    lastIndex = idx + full.length;
+  }
+  let remainder = '';
+  if (lastIndex < src.length) remainder = src.slice(lastIndex);
+
+  // Now linkify URLs in the remainder text
+  const urlRegex = /(https?:\/\/[^\s)]+|www\.[^\s)]+)/gi;
+  let match;
+  let rLast = 0;
+  while ((match = urlRegex.exec(remainder)) !== null) {
     const [url] = match;
-    if (match.index > lastIndex) {
-      parts.push(src.slice(lastIndex, match.index));
+    if (match.index > rLast) {
+      parts.push(remainder.slice(rLast, match.index));
     }
     const href = url.startsWith('http') ? url : `https://${url}`;
     parts.push(
@@ -635,11 +780,9 @@ function renderMessageText(text) {
         {url}
       </a>
     );
-    lastIndex = match.index + url.length;
+    rLast = match.index + url.length;
   }
-  if (lastIndex < src.length) {
-    parts.push(src.slice(lastIndex));
-  }
+  if (rLast < remainder.length) parts.push(remainder.slice(rLast));
   // Preserve line breaks
   return parts.flatMap((p, i) =>
     typeof p === 'string'
@@ -688,4 +831,28 @@ function computeReason({ name, desc, features, txt, userTxt }) {
   const because = uniq.slice(0, 2).join(' and ');
   return `Recommended because ${because}.`;
 }
+
+// Small helper: minimum typing delay so the bot appears to "think" a bit
+async function minTypingDelay(text) {
+  const base = 700; // ms
+  const extra = Math.min(1200, Math.max(0, (String(text || '').length - 40) * 8));
+  const ms = base + extra;
+  await new Promise((r) => setTimeout(r, ms));
+}
+
+// Generate a standard step-by-step guide to book (no links)
+function getBookingStepsMessage(serviceName) {
+  const name = serviceName ? `${serviceName}` : 'your chosen service';
+  return [
+    `Here’s a quick step-by-step to book ${name}:`,
+    '1) Open the Book an Appointment page from the site menu.',
+    '2) Select the recommended service.',
+    '3) Click “Open Full‑Screen Picker” to see available dates and times.',
+    '4) Fill in your details: First Name, Last Name, Phone, Email, Birthday, Gender.',
+    '5) (Optional) Add a Chief Complaint or Special Instructions.',
+    '6) Submit to request your appointment.'
+  ].join('\n');
+}
+
+
 
