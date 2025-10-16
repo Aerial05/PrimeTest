@@ -58,6 +58,9 @@ export function BookAppointment() {
   const [policy, setPolicy] = useState({ cancelCountCycle: 0, cooldownUntil: '' });
   const [penaltyOpen, setPenaltyOpen] = useState(false);
   const [penaltyReason, setPenaltyReason] = useState('');
+  // Post-submit modal (download/print)
+  const [postSubmitOpen, setPostSubmitOpen] = useState(false);
+  const [lastAppointment, setLastAppointment] = useState(null);
 
   // Selection state
   const [activeItem, setActiveItem] = useState(null);
@@ -81,6 +84,8 @@ export function BookAppointment() {
   const complaintRef = useRef(null);
   const notesRef = useRef(null);
   const slotsWrapRef = useRef(null);
+  const birthdayRef = useRef(null);
+  const flatpickrRef = useRef(null);
   const [emailVerified, setEmailVerified] = useState(!!authService.currentUser?.emailVerified);
   const [phoneVerified, setPhoneVerified] = useState(false);
 
@@ -100,8 +105,7 @@ export function BookAppointment() {
         const dbUser = snap.exists() ? (snap.val() || {}) : {};
         setPatient((p) => ({
           ...p,
-          firstName: p.firstName || dbUser.firstName || '',
-          lastName: p.lastName || dbUser.lastName || '',
+          // Do NOT prefill firstName/lastName to avoid browser autofill — keep them blank so user types them
           phone: dbUser.phone || p.phone || '',
           email: dbUser.email || user.email || p.email || '',
           birthday: dbUser.birthday || p.birthday || '',
@@ -117,6 +121,45 @@ export function BookAppointment() {
       } catch (_) {}
     })();
   }, []);
+
+  // Initialize flatpickr on the birthday input for a modern calendar UI
+  useEffect(() => {
+    let mounted = true;
+    const loadScript = (src) => new Promise((res, rej) => {
+      if (document.querySelector(`script[src="${src}"]`)) return res();
+      const s = document.createElement('script'); s.src = src; s.async = true;
+      s.onload = () => res(); s.onerror = rej; document.head.appendChild(s);
+    });
+    const loadCss = (href) => new Promise((res, rej) => {
+      if (document.querySelector(`link[href="${href}"]`)) return res();
+      const l = document.createElement('link'); l.rel = 'stylesheet'; l.href = href;
+      l.onload = () => res(); l.onerror = rej; document.head.appendChild(l);
+    });
+    const setup = async () => {
+      try {
+        await loadCss('https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css');
+        await loadScript('https://cdn.jsdelivr.net/npm/flatpickr');
+        if (!mounted) return;
+        const fp = window.flatpickr(birthdayRef.current, {
+          dateFormat: 'm/d/Y',
+          maxDate: birthdayMaxStr,
+          allowInput: true,
+          defaultDate: patient.birthday || null,
+          onChange: (selectedDates, dateStr) => {
+            setPatient(p => ({ ...p, birthday: dateStr }));
+          },
+          locale: {
+            firstDayOfWeek: 0
+          }
+        });
+        flatpickrRef.current = fp;
+      } catch (err) {
+        // ignore — fallback to native input if anything goes wrong
+      }
+    };
+    setup();
+    return () => { mounted = false; try { flatpickrRef.current && flatpickrRef.current.destroy(); } catch(_) {} };
+  }, [birthdayMaxStr]);
 
   // Helper: ensure user is logged in and has at least one verified (email or phone)
   const ensureAuthenticatedAndVerified = () => {
@@ -585,7 +628,12 @@ export function BookAppointment() {
       try {
         const created = await appointmentsService.create(record);
         await appointmentsService.indexAppointmentBySlot(record.SERVICE_ID, record.DATE_OF_APPOINTMENT, record.TIME_SLOT, created.id);
+        // Show the standard success modal
         showModal({ type:'success', title:'Appointment submitted', message:"Your appointment request was received and is now pending admin approval. You'll get an email when it's approved." });
+        // Save the created record to allow download/print and open post-submit modal
+        const saved = { ...record, id: created.id };
+        setLastAppointment(saved);
+        setPostSubmitOpen(true);
       } catch (err) {
         await appointmentsService.releaseSlot(record.SERVICE_ID, record.DATE_OF_APPOINTMENT, record.TIME_SLOT);
         showModal({ type:'error', title:'Submission failed', message:'Failed to submit appointment. Please try again.' });
@@ -595,6 +643,60 @@ export function BookAppointment() {
     } finally {
       setRulesOpen(false);
       setBooking(false);
+    }
+  };
+
+  // Helpers for download / print
+  const buildAppointmentHtml = (appt) => {
+    if (!appt) return '';
+    const rows = [
+      ['Appointment ID', appt.id || '-'],
+      ['Service', appt.SERVICE_NAME || '-'],
+      ['Type', appt.SERVICE_TYPE || '-'],
+      ['Date', appt.DATE_OF_APPOINTMENT || '-'],
+      ['Time', appt.TIME_SLOT || '-'],
+      ['Patient', `${appt.FIRST_NAME || ''} ${appt.LAST_NAME || ''}`.trim() || '-'],
+      ['Phone', appt.PHONE || '-'],
+      ['Email', appt.EMAIL || '-'],
+      ['Birthday', appt.BIRTHDAY || '-'],
+      ['Gender', appt.GENDER || '-'],
+      ['Chief Complaint', appt.CHIEF_COMPLAINT || '-'],
+      ['Special Instructions', appt.SPECIAL_INSTRUCTIONS || '-'],
+    ];
+    const htmlRows = rows.map(r => `<tr><td style="padding:8px 12px;border:1px solid #eee;font-weight:600;background:#fafafa;">${r[0]}</td><td style="padding:8px 12px;border:1px solid #eee;">${r[1]}</td></tr>`).join('');
+    return `<!doctype html><html><head><meta charset="utf-8"><title>Appointment ${appt.id||''}</title></head><body style="font-family: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial; color:#0f172a;"><div style="max-width:720px;margin:24px auto;padding:20px;border:1px solid #eef2f7;border-radius:10px;"><h2 style="margin:0 0 8px 0;color:#0f172a;">Appointment Confirmation</h2><p style="margin:0 0 14px 0;color:#475569;">Save or print this confirmation. You'll also receive an email when your appointment is approved.</p><table style="width:100%;border-collapse:collapse;margin-top:8px;">${htmlRows}</table><div style="margin-top:18px;color:#6b7280;font-size:0.9rem;">Please arrive 10 minutes early. Bring any necessary documents and present your ID at the front desk.</div></div></body></html>`;
+  };
+
+  const printAppointment = (appt) => {
+    const html = buildAppointmentHtml(appt);
+    try {
+      // Create a hidden iframe to print from (does not open a new tab)
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.right = '0';
+      iframe.style.bottom = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = '0';
+      document.body.appendChild(iframe);
+      const doc = iframe.contentWindow.document;
+      doc.open();
+      doc.write(html);
+      doc.close();
+      const win = iframe.contentWindow;
+      // Give browser a moment to render
+      setTimeout(() => {
+        try {
+          win.focus();
+          win.print();
+        } catch (err) {
+          showModal({ type: 'error', title: 'Print failed', message: 'Unable to open the print dialog. Please check your browser settings.' });
+        } finally {
+          setTimeout(() => { try { document.body.removeChild(iframe); } catch(_) {} }, 500);
+        }
+      }, 300);
+    } catch (err) {
+      showModal({ type: 'error', title: 'Print failed', message: 'Unable to open the print dialog. Please try using your browser print.' });
     }
   };
 
@@ -717,20 +819,28 @@ export function BookAppointment() {
         <form onSubmit={onSubmit} className={styles.form}>
           <h3>Your Booking Details</h3>
           <div className={styles.formGrid}>
-            <div className={styles.formGroup}><label className={styles.label}>First Name</label><input className={styles.input} value={patient.firstName} onChange={(e)=>setPatient(p=>({...p,firstName:e.target.value}))} required /></div>
-            <div className={styles.formGroup}><label className={styles.label}>Last Name</label><input className={styles.input} value={patient.lastName} onChange={(e)=>setPatient(p=>({...p,lastName:e.target.value}))} required /></div>
+            <div className={styles.formGroup}><label className={styles.label}>First Name</label><input className={styles.input} value={patient.firstName} onChange={(e)=>setPatient(p=>({...p,firstName:e.target.value}))} required autoComplete="off" name="firstName" /></div>
+            <div className={styles.formGroup}><label className={styles.label}>Last Name</label><input className={styles.input} value={patient.lastName} onChange={(e)=>setPatient(p=>({...p,lastName:e.target.value}))} required autoComplete="off" name="lastName" /></div>
             <div className={styles.formGroup}><label className={styles.label}>Phone</label><input className={styles.input} type="tel" value={patient.phone} onChange={(e)=>setPatient(p=>({...p,phone:e.target.value}))} /></div>
-            <div className={styles.formGroup}><label className={styles.label}>Email</label><input className={styles.input} type="email" value={patient.email} onChange={(e)=>setPatient(p=>({...p,email:e.target.value}))} /></div>
+            <div className={styles.formGroup}>
+              <label className={styles.label}>Email</label>
+              <input className={styles.input} type="email" value={patient.email} onChange={(e)=>setPatient(p=>({...p,email:e.target.value}))} autoComplete="email" name="email" />
+              <div className={styles.smallNote} style={{ marginTop: 6 }}>We'll send booking confirmations and important notifications to this email address.</div>
+            </div>
             <div className={styles.formGroup}>
               <label className={styles.label}>Birthday</label>
-              <input
-                className={styles.input}
-                type="date"
-                value={patient.birthday}
-                onChange={(e)=>setPatient(p=>({...p,birthday:e.target.value}))}
-                max={birthdayMaxStr}
-                required
-              />
+              <div className={styles.dateInputWrap}>
+                <input
+                  ref={birthdayRef}
+                  className={styles.input}
+                  type="text"
+                  placeholder="mm/dd/yyyy"
+                  value={patient.birthday}
+                  onChange={(e)=>setPatient(p=>({...p,birthday:e.target.value}))}
+                  required
+                />
+                <button type="button" className={styles.dateIconBtn} onClick={() => { try { if (flatpickrRef.current && flatpickrRef.current.open) flatpickrRef.current.open(); else birthdayRef.current && birthdayRef.current.focus(); } catch(_){} }} aria-label="Open date picker">📅</button>
+              </div>
               <div className={styles.smallNote}>
                 {minAgeDays > 0 ? `Must be at least ${minAgeDays} day(s) old.` : `Newborns allowed (today's date is okay).`}
               </div>
@@ -825,6 +935,44 @@ export function BookAppointment() {
                 </button>
               ) : null}
               <button type="button" className={styles.ghostBtn} onClick={closeModal}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Post-submit download / print modal */}
+      {postSubmitOpen && lastAppointment && (
+        <div
+          className={styles.modalOverlay}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="postSubmitTitle"
+          onClick={(e) => { if (e.target === e.currentTarget) setPostSubmitOpen(false); }}
+        >
+          <div className={styles.modalCard} style={{ maxWidth: 640 }}>
+            <div className={styles.modalTop}>
+              <div className={styles.modalIconWrap} style={{ background:'#ecfdf5', color:'#065f46' }} aria-hidden>✓</div>
+              <div>
+                <div id="postSubmitTitle" className={styles.modalTitle}>Appointment submitted — Save or print</div>
+                <div className={styles.modalSubtitle}>You may download or print your appointment confirmation now. This contains your booking and service details for your records.</div>
+              </div>
+            </div>
+            <div className={styles.modalBody}>
+              <div style={{ marginBottom: 12, color: '#374151' }}>
+                <strong>{lastAppointment.SERVICE_NAME || 'Service'}</strong>
+                <div style={{ color: '#6b7280', marginTop:6 }}>Date: <strong>{lastAppointment.DATE_OF_APPOINTMENT}</strong> • Time: <strong>{lastAppointment.TIME_SLOT}</strong></div>
+              </div>
+              <div style={{ background: '#fafbff', border: '1px solid #eef2f7', padding: 10, borderRadius: 8, marginBottom: 12 }}>
+                <div style={{ color:'#6b7280', fontSize: '.95rem', marginBottom:6 }}>Patient</div>
+                <div style={{ fontWeight:700 }}>{`${lastAppointment.FIRST_NAME || ''} ${lastAppointment.LAST_NAME || ''}`.trim() || '-'}</div>
+                <div style={{ color:'#6b7280', marginTop:6 }}>Phone: {lastAppointment.PHONE || '-'}</div>
+                <div style={{ color:'#6b7280' }}>Email: {lastAppointment.EMAIL || '-'}</div>
+              </div>
+              <div style={{ color:'#6b7280', fontSize:'.95rem' }}>You will receive an email when your appointment is approved. Keep this confirmation for your records.</div>
+            </div>
+            <div className={styles.modalActions}>
+              <button type="button" className={styles.primaryBtn} onClick={() => { printAppointment(lastAppointment); }}>Print</button>
+              <button type="button" className={styles.ghostBtn} onClick={() => setPostSubmitOpen(false)}>Close</button>
             </div>
           </div>
         </div>
