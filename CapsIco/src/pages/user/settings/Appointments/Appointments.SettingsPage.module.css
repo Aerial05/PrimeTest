@@ -103,3 +103,9 @@
 
 /* Action buttons spacing */
 .actionsCell { display: flex; gap: 10px; align-items: center; }
+
+/* Pagination */
+.pagination { display:flex; gap:8px; align-items:center; justify-content:center; margin-top:12px; }
+.pageBtn { border:1px solid #e5e7eb; background:#fff; padding:6px 10px; border-radius:8px; cursor:pointer; }
+.pageBtn:disabled { opacity:.5; cursor:not-allowed; }
+.pageBtnActive { background: var(--primary-color); color:#fff; border-color: transparent; }

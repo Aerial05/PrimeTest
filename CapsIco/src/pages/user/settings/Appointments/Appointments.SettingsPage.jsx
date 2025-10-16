@@ -22,6 +22,9 @@ export function AppointmentsSettingsPage() {
   const [feedbackOpen, setFeedbackOpen] = useState({});
   const [feedbackDraft, setFeedbackDraft] = useState({});
   const [submittingId, setSubmittingId] = useState('');
+  // Pagination
+  const [page, setPage] = useState(1);
+  const pageSize = 9;
 
   const [cancelId, setCancelId] = useState('');
   const [cancelReason, setCancelReason] = useState('');
@@ -220,6 +223,17 @@ export function AppointmentsSettingsPage() {
     });
     return sorted;
   }, [items, status, query, sort]);
+
+  // Reset to first page when filters/search change
+  useEffect(() => {
+    setPage(1);
+  }, [status, query, sort, items]);
+
+  const totalPages = Math.max(1, Math.ceil((filtered || []).length / pageSize));
+  const paged = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return (filtered || []).slice(start, start + pageSize);
+  }, [filtered, page]);
 
   const setDraftRating = (id, key, value) => {
     setFeedbackDraft((prev) => {
@@ -458,7 +472,7 @@ export function AppointmentsSettingsPage() {
                 <td className={styles.empty} colSpan="6">No records found.</td>
               </tr>
             ) : (
-              filtered.map((row) => (
+              paged.map((row) => (
                 <React.Fragment key={row.id}>
                   <tr
                     className={styles.clickRow}
@@ -659,6 +673,23 @@ export function AppointmentsSettingsPage() {
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Pagination controls */}
+      <div className={styles.pagination} aria-label="Appointments pagination">
+        <button type="button" className={styles.pageBtn} onClick={() => setPage((p) => Math.max(1, p-1))} disabled={page === 1}>Prev</button>
+        {Array.from({ length: totalPages }).map((_, i) => {
+          const p = i+1;
+          return (
+            <button
+              key={`pg-${p}`}
+              type="button"
+              className={`${styles.pageBtn} ${p === page ? styles.pageBtnActive : ''}`}
+              onClick={() => setPage(p)}
+            >{p}</button>
+          );
+        })}
+        <button type="button" className={styles.pageBtn} onClick={() => setPage((p) => Math.min(totalPages, p+1))} disabled={page === totalPages}>Next</button>
       </div>
 
       {cancelId && (
