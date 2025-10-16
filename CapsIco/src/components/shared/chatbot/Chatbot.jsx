@@ -325,6 +325,40 @@ export function Chatbot() {
         await sendStepsBotMessage();
         return;
       }
+
+      // Client-side off-topic / brand detection: if user explicitly asks about PrimeLab or the query
+      // doesn't look related to services/health, reply with a short polite denial locally and
+      // avoid invoking the AI (prevents hallucination on unrelated topics).
+      try {
+        const offTopicPatterns = [/\bprimelab\b/i, /\bprime lab\b/i, /\bwho\s+are\s+you\b/i, /\babout\s+prime/i, /\babout\s+primelab/i, /\bcareers?\b/i, /\bjob?s?\b/i, /\binvestor?s?\b/i];
+        if (offTopicPatterns.some((rx) => rx.test(text))) {
+          const botMsg = {
+            id: Date.now() + 1,
+            text: 'Sorry — I can only help with clinic services, pricing, bookings, and directions. For questions about PrimeLab as an organization or other unrelated topics, please contact the clinic directly or visit the About page on our site.',
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages(prev => [...prev, botMsg]);
+          return;
+        }
+
+        // Conservative non-service heuristic: if the query contains none of the common service/health keywords
+        // and is fairly short, treat as off-topic. This avoids false positives on longer, contextual queries.
+        const serviceKeywords = ['test','appointment','book','price','philhealth','clinic','lab','blood','cbc','urinalysis','x-ray','xray','vaccine','result','report','package','service','directions','location','contact','schedule','fee','cost','walk-in','opening','hours','phone','address'];
+        const hasServiceKeyword = serviceKeywords.some(k => quick.includes(k));
+        if (!hasServiceKeyword && String(text || '').trim().length > 0 && String(text || '').trim().length < 120) {
+          const botMsg = {
+            id: Date.now() + 1,
+            text: 'I focus on appointments, services, pricing, and clinic information. For other topics, please check our About page or contact the clinic directly.',
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages(prev => [...prev, botMsg]);
+          return;
+        }
+      } catch (e) {
+        // ignore detection errors and fall through to AI call
+      }
     } catch (_) {}
 
     // Show typing indicator
